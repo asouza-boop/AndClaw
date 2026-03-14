@@ -22,10 +22,15 @@
   },
   "homepage": "https://github.com/asouza-boop/antigravity_2.0#readme",
   "dependencies": {
+    "@notionhq/client": "^5.13.0",
+    "@types/pdf-parse": "^1.1.5",
     "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.1",
+    "glob": "^13.0.6",
     "grammy": "^1.41.1",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.1.1",
+    "pdf-parse": "^2.4.5",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

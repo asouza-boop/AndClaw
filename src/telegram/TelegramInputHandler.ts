@@ -1,6 +1,10 @@
-import { Bot } from 'grammy';
+import { Bot, Context } from 'grammy';
 import { AgentController } from '../core/AgentController';
 import { config } from '../config/env';
+import fs from 'fs';
+import path from 'path';
+const pdf = require('pdf-parse');
+import * as XLSX from 'xlsx';
 
 export class TelegramInputHandler {
     private bot: Bot;
@@ -19,7 +23,6 @@ export class TelegramInputHandler {
 
             if (!config.telegram.allowedUsers.includes(userId)) {
                 console.warn(`[TelegramInput] Tentativa de acesso bloqueado do UID: ${userId}`);
-                // Ignora silenciosamente, sem consumir tokens com respostas
                 return;
             }
             await next();
@@ -27,31 +30,94 @@ export class TelegramInputHandler {
 
         // Main Text Handler
         this.bot.on('message:text', async (ctx) => {
-            const userId = ctx.from.id.toString();
-            const text = ctx.message.text;
-
-            console.log(`[TelegramInput] Recebido de ${userId}: ${text}`);
-
-            // Set typing chat action
-            ctx.replyWithChatAction('typing').catch(console.error);
-            const typingInterval = setInterval(() => {
-                ctx.replyWithChatAction('typing').catch(console.error);
-            }, 4000); // Telegram requires chat actions to be sent every 5s max
-
-            try {
-               const response = await this.controller.processInput(userId, text);
-               
-               clearInterval(typingInterval);
-               await ctx.reply(response, { parse_mode: 'Markdown' });
-
-            } catch (e: any) {
-               clearInterval(typingInterval);
-               console.error(`[TelegramInput] Erro ao processar mensagem:`, e);
-               await ctx.reply(`[Sistema] Ocorreu um erro interno ao processar seu comando: ${e.message}`);
-            }
+            await this.handleInput(ctx, ctx.message.text);
         });
 
-        // Basic Info Commmands
+        // Voice and Audio Handler
+        this.bot.on(['message:voice', 'message:audio'], async (ctx) => {
+            const userId = ctx.from.id.toString();
+            console.log(`[TelegramInput] Recebido áudio de ${userId}`);
+
+            ctx.replyWithChatAction('record_voice').catch(console.error);
+            const typingInterval = this.startTypingEffect(ctx, 'record_voice');
+
+            try {
+                const file = await ctx.getFile();
+                const filePath = file.file_path;
+                const url = `https://api.telegram.org/file/bot${config.telegram.token}/${filePath}`;
+                
+                const fileResp = await fetch(url);
+                const buffer = Buffer.from(await fileResp.arrayBuffer());
+                const base64Audio = buffer.toString('base64');
+                const mimeType = ctx.message.voice ? 'audio/ogg' : (ctx.message.audio?.mime_type || 'audio/mpeg');
+
+                const response = await this.controller.processInput(
+                    userId, 
+                    `[Mensagem de Áudio Recebida]`, 
+                    { 
+                        requires_audio_reply: true,
+                        audioData: base64Audio,
+                        mimeType: mimeType
+                    }
+                );
+                
+                clearInterval(typingInterval);
+                await this.safeReply(ctx, response);
+
+        } catch (e: any) {
+            clearInterval(typingInterval);
+            console.error(`[TelegramInput] Erro ao processar áudio:`, e);
+            await this.safeReply(ctx, `[Sistema] Erro ao processar seu áudio: ${e.message}`);
+        }
+    });
+
+    // Document Handler (PDF, MD, Excel)
+    this.bot.on('message:document', async (ctx) => {
+        const userId = ctx.from.id.toString();
+        const doc = ctx.message.document;
+        const fileName = doc.file_name || 'documento';
+        
+        console.log(`[TelegramInput] Recebido documento de ${userId}: ${fileName}`);
+
+        ctx.replyWithChatAction('typing').catch(console.error);
+        const typingInterval = this.startTypingEffect(ctx, 'typing');
+
+        try {
+            const file = await ctx.getFile();
+            const url = `https://api.telegram.org/file/bot${config.telegram.token}/${file.file_path}`;
+            const response = await fetch(url);
+            const buffer = Buffer.from(await response.arrayBuffer());
+
+            let content = '';
+            if (fileName.endsWith('.pdf')) {
+                const data = await pdf(buffer);
+                content = data.text;
+            } else if (fileName.endsWith('.md') || fileName.endsWith('.txt')) {
+                content = buffer.toString('utf-8');
+            } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+                const workbook = XLSX.read(buffer, { type: 'buffer' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                content = XLSX.utils.sheet_to_csv(worksheet);
+            } else {
+                clearInterval(typingInterval);
+                return ctx.reply("⚠️ No momento, só consigo processar texto estruturado (.md), áudio, PDF e Excel.");
+            }
+
+            const fullInput = `Arquivo: ${fileName}\nConteúdo:\n${content}\n\nLegenda: ${ctx.message.caption || ''}`;
+            const result = await this.controller.processInput(userId, fullInput);
+            
+            clearInterval(typingInterval);
+            await this.safeReply(ctx, result);
+
+        } catch (e: any) {
+            clearInterval(typingInterval);
+            console.error(`[TelegramInput] Erro ao processar documento:`, e);
+            await this.safeReply(ctx, `[Sistema] Erro ao processar seu documento: ${e.message}`);
+        }
+    });
+
+        // Basic Info Commands
         this.bot.command('start', (ctx) => {
             ctx.reply(`👋 Olá Sandeco! Sou o AndClaw, seu agente local.\nUse /ping para status.`);
         });
@@ -64,5 +130,56 @@ export class TelegramInputHandler {
         this.bot.catch((err) => {
             console.error(`[Telegram Global Error]:`, err);
         });
+    }
+
+    private async handleInput(ctx: Context, text: string) {
+        const userId = ctx.from?.id.toString();
+        if (!userId) return;
+
+        console.log(`[TelegramInput] Recebido de ${userId}: ${text}`);
+
+        ctx.replyWithChatAction('typing').catch(console.error);
+        const typingInterval = this.startTypingEffect(ctx, 'typing');
+
+        try {
+            const response = await this.controller.processInput(userId, text);
+            clearInterval(typingInterval);
+            await this.safeReply(ctx, response);
+        } catch (e: any) {
+            clearInterval(typingInterval);
+            console.error(`[TelegramInput] Erro ao processar mensagem:`, e);
+            await this.safeReply(ctx, `[Sistema] Ocorreu um erro interno: ${e.message}`);
+        }
+    }
+
+    private startTypingEffect(ctx: Context, action: 'typing' | 'record_voice' = 'typing') {
+        return setInterval(() => {
+            ctx.replyWithChatAction(action).catch(console.error);
+        }, 4000);
+    }
+
+    /**
+     * Tries to send a Markdown message. If Telegram rejects it (bad entities),
+     * retries as plain text — no more 400 crashes from error messages with JSON.
+     */
+    private async safeReply(ctx: Context, text: string): Promise<void> {
+        if (!text || text.trim().length === 0) {
+            console.warn('[TelegramInput] Tentativa de enviar mensagem vazia. Ignorando.');
+            return;
+        }
+
+        try {
+            await ctx.reply(text, { parse_mode: 'Markdown' });
+        } catch (e: any) {
+            // Em caso de QUALQUER erro (Markdown, rede, etc), tenta texto plano.
+            console.warn('[TelegramInput] Falha no reply (Markdown), tentando texto plano:', e.message);
+            try {
+                // Remove caracteres que costumam quebrar o Markdown apenas para garantir
+                const safeText = text.replace(/[*_`]/g, '');
+                await ctx.reply(safeText);
+            } catch (innerError: any) {
+                console.error('[TelegramInput] Falha crítica ao enviar resposta final:', innerError.message);
+            }
+        }
     }
 }

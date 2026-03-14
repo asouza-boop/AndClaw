@@ -9,6 +9,9 @@ export interface ITool {
     execute(args: any): Promise<string>;
 }
 
+import { UpdateProfileTool, DeleteProfileTool } from './tools/ProfileTool';
+import { NotionTool } from './tools/NotionTool';
+
 export class ToolRegistry {
     private tools: Map<string, ITool> = new Map();
 
@@ -16,6 +19,14 @@ export class ToolRegistry {
         // Register default base tools
         this.registerTool(new FileSystemReadTool());
         this.registerTool(new FileSystemWriteTool());
+        this.registerTool(new LSTool());
+        this.registerTool(new GlobTool());
+        this.registerTool(new GrepTool());
+        
+        // Register Memory & Integration tools
+        this.registerTool(new UpdateProfileTool());
+        this.registerTool(new DeleteProfileTool());
+        this.registerTool(new NotionTool());
     }
 
     public registerTool(tool: ITool) {
@@ -34,6 +45,7 @@ export class ToolRegistry {
 // Minimal implementation of default tools for the Agent Loop tests
 import fs from 'fs';
 import path from 'path';
+import { glob } from 'glob';
 import { config } from '../config/env';
 
 class FileSystemReadTool implements ITool {
@@ -71,6 +83,73 @@ class FileSystemWriteTool implements ITool {
             return `Arquivo salvo com sucesso em ${absolute}`;
         } catch (e: any) {
             return `Erro ao escrever arquivo: ${e.message}`;
+        }
+    }
+}
+
+class LSTool implements ITool {
+    name = "ls";
+    description = "Lista o conteúdo de um diretório.";
+    parameters = {
+        type: "object",
+        properties: { 
+            path: { type: "string", description: "Caminho do diretório (padrão: .)" } 
+        }
+    };
+
+    async execute({ path: dirPath = "." }: { path?: string }): Promise<string> {
+        try {
+            const absolute = path.resolve(process.cwd(), dirPath);
+            const files = fs.readdirSync(absolute);
+            return files.join('\n');
+        } catch (e: any) {
+            return `Erro ao listar diretório: ${e.message}`;
+        }
+    }
+}
+
+class GlobTool implements ITool {
+    name = "glob";
+    description = "Busca arquivos usando padrões glob (ex: **/*.ts).";
+    parameters = {
+        type: "object",
+        properties: { 
+            pattern: { type: "string", description: "Padrão de busca" } 
+        },
+        required: ["pattern"]
+    };
+
+    async execute({ pattern }: { pattern: string }): Promise<string> {
+        try {
+            const matches = await glob(pattern, { cwd: process.cwd(), nodir: true });
+            return matches.join('\n');
+        } catch (e: any) {
+            return `Erro ao executar glob: ${e.message}`;
+        }
+    }
+}
+
+class GrepTool implements ITool {
+    name = "grep";
+    description = "Procura por um padrão de texto dentro de arquivos.";
+    parameters = {
+        type: "object",
+        properties: { 
+            pattern: { type: "string", description: "Regex ou texto de busca" },
+            path: { type: "string", description: "Arquivo ou diretório de busca" }
+        },
+        required: ["pattern", "path"]
+    };
+
+    async execute({ pattern, path: searchPath }: { pattern: string, path: string }): Promise<string> {
+        try {
+            // Implementation shortcut using grep command if on unix
+            const { execSync } = require('child_process');
+            const cmd = `grep -r -E "${pattern}" "${searchPath}" | head -n 20`;
+            const output = execSync(cmd).toString();
+            return output || "Nenhum resultado encontrado.";
+        } catch (e: any) {
+             return `Erro ao executar grep: ${e.message}`;
         }
     }
 }

@@ -10,7 +10,7 @@ export class SkillRouter {
   public async route(input: string, availableSkills: Skill[]): Promise<Skill | null> {
     if (availableSkills.length === 0) return null;
 
-    const provider = ProviderFactory.getProvider(config.llm.defaultProvider);
+    const provider = ProviderFactory.getChain();
     await provider.initialize();
 
     const skillsPrompt = availableSkills.map(s => `- ${s.metadata.name}: ${s.metadata.description}`).join('\n');

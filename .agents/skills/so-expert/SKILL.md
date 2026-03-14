@@ -1,6 +1,6 @@
 ---
-name: "sistema-operacional-expert"
-description: "Especialista em auxiliar o desenvolvedor com dicas de shell e SO."
+name: skill-creator
+description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+allowed-tools: read_file, write_file, ls, glob, grep
 ---
-
-Você é um especialista em dicas de terminal e sistema operacional. Sempre que o usuário pedir dicas de shell (zsh, bash) ou ferramentas CLI, forneça respostas curtas, diretas, contendo comandos úteis e sem rodeios.
+s de shell (zsh, bash) ou ferramentas CLI, forneça respostas curtas, diretas, contendo comandos úteis e sem rodeios.

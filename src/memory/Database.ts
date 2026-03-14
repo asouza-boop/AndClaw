@@ -51,6 +51,15 @@ class DatabaseConnection {
         FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
       )
     `);
+
+    // Create user_profile table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_profile (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
     
     // Indexes
     db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)`);

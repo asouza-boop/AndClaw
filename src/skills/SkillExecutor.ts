@@ -12,7 +12,8 @@ export class SkillExecutor {
         input: string, 
         skill: Skill | null, 
         conversationHistory: Array<{role: string, content: string}>,
-        providerName: string
+        providerName: string,
+        options: any = {}
     ): Promise<string> {
         const registry = new ToolRegistry(); // Initialize default tools
         let basePrompt = "Você é o AndClaw, um agente assistente inteligente projetado para o usuário Sandeco. Você roda localmente e tem acesso a ferramentas locais.\n";
@@ -24,7 +25,7 @@ export class SkillExecutor {
         }
 
         const loop = new AgentLoop(providerName, registry);
-        const finalAnswer = await loop.run(basePrompt, conversationHistory, input);
+        const finalAnswer = await loop.run(basePrompt, conversationHistory, input, options);
         
         return finalAnswer;
     }

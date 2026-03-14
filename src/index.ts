@@ -1,5 +1,5 @@
 import { Bot } from 'grammy';
-import { config } from '../config/env';
+import { config } from './config/env';
 import { TelegramInputHandler } from './telegram/TelegramInputHandler';
 
 async function bootstrap() {

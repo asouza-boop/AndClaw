@@ -1,16 +1,19 @@
 import { ProviderFactory } from '../providers/ProviderFactory';
 import { ToolRegistry } from './ToolRegistry';
 import { config } from '../config/env';
+import { ProfileRepository } from '../memory/repositories/ProfileRepository';
 
 export class AgentLoop {
     private providerName: string;
     private registry: ToolRegistry;
     private maxIterations: number;
+    private profileRepo: ProfileRepository;
 
     constructor(providerName: string, registry: ToolRegistry) {
         this.providerName = providerName;
         this.registry = registry;
         this.maxIterations = config.llm.maxIterations || 5;
+        this.profileRepo = new ProfileRepository();
     }
 
     /**
@@ -19,13 +22,30 @@ export class AgentLoop {
     public async run(
         systemPrompt: string, 
         history: Array<{role: string, content: string}>,
-        userInput: string
+        userInput: string,
+        options: any = {}
     ): Promise<string> {
         
-        const provider = ProviderFactory.getProvider(this.providerName);
-        await provider.initialize();
+        // Fetch User Profile and inject into system prompt
+        const profile = this.profileRepo.getAll();
+        if (profile.length > 0) {
+            const profileText = profile.map(p => `- ${p.key}: ${p.value}`).join('\n');
+            systemPrompt = `${systemPrompt}\n\n[MEMÓRIA DE PERFIL DO USUÁRIO]\n${profileText}\n[FIM DA MEMÓRIA]`;
+        }
 
-        const messages = [...history, { role: 'user', content: userInput }];
+        const provider = ProviderFactory.getChain();
+        // No need to call initialize() here — ProviderChain handles it per-provider lazily
+
+        const messages = [...history];
+        const lastUserMessage = { role: 'user', content: userInput } as any;
+
+        // Se houver áudio nas opções, injeta na última mensagem do usuário (ou na atual)
+        if (options.audioData) {
+            lastUserMessage.audioData = options.audioData;
+            lastUserMessage.mimeType = options.mimeType;
+        }
+        
+        messages.push(lastUserMessage);
         const availableTools = this.registry.getAllTools().map(t => ({
             name: t.name,
             description: t.description,
@@ -83,7 +103,7 @@ export class AgentLoop {
 
             } catch (e: any) {
                 console.error(`[AgentLoop] Loop crash, falling back.`, e);
-                return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}: ${e.message}`;
+                return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
             }
         }
 

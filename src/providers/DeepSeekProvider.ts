@@ -71,7 +71,7 @@ export class DeepSeekProvider implements ILLMProvider {
       }));
 
       return {
-        text: message.content || '',
+        text: message.content || 'Nenhuma resposta gerada pelo DeepSeek.',
         toolCalls
       };
       
