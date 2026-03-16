@@ -26,6 +26,7 @@ export const config = {
   },
   server: {
     port: parseInt(process.env.PORT || '3000', 10),
+    allowedOrigin: process.env.ALLOWED_ORIGIN || '',
   },
   google: {
     accountsJson: process.env.GOOGLE_ACCOUNTS_JSON || '[]',

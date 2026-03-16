@@ -4,10 +4,15 @@ import path from 'path';
 import routes from './routes';
 import { authMiddleware } from './auth';
 import { bootstrapGuard } from './admin';
+import { config } from '../config/env';
 
 export function createApp() {
   const app = express();
-  app.use(cors());
+  const allowedOrigin = config.server.allowedOrigin;
+  app.use(cors({
+    origin: allowedOrigin || false,
+    credentials: true,
+  }));
   app.use(express.json({ limit: '5mb' }));
 
   const publicDir = path.join(process.cwd(), 'public');
