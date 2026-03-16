@@ -374,6 +374,7 @@ async function loadAdmin() {
       : 'Nao conectado';
     document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
     document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+    document.getElementById('status-raindrop').innerHTML = data.raindrop ? 'OK' : 'Nao configurado';
     document.getElementById('status-deploy').innerHTML = data.deploy?.last
       ? new Date(data.deploy.last).toLocaleString()
       : 'Nenhum';
@@ -505,6 +506,8 @@ cfgSave.addEventListener('click', async () => {
     VAPID_PRIVATE_KEY: document.getElementById('cfg-vapid-private').value.trim(),
     VAPID_CONTACT_EMAIL: document.getElementById('cfg-vapid-email').value.trim(),
     RENDER_DEPLOY_HOOK_URL: document.getElementById('cfg-render-hook').value.trim(),
+    RAINDROP_TOKEN: document.getElementById('cfg-raindrop-token').value.trim(),
+    RAINDROP_COLLECTION_ID: document.getElementById('cfg-raindrop-collection').value.trim(),
   };
 
   try {
@@ -523,6 +526,191 @@ cfgDeploy.addEventListener('click', async () => {
   try {
     await apiFetch('/api/deploy', { method: 'POST' });
     showBanner('Deploy disparado.');
+  } catch (err) {
+    showError(err);
+  }
+});
+
+function parseList(value) {
+  return value.split(',').map(v => v.trim()).filter(Boolean);
+}
+
+async function loadSkills() {
+  try {
+    const res = await apiFetch('/api/skills');
+    const data = await res.json();
+    const list = document.getElementById('skills-list');
+    list.innerHTML = (data.items || []).map(item => `
+      <div class="card">
+        <strong>${item.title}</strong>
+        <div>${item.slug}</div>
+        <div>${item.description || ''}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadAgents() {
+  try {
+    const res = await apiFetch('/api/agents');
+    const data = await res.json();
+    const items = data.items || [];
+    const groups = {
+      estrategico: document.getElementById('agents-estrategico'),
+      tatico: document.getElementById('agents-tatico'),
+      operacional: document.getElementById('agents-operacional'),
+    };
+    Object.values(groups).forEach(el => { if (el) el.innerHTML = ''; });
+
+    items.forEach(agent => {
+      const level = (agent.level || 'Estrategico').toLowerCase();
+      const target = groups[level] || groups.estrategico;
+      const tags = (agent.tags || []).map(t => `<span class="tag-pill">${t.name}</span>`).join('');
+      const areas = (agent.areas || []).map(a => `<span class="tag-pill">${a}</span>`).join('');
+      const skills = (agent.skills || []).map(s => `<span class="tag-pill">${s}</span>`).join('');
+      const card = document.createElement('div');
+      card.className = 'agent-card';
+      card.innerHTML = `
+        <strong>${agent.name}</strong>
+        <div>${agent.status || ''}</div>
+        <div><small>Areas</small></div>
+        <div class="tag-row">${areas}</div>
+        <div><small>Skills</small></div>
+        <div class="tag-row">${skills}</div>
+        <div><small>Tags</small></div>
+        <div class="tag-row">${tags}</div>
+      `;
+      target.appendChild(card);
+    });
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById('agent-save').addEventListener('click', async () => {
+  const payload = {
+    name: document.getElementById('agent-name').value.trim(),
+    level: document.getElementById('agent-level').value.trim(),
+    status: document.getElementById('agent-status').value.trim(),
+    areas: parseList(document.getElementById('agent-areas').value),
+    skills: parseList(document.getElementById('agent-skills').value),
+    tags: parseList(document.getElementById('agent-tags').value),
+    description: document.getElementById('agent-description').value.trim(),
+  };
+  if (!payload.name) return showBanner('Informe o nome do agente.');
+  try {
+    await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
+    document.getElementById('agent-name').value = '';
+    document.getElementById('agent-description').value = '';
+    await loadAgents();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+async function loadTags() {
+  try {
+    const res = await apiFetch('/api/tags');
+    const data = await res.json();
+    const list = document.getElementById('tags-list');
+    list.innerHTML = (data.items || []).map(tag => `<div>${tag.name}</div>`).join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById('tag-save').addEventListener('click', async () => {
+  const name = document.getElementById('tag-name').value.trim();
+  const color = document.getElementById('tag-color').value.trim();
+  if (!name) return;
+  try {
+    await apiFetch('/api/tags', { method: 'POST', body: JSON.stringify({ name, color }) });
+    document.getElementById('tag-name').value = '';
+    document.getElementById('tag-color').value = '';
+    await loadTags();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+async function loadLinks() {
+  try {
+    const res = await apiFetch('/api/links');
+    const data = await res.json();
+    const list = document.getElementById('links-list');
+    list.innerHTML = (data.items || []).map(link => `
+      <div>${link.from_type}#${link.from_id} → ${link.to_type}#${link.to_id} ${link.label ? `(${link.label})` : ''}</div>
+    `).join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById('link-save').addEventListener('click', async () => {
+  const payload = {
+    from_type: document.getElementById('link-from-type').value.trim(),
+    from_id: document.getElementById('link-from-id').value.trim(),
+    to_type: document.getElementById('link-to-type').value.trim(),
+    to_id: document.getElementById('link-to-id').value.trim(),
+    label: document.getElementById('link-label').value.trim(),
+  };
+  if (!payload.from_type || !payload.from_id || !payload.to_type || !payload.to_id) {
+    return showBanner('Preencha todos os campos de link.');
+  }
+  try {
+    await apiFetch('/api/links', { method: 'POST', body: JSON.stringify(payload) });
+    document.getElementById('link-from-type').value = '';
+    document.getElementById('link-from-id').value = '';
+    document.getElementById('link-to-type').value = '';
+    document.getElementById('link-to-id').value = '';
+    document.getElementById('link-label').value = '';
+    await loadLinks();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+async function loadFavorites() {
+  try {
+    const res = await apiFetch('/api/favorites');
+    const data = await res.json();
+    const list = document.getElementById('favorites-list');
+    list.innerHTML = (data.items || []).map(fav => {
+      const tags = (fav.tags || []).map(t => `<span class="tag-pill">${t.name}</span>`).join('');
+      return `<div class="card">
+        <strong>${fav.title}</strong>
+        <div><a href="${fav.url}" target="_blank" rel="noreferrer">${fav.url}</a></div>
+        <div class="tag-row">${tags}</div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById('favorite-save').addEventListener('click', async () => {
+  const title = document.getElementById('favorite-title').value.trim();
+  const url = document.getElementById('favorite-url').value.trim();
+  const tags = parseList(document.getElementById('favorite-tags').value);
+  if (!title || !url) return showBanner('Informe titulo e URL.');
+  try {
+    await apiFetch('/api/favorites', { method: 'POST', body: JSON.stringify({ title, url, tags }) });
+    document.getElementById('favorite-title').value = '';
+    document.getElementById('favorite-url').value = '';
+    document.getElementById('favorite-tags').value = '';
+    await loadFavorites();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+document.getElementById('favorite-sync').addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
+    showBanner('Raindrop sincronizado.');
+    await loadFavorites();
   } catch (err) {
     showError(err);
   }
@@ -573,6 +761,11 @@ async function initApp() {
   await loadChatHistory();
   await loadMeetings();
   await loadAdmin();
+  await loadSkills();
+  await loadAgents();
+  await loadFavorites();
+  await loadTags();
+  await loadLinks();
 }
 
 initApp();

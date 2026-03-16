@@ -55,6 +55,9 @@ export function applyAppSettingsToConfig(settings: Record<string, string>): void
   config.push.vapidPublicKey = settings.VAPID_PUBLIC_KEY || config.push.vapidPublicKey;
   config.push.vapidPrivateKey = settings.VAPID_PRIVATE_KEY || config.push.vapidPrivateKey;
   config.push.contactEmail = settings.VAPID_CONTACT_EMAIL || config.push.contactEmail;
+
+  config.raindrop.token = settings.RAINDROP_TOKEN || config.raindrop.token;
+  config.raindrop.collectionId = settings.RAINDROP_COLLECTION_ID || config.raindrop.collectionId;
 }
 
 export async function loadAppSettings(): Promise<Record<string, string>> {

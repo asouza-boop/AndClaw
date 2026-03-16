@@ -26,7 +26,10 @@
         <button class="nav-item" data-view="chat">Chat</button>
         <button class="nav-item" data-view="agenda">Agenda</button>
         <button class="nav-item" data-view="projects">Projetos</button>
+        <button class="nav-item" data-view="agents">Agentes</button>
+        <button class="nav-item" data-view="skills">Skills</button>
         <button class="nav-item" data-view="meetings">Reuniões</button>
+        <button class="nav-item" data-view="favorites">Favoritos</button>
         <button class="nav-item" data-view="knowledge">Conhecimento</button>
         <button class="nav-item" data-view="archive">Arquivo</button>
         <button class="nav-item" data-view="admin">Admin</button>
@@ -111,6 +114,42 @@
         <div class="list" id="projects-list"></div>
       </section>
 
+      <section id="view-agents" class="view">
+        <h2>Agentes</h2>
+        <div class="panel">
+          <input id="agent-name" type="text" placeholder="Nome do agente" />
+          <input id="agent-level" type="text" placeholder="Nivel (Estrategico, Tatico, Operacional)" />
+          <input id="agent-status" type="text" placeholder="Status (ativo, desenvolvimento)" />
+          <input id="agent-areas" type="text" placeholder="Areas (separadas por virgula)" />
+          <input id="agent-skills" type="text" placeholder="Skills (slugs, separadas por virgula)" />
+          <input id="agent-tags" type="text" placeholder="Tags (separadas por virgula)" />
+          <textarea id="agent-description" placeholder="Descricao do agente..."></textarea>
+          <div class="modal-actions">
+            <button id="agent-save" class="btn primary">Criar agente</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <h3>1. Estrategico</h3>
+            <div class="agent-grid" id="agents-estrategico"></div>
+          </div>
+          <div class="card">
+            <h3>2. Tatico</h3>
+            <div class="agent-grid" id="agents-tatico"></div>
+          </div>
+          <div class="card">
+            <h3>3. Operacional</h3>
+            <div class="agent-grid" id="agents-operacional"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-skills" class="view">
+        <h2>Skills</h2>
+        <div class="list" id="skills-list"></div>
+      </section>
+
       <section id="view-meetings" class="view">
         <h2>Reuniões</h2>
         <div class="panel">
@@ -122,6 +161,20 @@
           </div>
         </div>
         <div class="list" id="meetings-full-list"></div>
+      </section>
+
+      <section id="view-favorites" class="view">
+        <h2>Favoritos</h2>
+        <div class="panel">
+          <input id="favorite-title" type="text" placeholder="Titulo" />
+          <input id="favorite-url" type="text" placeholder="URL" />
+          <input id="favorite-tags" type="text" placeholder="Tags (separadas por virgula)" />
+          <div class="modal-actions">
+            <button id="favorite-save" class="btn primary">Salvar favorito</button>
+            <button id="favorite-sync" class="btn ghost">Sincronizar Raindrop</button>
+          </div>
+        </div>
+        <div class="list" id="favorites-list"></div>
       </section>
 
       <section id="view-knowledge" class="view">
@@ -148,6 +201,10 @@
           <div class="card">
             <h3>GitVault</h3>
             <div class="mini-list" id="status-gitvault"></div>
+          </div>
+          <div class="card">
+            <h3>Raindrop</h3>
+            <div class="mini-list" id="status-raindrop"></div>
           </div>
           <div class="card">
             <h3>Push</h3>
@@ -179,11 +236,38 @@
               <input id="cfg-vapid-private" type="text" placeholder="VAPID_PRIVATE_KEY" />
               <input id="cfg-vapid-email" type="text" placeholder="VAPID_CONTACT_EMAIL" />
               <input id="cfg-render-hook" type="text" placeholder="RENDER_DEPLOY_HOOK_URL" />
+              <input id="cfg-raindrop-token" type="text" placeholder="RAINDROP_TOKEN" />
+              <input id="cfg-raindrop-collection" type="text" placeholder="RAINDROP_COLLECTION_ID" />
               <div class="modal-actions">
                 <button id="cfg-save" class="btn primary">Salvar configuracoes</button>
                 <button id="cfg-deploy" class="btn ghost">Deploy backend</button>
               </div>
             </div>
+          </div>
+          <div class="card wide">
+            <h3>Tags</h3>
+            <div class="panel">
+              <input id="tag-name" type="text" placeholder="Nova tag" />
+              <input id="tag-color" type="text" placeholder="Cor (hex opcional)" />
+              <div class="modal-actions">
+                <button id="tag-save" class="btn primary">Salvar tag</button>
+              </div>
+            </div>
+            <div class="list" id="tags-list"></div>
+          </div>
+          <div class="card wide">
+            <h3>Links</h3>
+            <div class="panel">
+              <input id="link-from-type" type="text" placeholder="from_type (agent, favorite, project...)" />
+              <input id="link-from-id" type="text" placeholder="from_id" />
+              <input id="link-to-type" type="text" placeholder="to_type" />
+              <input id="link-to-id" type="text" placeholder="to_id" />
+              <input id="link-label" type="text" placeholder="Label (opcional)" />
+              <div class="modal-actions">
+                <button id="link-save" class="btn primary">Criar link</button>
+              </div>
+            </div>
+            <div class="list" id="links-list"></div>
           </div>
         </div>
       </section>

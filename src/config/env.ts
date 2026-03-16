@@ -48,6 +48,10 @@ export const config = {
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     contactEmail: process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com',
   },
+  raindrop: {
+    token: process.env.RAINDROP_TOKEN || '',
+    collectionId: process.env.RAINDROP_COLLECTION_ID || '0',
+  },
   paths: {
     db: path.join(process.cwd(), 'data', 'db.sqlite'),
     skills: path.join(process.cwd(), '.agents', 'skills'),

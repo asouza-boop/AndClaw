@@ -11,15 +11,69 @@ import {
 } from '../integrations/googleCalendar';
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
+import { listRaindropCollections, listRaindrops } from '../integrations/raindrop';
 import { AgentController } from '../core/AgentController';
 import { hasLLMConfig, offlineFallbackMessage } from './llm';
 import { issueToken, verifyLoginPassword } from './auth';
 import { config } from '../config/env';
 import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './settings';
 import { hashPassword, randomSecret } from './crypto';
+import fs from 'fs/promises';
+import path from 'path';
 
 const router = Router();
 const agent = new AgentController();
+
+async function listSkillsFromDisk() {
+  const root = config.paths.skills;
+  const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
+  const skills = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const slug = entry.name;
+    const file = path.join(root, slug, 'SKILL.md');
+    let title = slug;
+    let description = '';
+    try {
+      const content = await fs.readFile(file, 'utf-8');
+      const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+      const heading = lines.find(l => l.startsWith('#'));
+      if (heading) title = heading.replace(/^#+\s*/, '').trim();
+      description = lines.find(l => !l.startsWith('#')) || '';
+    } catch {}
+    skills.push({ slug, title, description });
+  }
+  return skills;
+}
+
+async function upsertTags(names: string[]) {
+  const unique = Array.from(new Set(names.map(n => n.trim()).filter(Boolean)));
+  if (!unique.length) return new Map<string, number>();
+  const idMap = new Map<string, number>();
+  for (const name of unique) {
+    const rows = await query<{ id: number }>(
+      `INSERT INTO tags (name) VALUES ($1)
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+      [name]
+    );
+    if (rows[0]) idMap.set(name, rows[0].id);
+  }
+  return idMap;
+}
+
+async function setEntityTags(entityType: string, entityId: string, tagNames: string[]) {
+  await query(`DELETE FROM entity_tags WHERE entity_type = $1 AND entity_id = $2`, [entityType, entityId]);
+  const idMap = await upsertTags(tagNames);
+  for (const [name, tagId] of idMap.entries()) {
+    await query(
+      `INSERT INTO entity_tags (tag_id, entity_type, entity_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [tagId, entityType, entityId]
+    );
+  }
+}
 
 router.get('/health', async (_req: Request, res: Response) => {
   try {
@@ -51,6 +105,7 @@ router.get('/status', async (_req: Request, res: Response) => {
   const googleAccounts = await listConnectedAccounts().catch(() => []);
   const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
   const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
+  const raindrop = Boolean(config.raindrop.token);
   const llm = {
     gemini: Boolean(config.llm.geminiKey),
     openrouter: Boolean(config.llm.openrouterKey),
@@ -63,6 +118,7 @@ router.get('/status', async (_req: Request, res: Response) => {
     google: { connectedAccounts: googleAccounts },
     gitvault,
     push,
+    raindrop,
     llm,
     deploy: { last: settings.LAST_DEPLOY_AT || null },
   });
@@ -71,6 +127,202 @@ router.get('/status', async (_req: Request, res: Response) => {
 router.get('/settings', async (_req: Request, res: Response) => {
   const settings = await loadAppSettings();
   res.json({ ok: true, settings });
+});
+
+router.get('/skills', async (_req: Request, res: Response) => {
+  const skills = await listSkillsFromDisk();
+  res.json({ ok: true, items: skills });
+});
+
+router.get('/tags', async (_req: Request, res: Response) => {
+  const rows = await query(`SELECT * FROM tags ORDER BY name ASC`);
+  res.json({ ok: true, items: rows });
+});
+
+router.post('/tags', async (req: Request, res: Response) => {
+  const { name, color } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const rows = await query(
+    `INSERT INTO tags (name, color)
+     VALUES ($1, $2)
+     ON CONFLICT (name) DO UPDATE SET color = EXCLUDED.color
+     RETURNING *`,
+    [name, color || null]
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.get('/agents', async (_req: Request, res: Response) => {
+  const agents = await query<any>(`SELECT * FROM agents ORDER BY created_at DESC`);
+  const skills = await query<any>(`SELECT agent_id, skill_slug FROM agent_skills`);
+  const tags = await query<any>(
+    `SELECT et.entity_id, t.name, t.color
+     FROM entity_tags et
+     JOIN tags t ON t.id = et.tag_id
+     WHERE et.entity_type = 'agent'`
+  );
+
+  const skillMap = new Map<string, string[]>();
+  skills.forEach((row: any) => {
+    const key = String(row.agent_id);
+    const list = skillMap.get(key) || [];
+    list.push(row.skill_slug);
+    skillMap.set(key, list);
+  });
+
+  const tagMap = new Map<string, any[]>();
+  tags.forEach((row: any) => {
+    const key = String(row.entity_id);
+    const list = tagMap.get(key) || [];
+    list.push({ name: row.name, color: row.color });
+    tagMap.set(key, list);
+  });
+
+  const items = agents.map((agent: any) => ({
+    ...agent,
+    skills: skillMap.get(String(agent.id)) || [],
+    tags: tagMap.get(String(agent.id)) || [],
+  }));
+  res.json({ ok: true, items });
+});
+
+router.post('/agents', async (req: Request, res: Response) => {
+  const { name, level, status, areas = [], description, skills = [], tags = [] } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const rows = await query<any>(
+    `INSERT INTO agents (name, level, status, areas, description)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [name, level || 'Estrategico', status || 'ativo', areas, description || null]
+  );
+  const agent = rows[0];
+
+  for (const skill of skills) {
+    await query(
+      `INSERT INTO agent_skills (agent_id, skill_slug)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [agent.id, String(skill)]
+    );
+  }
+
+  await setEntityTags('agent', String(agent.id), tags);
+
+  res.json({ ok: true, item: agent });
+});
+
+router.post('/agents/:id/tags', async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const { tags = [] } = req.body || {};
+  await setEntityTags('agent', String(id), tags);
+  res.json({ ok: true });
+});
+
+router.post('/agents/:id/skills', async (req: Request, res: Response) => {
+  const id = req.params.id;
+  const { skills = [] } = req.body || {};
+  await query(`DELETE FROM agent_skills WHERE agent_id = $1`, [id]);
+  for (const skill of skills) {
+    await query(
+      `INSERT INTO agent_skills (agent_id, skill_slug)
+       VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [id, String(skill)]
+    );
+  }
+  res.json({ ok: true });
+});
+
+router.get('/links', async (_req: Request, res: Response) => {
+  const rows = await query(`SELECT * FROM page_links ORDER BY created_at DESC LIMIT 200`);
+  res.json({ ok: true, items: rows });
+});
+
+router.post('/links', async (req: Request, res: Response) => {
+  const { from_type, from_id, to_type, to_id, label } = req.body || {};
+  if (!from_type || !from_id || !to_type || !to_id) {
+    return res.status(400).json({ error: 'from_type, from_id, to_type, to_id are required' });
+  }
+  const rows = await query(
+    `INSERT INTO page_links (from_type, from_id, to_type, to_id, label)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [from_type, String(from_id), to_type, String(to_id), label || null]
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.get('/favorites', async (_req: Request, res: Response) => {
+  const favorites = await query<any>(`SELECT * FROM favorites ORDER BY created_at DESC LIMIT 200`);
+  const tags = await query<any>(
+    `SELECT et.entity_id, t.name, t.color
+     FROM entity_tags et
+     JOIN tags t ON t.id = et.tag_id
+     WHERE et.entity_type = 'favorite'`
+  );
+
+  const tagMap = new Map<string, any[]>();
+  tags.forEach((row: any) => {
+    const key = String(row.entity_id);
+    const list = tagMap.get(key) || [];
+    list.push({ name: row.name, color: row.color });
+    tagMap.set(key, list);
+  });
+
+  const items = favorites.map((fav: any) => ({
+    ...fav,
+    tags: tagMap.get(String(fav.id)) || []
+  }));
+  res.json({ ok: true, items });
+});
+
+router.post('/favorites', async (req: Request, res: Response) => {
+  const { title, url, tags = [] } = req.body || {};
+  if (!title || !url) return res.status(400).json({ error: 'title and url are required' });
+  const rows = await query<any>(
+    `INSERT INTO favorites (title, url, source)
+     VALUES ($1, $2, 'manual') RETURNING *`,
+    [title, url]
+  );
+  const fav = rows[0];
+  await setEntityTags('favorite', String(fav.id), tags);
+  res.json({ ok: true, item: fav });
+});
+
+router.get('/raindrop/collections', async (_req: Request, res: Response) => {
+  if (!config.raindrop.token) return res.json({ ok: true, items: [] });
+  const items = await listRaindropCollections();
+  res.json({ ok: true, items });
+});
+
+router.get('/raindrop/items', async (req: Request, res: Response) => {
+  if (!config.raindrop.token) return res.json({ ok: true, items: [] });
+  const collectionId = (req.query.collectionId as string) || config.raindrop.collectionId;
+  const perpage = parseInt((req.query.perpage as string) || '30', 10);
+  const page = parseInt((req.query.page as string) || '0', 10);
+  const items = await listRaindrops(collectionId, perpage, page);
+  res.json({ ok: true, items });
+});
+
+router.post('/raindrop/sync', async (req: Request, res: Response) => {
+  if (!config.raindrop.token) return res.status(400).json({ error: 'raindrop token not configured' });
+  const { collectionId, perpage = 50, page = 0 } = req.body || {};
+  const items = await listRaindrops(collectionId || config.raindrop.collectionId, perpage, page);
+  let upserted = 0;
+  for (const item of items) {
+    const externalId = String(item._id || item.id || '');
+    const title = item.title || item.link || 'Sem titulo';
+    const link = item.link || item.url;
+    if (!externalId || !link) continue;
+    const rows = await query<any>(
+      `INSERT INTO favorites (title, url, source, external_id)
+       VALUES ($1, $2, 'raindrop', $3)
+       ON CONFLICT (source, external_id)
+       DO UPDATE SET title = EXCLUDED.title, url = EXCLUDED.url
+       RETURNING id`,
+      [title, link, externalId]
+    );
+    if (rows[0]) upserted += 1;
+  }
+  res.json({ ok: true, count: upserted });
 });
 
 router.post('/settings', async (req: Request, res: Response) => {
@@ -89,7 +341,9 @@ router.post('/settings', async (req: Request, res: Response) => {
     'VAPID_PUBLIC_KEY',
     'VAPID_PRIVATE_KEY',
     'VAPID_CONTACT_EMAIL',
-    'RENDER_DEPLOY_HOOK_URL'
+    'RENDER_DEPLOY_HOOK_URL',
+    'RAINDROP_TOKEN',
+    'RAINDROP_COLLECTION_ID'
   ];
 
   const payload = req.body || {};

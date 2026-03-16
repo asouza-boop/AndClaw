@@ -135,6 +135,68 @@ export async function ensureSchema(): Promise<void> {
     );
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS agents (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      level TEXT DEFAULT 'Estrategico',
+      status TEXT DEFAULT 'ativo',
+      areas TEXT[] DEFAULT '{}',
+      description TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS agent_skills (
+      agent_id BIGINT REFERENCES agents(id) ON DELETE CASCADE,
+      skill_slug TEXT NOT NULL,
+      UNIQUE (agent_id, skill_slug)
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      color TEXT
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS entity_tags (
+      tag_id BIGINT REFERENCES tags(id) ON DELETE CASCADE,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      UNIQUE (tag_id, entity_type, entity_id)
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS page_links (
+      id BIGSERIAL PRIMARY KEY,
+      from_type TEXT NOT NULL,
+      from_id TEXT NOT NULL,
+      to_type TEXT NOT NULL,
+      to_id TEXT NOT NULL,
+      label TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS favorites (
+      id BIGSERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      source TEXT DEFAULT 'manual',
+      external_id TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_source_external ON favorites(source, external_id)`);
+
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id TEXT`);
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`);
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
