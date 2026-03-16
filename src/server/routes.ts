@@ -4,8 +4,10 @@ import { ensureSchema } from '../db/schema';
 import { syncGoogleCalendars, exportTasksToGoogle, importGoogleEvents } from '../integrations/googleCalendar';
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
+import { AgentController } from '../core/AgentController';
 
 const router = Router();
+const agent = new AgentController();
 
 router.get('/health', async (_req: Request, res: Response) => {
   try {
@@ -17,18 +19,19 @@ router.get('/health', async (_req: Request, res: Response) => {
 });
 
 router.post('/messages', async (req: Request, res: Response) => {
-  const { content, conversationId = 'default', client_message_id, sender = 'user' } = req.body || {};
+  const { content, conversationId = 'default', client_message_id, sender, role } = req.body || {};
+  const resolvedRole = role || sender || 'user';
   if (!content) return res.status(400).json({ error: 'content is required' });
 
   await ensureSchema();
   await query(`INSERT INTO conversations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [conversationId]);
 
   const rows = await query(
-    `INSERT INTO messages (conversation_id, sender, content, client_message_id)
+    `INSERT INTO messages (conversation_id, role, content, client_message_id)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (client_message_id) DO NOTHING
      RETURNING *`,
-    [conversationId, sender, content, client_message_id || null]
+    [conversationId, resolvedRole, content, client_message_id || null]
   );
   res.json({ ok: true, message: rows[0] || null });
 });
@@ -40,6 +43,13 @@ router.get('/messages', async (req: Request, res: Response) => {
     [limit]
   );
   res.json({ ok: true, items: rows });
+});
+
+router.post('/agent', async (req: Request, res: Response) => {
+  const { input, userId = 'pwa-user', options = {} } = req.body || {};
+  if (!input) return res.status(400).json({ error: 'input is required' });
+  const reply = await agent.processInput(userId, input, options);
+  res.json({ ok: true, reply });
 });
 
 router.post('/captures', async (req: Request, res: Response) => {

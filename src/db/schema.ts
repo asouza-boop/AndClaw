@@ -4,7 +4,10 @@ export async function ensureSchema(): Promise<void> {
   await query(`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
-      created_at TIMESTAMPTZ DEFAULT NOW()
+      user_id TEXT,
+      provider TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 
@@ -12,7 +15,7 @@ export async function ensureSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS messages (
       id BIGSERIAL PRIMARY KEY,
       conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-      sender TEXT NOT NULL,
+      role TEXT NOT NULL,
       content TEXT NOT NULL,
       client_message_id TEXT UNIQUE,
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -27,6 +30,14 @@ export async function ensureSchema(): Promise<void> {
       status TEXT DEFAULT 'new',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       processed_at TIMESTAMPTZ
+    );
+  `);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 
@@ -115,4 +126,11 @@ export async function ensureSchema(): Promise<void> {
       last_run_at TIMESTAMPTZ
     );
   `);
+
+  await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id TEXT`);
+  await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`);
+  await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
+  await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS role TEXT`);
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)`);
 }

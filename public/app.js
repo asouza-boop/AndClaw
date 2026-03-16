@@ -127,17 +127,22 @@ async function sendChatMessage(inputEl, windowEl) {
   const payload = {
     content,
     client_message_id: crypto.randomUUID(),
-    sender: 'user'
+    role: 'user',
+    conversationId: 'pwa-user'
   };
 
   windowEl.innerHTML += `<div>Você: ${content}</div>`;
 
   if (navigator.onLine) {
-    await fetch('/api/messages', {
+    const res = await fetch('/api/agent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ input: content })
     });
+    const data = await res.json();
+    if (data.reply) {
+      windowEl.innerHTML += `<div>Agente: ${data.reply}</div>`;
+    }
   } else {
     enqueueLocal('messages', payload);
   }

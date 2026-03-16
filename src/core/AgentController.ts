@@ -38,17 +38,17 @@ export class AgentController {
 
             // 3. Pegar Histórico da Conversa Ativa
             const providerName = config.llm.defaultProvider;
-            const history = this.memoryManager.getHistory(userId, providerName);
+            const history = await this.memoryManager.getHistory(userId, providerName);
 
             // 4. Salvar query atual
-            const conversationId = this.memoryManager.getOrCreateActiveConversation(userId, providerName);
-            this.memoryManager.addMessage(conversationId, 'user', input);
+            const conversationId = await this.memoryManager.getOrCreateActiveConversation(userId, providerName);
+            await this.memoryManager.addMessage(conversationId, 'user', input);
 
             // 5. Executar Agent Loop
             const result = await this.executor.execute(input, skill, history, providerName, options);
 
             // 6. Salvar e retornar output
-            this.memoryManager.addMessage(conversationId, 'assistant', result);
+            await this.memoryManager.addMessage(conversationId, 'assistant', result);
             return result;
         } catch (e: any) {
             console.error(`[Controller] Falha crítica no pipeline:`, e);

@@ -11,29 +11,29 @@ export class MemoryManager {
     this.messageRepo = new MessageRepository();
   }
 
-  public initConversation(userId: string, provider: string): string {
+  public async initConversation(userId: string, provider: string): Promise<string> {
     const id = crypto.randomUUID();
-    this.conversationRepo.create(id, userId, provider);
+    await this.conversationRepo.create(id, userId, provider);
     return id;
   }
 
-  public getOrCreateActiveConversation(userId: string, provider: string): string {
-    const active = this.conversationRepo.getActiveConversation(userId);
+  public async getOrCreateActiveConversation(userId: string, provider: string): Promise<string> {
+    const active = await this.conversationRepo.getActiveConversation(userId);
     if (active) {
-      this.conversationRepo.updateTimestamp(active.id);
+      await this.conversationRepo.updateTimestamp(active.id);
       return active.id;
     }
     return this.initConversation(userId, provider);
   }
 
-  public addMessage(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): void {
-    this.messageRepo.create(conversationId, role, content);
-    this.conversationRepo.updateTimestamp(conversationId);
+  public async addMessage(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): Promise<void> {
+    await this.messageRepo.create(conversationId, role, content);
+    await this.conversationRepo.updateTimestamp(conversationId);
   }
 
-  public getHistory(userId: string, provider: string, limit: number = 20): Array<{role: string, content: string}> {
-    const conversationId = this.getOrCreateActiveConversation(userId, provider);
-    const messages = this.messageRepo.getByConversationId(conversationId, limit);
+  public async getHistory(userId: string, provider: string, limit: number = 20): Promise<Array<{role: string, content: string}>> {
+    const conversationId = await this.getOrCreateActiveConversation(userId, provider);
+    const messages = await this.messageRepo.getByConversationId(conversationId, limit);
     return messages.map(m => ({ role: m.role, content: m.content }));
   }
 }
