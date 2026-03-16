@@ -259,23 +259,74 @@
           <div class="card wide">
             <h3>Configuracoes</h3>
             <div class="panel">
-              <input id="cfg-gemini" type="password" placeholder="GEMINI_API_KEY" />
-              <input id="cfg-openrouter" type="password" placeholder="OPENROUTER_API_KEY" />
-              <input id="cfg-deepseek" type="password" placeholder="DEEPSEEK_API_KEY" />
-              <input id="cfg-default-provider" type="text" placeholder="DEFAULT_LLM_PROVIDER" />
-              <input id="cfg-github-token" type="password" placeholder="GITHUB_TOKEN" />
-              <input id="cfg-gitvault-repo" type="text" placeholder="GITVAULT_REPO" />
-              <input id="cfg-gitvault-base" type="text" placeholder="GITVAULT_BASE_PATH" />
-              <input id="cfg-google-client-id" type="password" placeholder="GOOGLE_OAUTH_CLIENT_ID" />
-              <input id="cfg-google-client-secret" type="password" placeholder="GOOGLE_OAUTH_CLIENT_SECRET" />
-              <input id="cfg-google-redirect" type="text" placeholder="GOOGLE_OAUTH_REDIRECT_URI" />
-              <input id="cfg-google-calendar" type="text" placeholder="GOOGLE_EXPORT_CALENDAR_ID" />
-              <input id="cfg-vapid-public" type="password" placeholder="VAPID_PUBLIC_KEY" />
-              <input id="cfg-vapid-private" type="password" placeholder="VAPID_PRIVATE_KEY" />
-              <input id="cfg-vapid-email" type="text" placeholder="VAPID_CONTACT_EMAIL" />
-              <input id="cfg-render-hook" type="password" placeholder="RENDER_DEPLOY_HOOK_URL" />
-              <input id="cfg-raindrop-token" type="password" placeholder="RAINDROP_TOKEN" />
-              <input id="cfg-raindrop-collection" type="text" placeholder="RAINDROP_COLLECTION_ID" />
+              <div class="field">
+                <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
+                <input id="cfg-gemini" type="password" placeholder="GEMINI_API_KEY" />
+              </div>
+              <div class="field">
+                <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
+                <input id="cfg-openrouter" type="password" placeholder="OPENROUTER_API_KEY" />
+              </div>
+              <div class="field">
+                <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
+                <input id="cfg-deepseek" type="password" placeholder="DEEPSEEK_API_KEY" />
+              </div>
+              <div class="field">
+                <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
+                <input id="cfg-default-provider" type="text" placeholder="DEFAULT_LLM_PROVIDER" />
+              </div>
+              <div class="field">
+                <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
+                <input id="cfg-github-token" type="password" placeholder="GITHUB_TOKEN" />
+              </div>
+              <div class="field">
+                <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
+                <input id="cfg-gitvault-repo" type="text" placeholder="GITVAULT_REPO" />
+              </div>
+              <div class="field">
+                <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
+                <input id="cfg-gitvault-base" type="text" placeholder="GITVAULT_BASE_PATH" />
+              </div>
+              <div class="field">
+                <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
+                <input id="cfg-google-client-id" type="password" placeholder="GOOGLE_OAUTH_CLIENT_ID" />
+              </div>
+              <div class="field">
+                <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
+                <input id="cfg-google-client-secret" type="password" placeholder="GOOGLE_OAUTH_CLIENT_SECRET" />
+              </div>
+              <div class="field">
+                <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
+                <input id="cfg-google-redirect" type="text" placeholder="GOOGLE_OAUTH_REDIRECT_URI" />
+              </div>
+              <div class="field">
+                <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
+                <input id="cfg-google-calendar" type="text" placeholder="GOOGLE_EXPORT_CALENDAR_ID" />
+              </div>
+              <div class="field">
+                <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
+                <input id="cfg-vapid-public" type="password" placeholder="VAPID_PUBLIC_KEY" />
+              </div>
+              <div class="field">
+                <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
+                <input id="cfg-vapid-private" type="password" placeholder="VAPID_PRIVATE_KEY" />
+              </div>
+              <div class="field">
+                <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
+                <input id="cfg-vapid-email" type="text" placeholder="VAPID_CONTACT_EMAIL" />
+              </div>
+              <div class="field">
+                <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
+                <input id="cfg-render-hook" type="password" placeholder="RENDER_DEPLOY_HOOK_URL" />
+              </div>
+              <div class="field">
+                <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
+                <input id="cfg-raindrop-token" type="password" placeholder="RAINDROP_TOKEN" />
+              </div>
+              <div class="field">
+                <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
+                <input id="cfg-raindrop-collection" type="text" placeholder="RAINDROP_COLLECTION_ID" />
+              </div>
               <div class="modal-actions">
                 <button id="cfg-save" class="btn primary">Salvar configuracoes</button>
               </div>

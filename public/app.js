@@ -426,6 +426,43 @@ async function loadAdmin() {
   }
 }
 
+async function loadSettingsStatus() {
+  try {
+    const res = await apiFetch('/api/settings');
+    const data = await res.json();
+    const s = data.settings || {};
+
+    const setBadge = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const ok = value && value !== '';
+      el.textContent = ok ? 'configurado' : 'pendente';
+      el.classList.toggle('ok', ok);
+      el.classList.toggle('bad', !ok);
+    };
+
+    setBadge('cfg-status-gemini', s.GEMINI_API_KEY);
+    setBadge('cfg-status-openrouter', s.OPENROUTER_API_KEY);
+    setBadge('cfg-status-deepseek', s.DEEPSEEK_API_KEY);
+    setBadge('cfg-status-default-provider', s.DEFAULT_LLM_PROVIDER);
+    setBadge('cfg-status-github-token', s.GITHUB_TOKEN);
+    setBadge('cfg-status-gitvault-repo', s.GITVAULT_REPO);
+    setBadge('cfg-status-gitvault-base', s.GITVAULT_BASE_PATH);
+    setBadge('cfg-status-google-client-id', s.GOOGLE_OAUTH_CLIENT_ID);
+    setBadge('cfg-status-google-client-secret', s.GOOGLE_OAUTH_CLIENT_SECRET);
+    setBadge('cfg-status-google-redirect', s.GOOGLE_OAUTH_REDIRECT_URI);
+    setBadge('cfg-status-google-calendar', s.GOOGLE_EXPORT_CALENDAR_ID);
+    setBadge('cfg-status-vapid-public', s.VAPID_PUBLIC_KEY);
+    setBadge('cfg-status-vapid-private', s.VAPID_PRIVATE_KEY);
+    setBadge('cfg-status-vapid-email', s.VAPID_CONTACT_EMAIL);
+    setBadge('cfg-status-render-hook', s.RENDER_DEPLOY_HOOK_URL);
+    setBadge('cfg-status-raindrop-token', s.RAINDROP_TOKEN);
+    setBadge('cfg-status-raindrop-collection', s.RAINDROP_COLLECTION_ID);
+  } catch {
+    // ignore
+  }
+}
+
 async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     await navigator.serviceWorker.register('/sw.js');
@@ -560,6 +597,7 @@ cfgSave.addEventListener('click', async () => {
     });
     showInline('Configuracoes salvas.');
     await loadAdmin();
+    await loadSettingsStatus();
   } catch (err) {
     showInline('Falha ao salvar configuracoes.');
   }
@@ -854,6 +892,7 @@ async function initApp() {
   await loadChatHistory();
   await loadMeetings();
   await loadAdmin();
+  await loadSettingsStatus();
   await loadSkills();
   await loadAgents();
   await loadFavorites();

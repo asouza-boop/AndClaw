@@ -204,6 +204,40 @@ body {
   box-shadow: var(--shadow);
 }
 
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.field label {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.field-status.ok {
+  color: var(--accent);
+  border-color: rgba(52, 209, 191, 0.5);
+  background: rgba(52, 209, 191, 0.12);
+}
+
+.field-status.bad {
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.5);
+  background: rgba(231, 76, 60, 0.12);
+}
+
 .panel input,
 .panel textarea {
   background: rgba(20, 28, 42, 0.8);
