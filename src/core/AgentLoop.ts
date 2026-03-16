@@ -27,7 +27,7 @@ export class AgentLoop {
     ): Promise<string> {
         
         // Fetch User Profile and inject into system prompt
-        const profile = this.profileRepo.getAll();
+        const profile = await this.profileRepo.getAll();
         if (profile.length > 0) {
             const profileText = profile.map(p => `- ${p.key}: ${p.value}`).join('\n');
             systemPrompt = `${systemPrompt}\n\n[MEMÓRIA DE PERFIL DO USUÁRIO]\n${profileText}\n[FIM DA MEMÓRIA]`;

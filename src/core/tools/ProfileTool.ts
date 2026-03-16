@@ -17,7 +17,7 @@ export class UpdateProfileTool implements ITool {
 
     async execute({ key, value }: { key: string, value: string }): Promise<string> {
         try {
-            this.profileRepo.set(key, value);
+            await this.profileRepo.set(key, value);
             return `Perfil atualizado: ${key} = ${value}`;
         } catch (e: any) {
             return `Erro ao atualizar perfil: ${e.message}`;
@@ -40,7 +40,7 @@ export class DeleteProfileTool implements ITool {
 
     async execute({ key }: { key: string }): Promise<string> {
         try {
-            this.profileRepo.delete(key);
+            await this.profileRepo.delete(key);
             return `Chave '${key}' removida do perfil com sucesso.`;
         } catch (e: any) {
             return `Erro ao remover chave do perfil: ${e.message}`;
