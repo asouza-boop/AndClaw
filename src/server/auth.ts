@@ -33,7 +33,14 @@ export function verifyToken(token: string): { sub: string } | null {
   const expected = base64UrlEncode(
     crypto.createHmac('sha256', config.auth.tokenSecret).update(`${header}.${payload}`).digest()
   );
-  if (expected !== signature) return null;
+  try {
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const signatureBuf = Buffer.from(signature, 'utf8');
+    if (expectedBuf.length !== signatureBuf.length) return null;
+    if (!crypto.timingSafeEqual(expectedBuf, signatureBuf)) return null;
+  } catch {
+    return null;
+  }
 
   const decoded = JSON.parse(base64UrlDecode(payload));
   if (!decoded.exp || decoded.exp < Math.floor(Date.now() / 1000)) return null;
