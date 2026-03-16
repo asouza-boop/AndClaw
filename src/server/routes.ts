@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { query } from '../db/postgres';
 import { ensureSchema } from '../db/schema';
 import {
@@ -23,6 +24,14 @@ import path from 'path';
 
 const router = Router();
 const agent = new AgentController();
+
+const agentLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas requisições. Aguarde um momento.' },
+});
 
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
@@ -475,7 +484,7 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
   res.json({ ok: true, items: rows });
 });
 
-router.post('/agent', async (req: Request, res: Response) => {
+router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
   const { input, options = {} } = req.body || {};
   const userId = (req as any).user?.sub || 'pwa-user';
   if (!input) return res.status(400).json({ error: 'input is required' });
