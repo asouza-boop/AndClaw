@@ -236,6 +236,18 @@ input[type="text"] {
   margin: -6px 0 12px;
 }
 
+.banner {
+  background: rgba(245, 183, 75, 0.12);
+  border: 1px solid rgba(245, 183, 75, 0.4);
+  color: #f5b74b;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+
+.banner.hidden {
+  display: none;
+}
+
 .chat-window {
   min-height: 140px;
   background: var(--surface-2);

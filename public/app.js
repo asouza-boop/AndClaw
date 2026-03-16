@@ -1,6 +1,7 @@
 const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
+const banner = document.getElementById('banner');
 
 navItems.forEach(item => {
   item.addEventListener('click', () => {
@@ -19,6 +20,16 @@ const loginApiBase = document.getElementById('login-api-base');
 const loginPassword = document.getElementById('login-password');
 const loginTokenSecret = document.getElementById('login-token-secret');
 const bootstrapHint = document.getElementById('bootstrap-hint');
+
+function showBanner(text) {
+  banner.textContent = text;
+  banner.classList.remove('hidden');
+}
+
+function hideBanner() {
+  banner.classList.add('hidden');
+  banner.textContent = '';
+}
 
 function getApiBase() {
   return localStorage.getItem('andclaw_api_base') || DEFAULT_API_BASE;
@@ -102,11 +113,14 @@ document.getElementById('login-submit').addEventListener('click', async () => {
     const data = await res.json();
     localStorage.setItem('auth_token', data.token);
     hideLogin();
+    hideBanner();
     await initApp();
   } else {
     const data = await res.json().catch(() => ({}));
     if (data.error === 'auth not configured') {
       bootstrapHint.textContent = 'Configure senha e clique em Inicializar.';
+    } else {
+      showBanner('Falha no login. Verifique a senha e a URL do backend.');
     }
   }
 });
@@ -126,11 +140,14 @@ document.getElementById('login-bootstrap').addEventListener('click', async () =>
     const data = await res.json();
     localStorage.setItem('auth_token', data.token);
     hideLogin();
+    hideBanner();
     await initApp();
   } else {
     const data = await res.json().catch(() => ({}));
     if (data.error === 'already_configured') {
-      bootstrapHint.textContent = 'Ja configurado. Use Entrar.';
+      showBanner('Ja configurado. Use Entrar.');
+    } else {
+      showBanner('Falha na inicializacao. Verifique a URL do backend.');
     }
   }
 });
@@ -366,8 +383,28 @@ function urlBase64ToUint8Array(base64String) {
 window.addEventListener('online', flushQueue);
 
 async function initApp() {
+  try {
+    const apiBase = getApiBase();
+    if (!apiBase) {
+      showBanner('Configure a URL do backend para continuar.');
+      showLogin();
+      return;
+    }
+    const health = await fetch(`${apiBase}/api/health`).then(r => r.ok);
+    if (!health) {
+      showBanner('Backend indisponivel ou URL incorreta.');
+      showLogin();
+      return;
+    }
+  } catch {
+    showBanner('Falha ao conectar no backend.');
+    showLogin();
+    return;
+  }
+
   const authed = await ensureAuth();
   if (!authed) return;
+  hideBanner();
   await registerServiceWorker();
   await subscribePush();
   await flushQueue();

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'andclaw-cache-v1';
-const ASSETS = ['/', '/styles.css', '/app.js', '/manifest.json'];
+const CACHE_NAME = 'andclaw-cache-v2';
+const ASSETS = ['/', '/styles.css', '/app.js', '/manifest.json', '/config.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
