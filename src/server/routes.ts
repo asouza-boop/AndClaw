@@ -519,9 +519,8 @@ router.post('/tasks', async (req: Request, res: Response) => {
     [title, status, priority, due_date || null, project_id || null, meeting_id || null]
   );
 
-  await exportTasksToGoogle();
-
   res.json({ ok: true, item: rows[0] });
+  exportTasksToGoogle().catch(e => console.error('[tasks] gcal sync failed:', e.message));
 });
 
 router.get('/tasks', async (_req: Request, res: Response) => {
