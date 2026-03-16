@@ -180,6 +180,11 @@ body {
   margin-bottom: 10px;
 }
 
+.card .mini-list {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+
 .mini-list,
 .list {
   display: flex;
@@ -197,6 +202,11 @@ body {
   border-radius: 16px;
   padding: 18px;
   box-shadow: var(--shadow);
+}
+
+.panel input,
+.panel textarea {
+  background: rgba(20, 28, 42, 0.8);
 }
 
 textarea {
@@ -334,6 +344,14 @@ input[type="text"] {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 10px;
 }
 
 @media (max-width: 960px) {

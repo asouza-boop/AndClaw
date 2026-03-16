@@ -106,6 +106,14 @@ router.get('/status', async (_req: Request, res: Response) => {
   const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
   const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
   const raindrop = Boolean(config.raindrop.token);
+  const googleConfigured = Boolean(
+    config.google.oauthClientId &&
+    config.google.oauthClientSecret &&
+    config.google.oauthRedirectUri
+  );
+  const pushCountRow = await query<{ count: string }>('SELECT COUNT(*)::text as count FROM push_subscriptions');
+  const pushSubscriptions = parseInt(pushCountRow[0]?.count || '0', 10);
+  const llmConfigured = Boolean(config.llm.geminiKey || config.llm.openrouterKey || config.llm.deepseekKey);
   const llm = {
     gemini: Boolean(config.llm.geminiKey),
     openrouter: Boolean(config.llm.openrouterKey),
@@ -115,18 +123,38 @@ router.get('/status', async (_req: Request, res: Response) => {
   res.json({
     ok: true,
     db,
-    google: { connectedAccounts: googleAccounts },
+    google: { configured: googleConfigured, connectedAccounts: googleAccounts },
     gitvault,
     push,
     raindrop,
     llm,
+    llmConfigured,
+    pushSubscriptions,
     deploy: { last: settings.LAST_DEPLOY_AT || null },
   });
 });
 
 router.get('/settings', async (_req: Request, res: Response) => {
   const settings = await loadAppSettings();
-  res.json({ ok: true, settings });
+  const safe: Record<string, any> = {
+    DEFAULT_LLM_PROVIDER: settings.DEFAULT_LLM_PROVIDER || '',
+    GITVAULT_BASE_PATH: settings.GITVAULT_BASE_PATH || '',
+    GOOGLE_EXPORT_CALENDAR_ID: settings.GOOGLE_EXPORT_CALENDAR_ID || 'primary',
+    RAINDROP_COLLECTION_ID: settings.RAINDROP_COLLECTION_ID || '0',
+    RENDER_DEPLOY_HOOK_URL: settings.RENDER_DEPLOY_HOOK_URL ? 'configured' : '',
+    GEMINI_API_KEY: settings.GEMINI_API_KEY ? 'configured' : '',
+    OPENROUTER_API_KEY: settings.OPENROUTER_API_KEY ? 'configured' : '',
+    DEEPSEEK_API_KEY: settings.DEEPSEEK_API_KEY ? 'configured' : '',
+    GITHUB_TOKEN: settings.GITHUB_TOKEN ? 'configured' : '',
+    GOOGLE_OAUTH_CLIENT_ID: settings.GOOGLE_OAUTH_CLIENT_ID ? 'configured' : '',
+    GOOGLE_OAUTH_CLIENT_SECRET: settings.GOOGLE_OAUTH_CLIENT_SECRET ? 'configured' : '',
+    GOOGLE_OAUTH_REDIRECT_URI: settings.GOOGLE_OAUTH_REDIRECT_URI ? 'configured' : '',
+    VAPID_PUBLIC_KEY: settings.VAPID_PUBLIC_KEY ? 'configured' : '',
+    VAPID_PRIVATE_KEY: settings.VAPID_PRIVATE_KEY ? 'configured' : '',
+    VAPID_CONTACT_EMAIL: settings.VAPID_CONTACT_EMAIL ? 'configured' : '',
+    RAINDROP_TOKEN: settings.RAINDROP_TOKEN ? 'configured' : ''
+  };
+  res.json({ ok: true, settings: safe });
 });
 
 router.get('/skills', async (_req: Request, res: Response) => {

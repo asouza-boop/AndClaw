@@ -193,26 +193,45 @@
           <div class="card">
             <h3>Banco</h3>
             <div class="mini-list" id="status-db"></div>
+            <div class="action-row">
+              <button id="db-check" class="btn ghost">Checar DB</button>
+            </div>
           </div>
           <div class="card">
             <h3>Google</h3>
             <div class="mini-list" id="status-google"></div>
+            <div class="action-row">
+              <button id="google-connect-admin" class="btn primary">Conectar</button>
+              <button id="google-refresh" class="btn ghost">Recarregar</button>
+            </div>
           </div>
           <div class="card">
             <h3>GitVault</h3>
             <div class="mini-list" id="status-gitvault"></div>
+            <div class="action-row">
+              <button id="gitvault-export" class="btn ghost">Exportar agora</button>
+            </div>
           </div>
           <div class="card">
             <h3>Raindrop</h3>
             <div class="mini-list" id="status-raindrop"></div>
+            <div class="action-row">
+              <button id="raindrop-sync" class="btn ghost">Sincronizar</button>
+            </div>
           </div>
           <div class="card">
             <h3>Push</h3>
             <div class="mini-list" id="status-push"></div>
+            <div class="action-row">
+              <button id="push-test" class="btn ghost">Testar push</button>
+            </div>
           </div>
           <div class="card">
             <h3>Deploy</h3>
             <div class="mini-list" id="status-deploy"></div>
+            <div class="action-row">
+              <button id="cfg-deploy" class="btn primary">Deploy backend</button>
+            </div>
           </div>
           <div class="card wide">
             <h3>LLM</h3>
@@ -221,26 +240,25 @@
           <div class="card wide">
             <h3>Configuracoes</h3>
             <div class="panel">
-              <input id="cfg-gemini" type="text" placeholder="GEMINI_API_KEY" />
-              <input id="cfg-openrouter" type="text" placeholder="OPENROUTER_API_KEY" />
-              <input id="cfg-deepseek" type="text" placeholder="DEEPSEEK_API_KEY" />
+              <input id="cfg-gemini" type="password" placeholder="GEMINI_API_KEY" />
+              <input id="cfg-openrouter" type="password" placeholder="OPENROUTER_API_KEY" />
+              <input id="cfg-deepseek" type="password" placeholder="DEEPSEEK_API_KEY" />
               <input id="cfg-default-provider" type="text" placeholder="DEFAULT_LLM_PROVIDER" />
-              <input id="cfg-github-token" type="text" placeholder="GITHUB_TOKEN" />
+              <input id="cfg-github-token" type="password" placeholder="GITHUB_TOKEN" />
               <input id="cfg-gitvault-repo" type="text" placeholder="GITVAULT_REPO" />
               <input id="cfg-gitvault-base" type="text" placeholder="GITVAULT_BASE_PATH" />
-              <input id="cfg-google-client-id" type="text" placeholder="GOOGLE_OAUTH_CLIENT_ID" />
-              <input id="cfg-google-client-secret" type="text" placeholder="GOOGLE_OAUTH_CLIENT_SECRET" />
+              <input id="cfg-google-client-id" type="password" placeholder="GOOGLE_OAUTH_CLIENT_ID" />
+              <input id="cfg-google-client-secret" type="password" placeholder="GOOGLE_OAUTH_CLIENT_SECRET" />
               <input id="cfg-google-redirect" type="text" placeholder="GOOGLE_OAUTH_REDIRECT_URI" />
               <input id="cfg-google-calendar" type="text" placeholder="GOOGLE_EXPORT_CALENDAR_ID" />
-              <input id="cfg-vapid-public" type="text" placeholder="VAPID_PUBLIC_KEY" />
-              <input id="cfg-vapid-private" type="text" placeholder="VAPID_PRIVATE_KEY" />
+              <input id="cfg-vapid-public" type="password" placeholder="VAPID_PUBLIC_KEY" />
+              <input id="cfg-vapid-private" type="password" placeholder="VAPID_PRIVATE_KEY" />
               <input id="cfg-vapid-email" type="text" placeholder="VAPID_CONTACT_EMAIL" />
-              <input id="cfg-render-hook" type="text" placeholder="RENDER_DEPLOY_HOOK_URL" />
-              <input id="cfg-raindrop-token" type="text" placeholder="RAINDROP_TOKEN" />
+              <input id="cfg-render-hook" type="password" placeholder="RENDER_DEPLOY_HOOK_URL" />
+              <input id="cfg-raindrop-token" type="password" placeholder="RAINDROP_TOKEN" />
               <input id="cfg-raindrop-collection" type="text" placeholder="RAINDROP_COLLECTION_ID" />
               <div class="modal-actions">
                 <button id="cfg-save" class="btn primary">Salvar configuracoes</button>
-                <button id="cfg-deploy" class="btn ghost">Deploy backend</button>
               </div>
             </div>
           </div>

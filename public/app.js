@@ -369,12 +369,15 @@ async function loadAdmin() {
     const data = await res.json();
 
     document.getElementById('status-db').innerHTML = data.db?.ok ? 'OK' : 'Falha';
-    document.getElementById('status-google').innerHTML = (data.google?.connectedAccounts || []).length
-      ? `Conectado (${data.google.connectedAccounts.length})`
-      : 'Nao conectado';
-    document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
-    document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
-    document.getElementById('status-raindrop').innerHTML = data.raindrop ? 'OK' : 'Nao configurado';
+    const connected = (data.google?.connectedAccounts || []).length;
+    document.getElementById('status-google').innerHTML = data.google?.configured
+      ? `Configurado · Conectado (${connected})`
+      : 'Nao configurado';
+    document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'Configurado' : 'Nao configurado';
+    document.getElementById('status-push').innerHTML = data.push
+      ? `Configurado · Subs: ${data.pushSubscriptions || 0}`
+      : 'Nao configurado';
+    document.getElementById('status-raindrop').innerHTML = data.raindrop ? 'Configurado' : 'Nao configurado';
     document.getElementById('status-deploy').innerHTML = data.deploy?.last
       ? new Date(data.deploy.last).toLocaleString()
       : 'Nenhum';
@@ -488,6 +491,12 @@ async function loadMeetings() {
 
 const cfgSave = document.getElementById('cfg-save');
 const cfgDeploy = document.getElementById('cfg-deploy');
+const dbCheck = document.getElementById('db-check');
+const googleConnectAdmin = document.getElementById('google-connect-admin');
+const googleRefresh = document.getElementById('google-refresh');
+const gitvaultExport = document.getElementById('gitvault-export');
+const raindropSync = document.getElementById('raindrop-sync');
+const pushTest = document.getElementById('push-test');
 
 cfgSave.addEventListener('click', async () => {
   const payload = {
@@ -526,6 +535,50 @@ cfgDeploy.addEventListener('click', async () => {
   try {
     await apiFetch('/api/deploy', { method: 'POST' });
     showBanner('Deploy disparado.');
+  } catch (err) {
+    showError(err);
+  }
+});
+
+dbCheck.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showBanner('DB OK');
+  } catch (err) {
+    showError(err);
+  }
+});
+
+googleConnectAdmin.addEventListener('click', connectGoogle);
+
+googleRefresh.addEventListener('click', async () => {
+  await loadAdmin();
+  showBanner('Status atualizado.');
+});
+
+gitvaultExport.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showBanner('GitVault exportado.');
+  } catch (err) {
+    showError(err);
+  }
+});
+
+raindropSync.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
+    showBanner('Raindrop sincronizado.');
+    await loadFavorites();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+pushTest.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/push/test', { method: 'POST' });
+    showBanner('Push enviado.');
   } catch (err) {
     showError(err);
   }
