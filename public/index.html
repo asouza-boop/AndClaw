@@ -3,392 +3,660 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AndClaw PWA</title>
+  <title>AndClaw</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo">A</div>
-        <div>
-          <div class="brand-title">AndClaw</div>
-          <div class="brand-subtitle">Command Center</div>
-        </div>
-      </div>
-      <nav class="nav">
-        <button class="nav-item active" data-view="dashboard">Dashboard</button>
-        <button class="nav-item" data-view="inbox">Inbox</button>
-        <button class="nav-item" data-view="chat">Chat</button>
-        <button class="nav-item" data-view="agenda">Agenda</button>
-        <button class="nav-item" data-view="projects">Projetos</button>
-        <button class="nav-item" data-view="agents">Agentes</button>
-        <button class="nav-item" data-view="skills">Skills</button>
-        <button class="nav-item" data-view="meetings">Reuniões</button>
-        <button class="nav-item" data-view="favorites">Favoritos</button>
-        <button class="nav-item" data-view="knowledge">Conhecimento</button>
-        <button class="nav-item" data-view="archive">Arquivo</button>
-        <button class="nav-item" data-view="admin">Admin</button>
-      </nav>
-      <div class="sidebar-footer">
-        <div class="status-pill">Online</div>
-      </div>
-    </aside>
 
-    <main class="main">
-      <div id="banner" class="banner hidden"></div>
-      <header class="topbar">
-        <div class="search">
-          <input type="text" placeholder="Buscar em tudo..." />
-        </div>
-        <div class="quick-actions">
-          <button id="quick-capture-btn" class="btn primary">Quick Capture</button>
-          <button id="new-task-btn" class="btn ghost">Nova Tarefa</button>
-          <button id="new-meeting-btn" class="btn ghost">Nova Reunião</button>
-          <button id="google-connect-btn" class="btn ghost">Conectar Google</button>
-        </div>
-      </header>
+<div class="app-shell">
 
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div>
+        <div class="brand-title">AndClaw</div>
+        <div class="brand-subtitle">cmd center</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <!-- Main -->
+      <div class="nav-group">
+        <div class="nav-group-label">Principal</div>
+        <button class="nav-item active" data-view="dashboard">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-view="inbox">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+          Inbox
+        </button>
+        <button class="nav-item" data-view="chat">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          Chat
+        </button>
+        <button class="nav-item" data-view="agenda">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </button>
+      </div>
+
+      <!-- Work -->
+      <div class="nav-group">
+        <div class="nav-group-label">Trabalho</div>
+        <button class="nav-item" data-view="projects">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          Projetos
+        </button>
+        <button class="nav-item" data-view="agents">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/><circle cx="19" cy="8" r="2"/><circle cx="5" cy="8" r="2"/></svg>
+          Agentes
+        </button>
+        <button class="nav-item" data-view="skills">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Skills
+        </button>
+        <button class="nav-item" data-view="meetings">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Reuniões
+        </button>
+      </div>
+
+      <!-- Library -->
+      <div class="nav-group">
+        <div class="nav-group-label">Biblioteca</div>
+        <button class="nav-item" data-view="favorites">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          Favoritos
+        </button>
+        <button class="nav-item" data-view="knowledge">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          Conhecimento
+        </button>
+        <button class="nav-item" data-view="archive">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+          Arquivo
+        </button>
+      </div>
+
+      <!-- System -->
+      <div class="nav-group">
+        <button class="nav-item" data-view="admin">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Admin
+        </button>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="status-pill">Online</div>
+    </div>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+    <div id="banner" class="banner hidden"></div>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="page-title" id="page-title-el">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+      <div class="search">
+        <input type="text" placeholder="Buscar em tudo..." />
+      </div>
+      <div class="quick-actions">
+        <button id="quick-capture-btn" class="btn primary">+ Capturar</button>
+        <button id="new-task-btn" class="btn ghost">Nova Tarefa</button>
+        <button id="new-meeting-btn" class="btn ghost">Reunião</button>
+        <button id="google-connect-btn" class="btn ghost">Google</button>
+      </div>
+    </header>
+
+    <!-- Views container -->
+    <div class="view-container">
+
+      <!-- ── DASHBOARD ── -->
       <section id="view-dashboard" class="view active">
+
+        <div class="stats-row">
+          <div class="stat-card c-accent">
+            <div class="stat-label">Tarefas Hoje</div>
+            <div class="stat-value" id="stat-tasks">—</div>
+            <div class="stat-sub">pendentes</div>
+          </div>
+          <div class="stat-card c-amber">
+            <div class="stat-label">Prioridades</div>
+            <div class="stat-value" id="stat-priority">—</div>
+            <div class="stat-sub">em aberto</div>
+          </div>
+          <div class="stat-card c-violet">
+            <div class="stat-label">Reuniões</div>
+            <div class="stat-value" id="stat-meetings">—</div>
+            <div class="stat-sub">recentes</div>
+          </div>
+          <div class="stat-card c-red">
+            <div class="stat-label">Inbox</div>
+            <div class="stat-value" id="stat-inbox">—</div>
+            <div class="stat-sub">não processados</div>
+          </div>
+        </div>
+
         <div class="grid">
           <div class="card">
-            <h3>Hoje</h3>
-            <div class="mini-list" id="today-list"></div>
+            <div class="card-header"><h3>Hoje</h3></div>
+            <div class="mini-list" id="today-list">
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Nenhum item para hoje
+              </div>
+            </div>
           </div>
+
           <div class="card">
-            <h3>Prioridades</h3>
-            <div class="mini-list" id="priority-list"></div>
+            <div class="card-header"><h3>Prioridades</h3></div>
+            <div class="mini-list" id="priority-list">
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                Sem prioridades
+              </div>
+            </div>
           </div>
+
           <div class="card">
-            <h3>Inbox</h3>
-            <div class="mini-list" id="inbox-list"></div>
+            <div class="card-header"><h3>Inbox</h3></div>
+            <div class="mini-list" id="inbox-list">
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                Inbox limpo
+              </div>
+            </div>
           </div>
+
           <div class="card">
-            <h3>Reuniões</h3>
-            <div class="mini-list" id="meetings-list"></div>
+            <div class="card-header"><h3>Reuniões</h3></div>
+            <div class="mini-list" id="meetings-list">
+              <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                Sem reuniões
+              </div>
+            </div>
           </div>
+
           <div class="card wide">
-            <h3>Chat com o agente</h3>
-            <div class="chat-window" id="chat-window"></div>
-            <div class="chat-input">
-              <input id="chat-input" type="text" placeholder="Digite uma mensagem" />
-              <button id="chat-send" class="btn primary">Enviar</button>
+            <div class="card-header"><h3>Chat com o Agente</h3></div>
+            <div class="chat-panel">
+              <div class="chat-window" id="chat-window"></div>
+              <div class="chat-input">
+                <input id="chat-input" type="text" placeholder="Pergunte algo ao AndClaw..." />
+                <button id="chat-send" class="btn primary">Enviar</button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
+      <!-- ── INBOX ── -->
       <section id="view-inbox" class="view">
         <h2>Inbox</h2>
         <div class="panel">
-          <textarea id="capture-input" placeholder="Escreva um input rápido..."></textarea>
-          <button id="capture-send" class="btn primary">Salvar</button>
+          <textarea id="capture-input" placeholder="Escreva um input rápido, ideia ou nota..."></textarea>
+          <div class="modal-actions">
+            <button id="capture-send" class="btn primary">Salvar no Inbox</button>
+          </div>
         </div>
         <div class="list" id="captures-list"></div>
       </section>
 
+      <!-- ── CHAT ── -->
       <section id="view-chat" class="view">
         <h2>Chat</h2>
-        <div class="panel chat-panel">
-          <div class="chat-window" id="chat-window-full"></div>
-          <div class="chat-input">
-            <input id="chat-input-full" type="text" placeholder="Digite uma mensagem" />
-            <button id="chat-send-full" class="btn primary">Enviar</button>
+        <div class="card">
+          <div class="chat-panel">
+            <div class="chat-window" id="chat-window-full" style="max-height: 520px; min-height: 320px;"></div>
+            <div class="chat-input">
+              <input id="chat-input-full" type="text" placeholder="Digite uma mensagem..." />
+              <button id="chat-send-full" class="btn primary">Enviar</button>
+            </div>
           </div>
         </div>
       </section>
 
+      <!-- ── AGENDA ── -->
       <section id="view-agenda" class="view">
         <h2>Agenda</h2>
-        <div class="panel">
-          <div class="agenda-grid" id="agenda-grid"></div>
-        </div>
+        <div class="agenda-grid" id="agenda-grid"></div>
       </section>
 
+      <!-- ── PROJETOS ── -->
       <section id="view-projects" class="view">
         <h2>Projetos</h2>
         <div class="list" id="projects-list"></div>
       </section>
 
+      <!-- ── AGENTES ── -->
       <section id="view-agents" class="view">
         <h2>Agentes</h2>
         <div class="panel">
-          <input id="agent-name" type="text" placeholder="Nome do agente" />
-          <input id="agent-level" type="text" placeholder="Nivel (Estrategico, Tatico, Operacional)" />
-          <input id="agent-status" type="text" placeholder="Status (ativo, desenvolvimento)" />
-          <input id="agent-areas" type="text" placeholder="Areas (separadas por virgula)" />
-          <input id="agent-skills" type="text" placeholder="Skills (slugs, separadas por virgula)" />
-          <input id="agent-tags" type="text" placeholder="Tags (separadas por virgula)" />
-          <textarea id="agent-description" placeholder="Descricao do agente..."></textarea>
+          <div class="form-row">
+            <div class="field">
+              <label>Nome do agente</label>
+              <input id="agent-name" type="text" placeholder="Ex: Analista de Dados" />
+            </div>
+            <div class="field">
+              <label>Nível</label>
+              <input id="agent-level" type="text" placeholder="Estratégico · Tático · Operacional" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Status</label>
+              <input id="agent-status" type="text" placeholder="ativo · desenvolvimento" />
+            </div>
+            <div class="field">
+              <label>Áreas</label>
+              <input id="agent-areas" type="text" placeholder="separadas por vírgula" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label>Skills (slugs)</label>
+              <input id="agent-skills" type="text" placeholder="brainstorming, notion-sync..." />
+            </div>
+            <div class="field">
+              <label>Tags</label>
+              <input id="agent-tags" type="text" placeholder="separadas por vírgula" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Descrição</label>
+            <textarea id="agent-description" placeholder="Descreva o propósito deste agente..."></textarea>
+          </div>
           <div class="modal-actions">
-            <button id="agent-save" class="btn primary">Criar agente</button>
+            <button id="agent-save" class="btn primary">Criar Agente</button>
           </div>
         </div>
 
         <div class="grid">
           <div class="card">
-            <h3>1. Estrategico</h3>
+            <div class="card-header"><h3>Estratégico</h3></div>
             <div class="agent-grid" id="agents-estrategico"></div>
           </div>
           <div class="card">
-            <h3>2. Tatico</h3>
+            <div class="card-header"><h3>Tático</h3></div>
             <div class="agent-grid" id="agents-tatico"></div>
           </div>
-          <div class="card">
-            <h3>3. Operacional</h3>
+          <div class="card wide">
+            <div class="card-header"><h3>Operacional</h3></div>
             <div class="agent-grid" id="agents-operacional"></div>
           </div>
         </div>
       </section>
 
+      <!-- ── SKILLS ── -->
       <section id="view-skills" class="view">
         <h2>Skills</h2>
         <div class="list" id="skills-list"></div>
       </section>
 
+      <!-- ── REUNIÕES ── -->
       <section id="view-meetings" class="view">
         <h2>Reuniões</h2>
         <div class="panel">
-          <input id="meeting-title" type="text" placeholder="Titulo da reuniao" />
-          <textarea id="meeting-transcript" placeholder="Cole a transcricao aqui..."></textarea>
+          <div class="field">
+            <label>Título da reunião</label>
+            <input id="meeting-title" type="text" placeholder="Ex: Alinhamento Q2 com stakeholders" />
+          </div>
+          <div class="field">
+            <label>Transcrição</label>
+            <textarea id="meeting-transcript" placeholder="Cole a transcrição aqui..." style="min-height: 140px;"></textarea>
+          </div>
           <div class="modal-actions">
-            <button id="meeting-save" class="btn primary">Salvar reuniao</button>
-            <button id="meeting-analyze" class="btn ghost">Analisar transcricao</button>
+            <button id="meeting-analyze" class="btn ghost">Analisar com IA</button>
+            <button id="meeting-save" class="btn primary">Salvar Reunião</button>
           </div>
         </div>
         <div class="list" id="meetings-full-list"></div>
       </section>
 
+      <!-- ── FAVORITOS ── -->
       <section id="view-favorites" class="view">
         <h2>Favoritos</h2>
         <div class="panel">
-          <input id="favorite-title" type="text" placeholder="Titulo" />
-          <input id="favorite-url" type="text" placeholder="URL" />
-          <input id="favorite-tags" type="text" placeholder="Tags (separadas por virgula)" />
+          <div class="form-row">
+            <div class="field">
+              <label>Título</label>
+              <input id="favorite-title" type="text" placeholder="Nome do link" />
+            </div>
+            <div class="field">
+              <label>URL</label>
+              <input id="favorite-url" type="text" placeholder="https://..." />
+            </div>
+          </div>
+          <div class="field">
+            <label>Tags</label>
+            <input id="favorite-tags" type="text" placeholder="separadas por vírgula" />
+          </div>
           <div class="modal-actions">
-            <button id="favorite-save" class="btn primary">Salvar favorito</button>
-            <button id="favorite-sync" class="btn ghost">Sincronizar Raindrop</button>
+            <button id="favorite-sync" class="btn ghost">Sync Raindrop</button>
+            <button id="favorite-save" class="btn primary">Salvar Favorito</button>
           </div>
         </div>
         <div class="list" id="favorites-list"></div>
       </section>
 
+      <!-- ── CONHECIMENTO ── -->
       <section id="view-knowledge" class="view">
         <h2>Conhecimento</h2>
         <div class="list" id="memory-list"></div>
       </section>
 
+      <!-- ── ARQUIVO ── -->
       <section id="view-archive" class="view">
         <h2>Arquivo</h2>
         <div class="list" id="archive-list"></div>
       </section>
 
+      <!-- ── ADMIN ── -->
       <section id="view-admin" class="view">
         <h2>Admin</h2>
         <div class="inline-status hidden" id="admin-feedback"></div>
-        <div class="grid">
+
+        <div class="admin-grid">
+
+          <!-- Onboarding -->
           <div class="card wide">
-            <h3>Onboarding</h3>
-            <div class="panel">
-              <div class="list">
-                <div>1. Salve as configurações (LLM, Google, GitVault, Raindrop).</div>
-                <div>2. Conecte o Google e recarregue o status.</div>
-                <div>3. Sincronize o Raindrop.</div>
-                <div>4. Teste Push e Deploy.</div>
-              </div>
-              <div class="action-row">
-                <button id="onboard-save" class="btn primary" title="Salvar configuracoes">Salvar configs</button>
-                <button id="onboard-google" class="btn ghost" title="Conectar Google">Conectar Google</button>
-                <button id="onboard-raindrop" class="btn ghost" title="Sincronizar Raindrop">Sync Raindrop</button>
-                <button id="onboard-push" class="btn ghost" title="Testar Push">Testar Push</button>
-                <button id="onboard-deploy" class="btn ghost" title="Deploy backend">Deploy</button>
-              </div>
-            </div>
-          </div>
-          <div class="card">
-            <h3>Banco</h3>
-            <div class="mini-list" id="status-db"></div>
+            <div class="card-header"><h3>Onboarding</h3></div>
+            <p style="font-size:13px;color:var(--t2);margin-bottom:14px;">1. Salve as configurações → 2. Conecte o Google → 3. Sincronize o Raindrop → 4. Teste Push → 5. Deploy</p>
             <div class="action-row">
-              <button id="db-check" class="btn ghost" title="Checar conectividade do banco">Checar DB</button>
+              <button id="onboard-save"     class="btn primary">Salvar configs</button>
+              <button id="onboard-google"   class="btn ghost">Conectar Google</button>
+              <button id="onboard-raindrop" class="btn ghost">Sync Raindrop</button>
+              <button id="onboard-push"     class="btn ghost">Testar Push</button>
+              <button id="onboard-deploy"   class="btn ghost">Deploy</button>
             </div>
           </div>
+
+          <!-- Status cards -->
           <div class="card">
-            <h3>Google</h3>
+            <div class="card-header"><h3>Banco de Dados</h3></div>
+            <div class="mini-list" id="status-db"></div>
+            <div class="action-row"><button id="db-check" class="btn ghost">Verificar</button></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Google</h3></div>
             <div class="mini-list" id="status-google"></div>
             <div class="action-row">
-              <button id="google-connect-admin" class="btn primary" title="Abrir fluxo OAuth">Conectar</button>
-              <button id="google-refresh" class="btn ghost" title="Recarregar status">Recarregar</button>
+              <button id="google-connect-admin" class="btn primary">Conectar</button>
+              <button id="google-refresh" class="btn ghost">Recarregar</button>
             </div>
           </div>
+
           <div class="card">
-            <h3>GitVault</h3>
+            <div class="card-header"><h3>GitVault</h3></div>
             <div class="mini-list" id="status-gitvault"></div>
-            <div class="action-row">
-              <button id="gitvault-export" class="btn ghost" title="Exportar backup em Markdown">Exportar agora</button>
-            </div>
+            <div class="action-row"><button id="gitvault-export" class="btn ghost">Exportar</button></div>
           </div>
+
           <div class="card">
-            <h3>Raindrop</h3>
+            <div class="card-header"><h3>Raindrop</h3></div>
             <div class="mini-list" id="status-raindrop"></div>
-            <div class="action-row">
-              <button id="raindrop-sync" class="btn ghost" title="Sincronizar favoritos">Sincronizar</button>
-            </div>
+            <div class="action-row"><button id="raindrop-sync" class="btn ghost">Sincronizar</button></div>
           </div>
+
           <div class="card">
-            <h3>Push</h3>
+            <div class="card-header"><h3>Push</h3></div>
             <div class="mini-list" id="status-push"></div>
-            <div class="action-row">
-              <button id="push-test" class="btn ghost" title="Enviar push de teste">Testar push</button>
-            </div>
+            <div class="action-row"><button id="push-test" class="btn ghost">Testar</button></div>
           </div>
+
           <div class="card">
-            <h3>Deploy</h3>
+            <div class="card-header"><h3>Deploy</h3></div>
             <div class="mini-list" id="status-deploy"></div>
-            <div class="action-row">
-              <button id="cfg-deploy" class="btn primary">Deploy backend</button>
-            </div>
+            <div class="action-row"><button id="cfg-deploy" class="btn primary">Deploy Backend</button></div>
           </div>
-          <div class="card wide">
-            <h3>LLM</h3>
+
+          <div class="card span-2">
+            <div class="card-header"><h3>LLM</h3></div>
             <div class="mini-list" id="status-llm"></div>
           </div>
+
+          <!-- Configurações -->
           <div class="card wide">
-            <h3>Configuracoes</h3>
-            <div class="panel">
+            <div class="card-header"><h3>Configurações</h3></div>
+            <div class="form-row">
               <div class="field">
                 <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
-                <input id="cfg-gemini" type="password" placeholder="GEMINI_API_KEY" />
+                <input id="cfg-gemini" type="password" placeholder="AIza..." />
               </div>
               <div class="field">
                 <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
-                <input id="cfg-openrouter" type="password" placeholder="OPENROUTER_API_KEY" />
+                <input id="cfg-openrouter" type="password" placeholder="sk-or-..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
-                <input id="cfg-deepseek" type="password" placeholder="DEEPSEEK_API_KEY" />
+                <input id="cfg-deepseek" type="password" placeholder="sk-..." />
               </div>
               <div class="field">
                 <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
-                <input id="cfg-default-provider" type="text" placeholder="DEFAULT_LLM_PROVIDER" />
+                <input id="cfg-default-provider" type="text" placeholder="gemini" />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
-                <input id="cfg-github-token" type="password" placeholder="GITHUB_TOKEN" />
+                <input id="cfg-github-token" type="password" placeholder="ghp_..." />
               </div>
               <div class="field">
                 <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
-                <input id="cfg-gitvault-repo" type="text" placeholder="GITVAULT_REPO" />
+                <input id="cfg-gitvault-repo" type="text" placeholder="owner/repo" />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
-                <input id="cfg-gitvault-base" type="text" placeholder="GITVAULT_BASE_PATH" />
+                <input id="cfg-gitvault-base" type="text" placeholder="daily" />
               </div>
               <div class="field">
                 <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
-                <input id="cfg-google-client-id" type="password" placeholder="GOOGLE_OAUTH_CLIENT_ID" />
+                <input id="cfg-google-client-id" type="password" placeholder="..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
-                <input id="cfg-google-client-secret" type="password" placeholder="GOOGLE_OAUTH_CLIENT_SECRET" />
+                <input id="cfg-google-client-secret" type="password" placeholder="..." />
               </div>
               <div class="field">
                 <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
-                <input id="cfg-google-redirect" type="text" placeholder="GOOGLE_OAUTH_REDIRECT_URI" />
+                <input id="cfg-google-redirect" type="text" placeholder="https://..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
-                <input id="cfg-google-calendar" type="text" placeholder="GOOGLE_EXPORT_CALENDAR_ID" />
+                <input id="cfg-google-calendar" type="text" placeholder="primary" />
               </div>
               <div class="field">
                 <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
-                <input id="cfg-vapid-public" type="password" placeholder="VAPID_PUBLIC_KEY" />
+                <input id="cfg-vapid-public" type="password" placeholder="..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
-                <input id="cfg-vapid-private" type="password" placeholder="VAPID_PRIVATE_KEY" />
+                <input id="cfg-vapid-private" type="password" placeholder="..." />
               </div>
               <div class="field">
                 <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
-                <input id="cfg-vapid-email" type="text" placeholder="VAPID_CONTACT_EMAIL" />
+                <input id="cfg-vapid-email" type="text" placeholder="mailto:admin@..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
-                <input id="cfg-render-hook" type="password" placeholder="RENDER_DEPLOY_HOOK_URL" />
+                <input id="cfg-render-hook" type="password" placeholder="https://api.render.com/..." />
               </div>
               <div class="field">
                 <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
-                <input id="cfg-raindrop-token" type="password" placeholder="RAINDROP_TOKEN" />
+                <input id="cfg-raindrop-token" type="password" placeholder="..." />
               </div>
+            </div>
+            <div class="form-row">
               <div class="field">
                 <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
-                <input id="cfg-raindrop-collection" type="text" placeholder="RAINDROP_COLLECTION_ID" />
+                <input id="cfg-raindrop-collection" type="text" placeholder="0" />
               </div>
-              <div class="modal-actions">
-                <button id="cfg-save" class="btn primary">Salvar configuracoes</button>
-              </div>
+              <div class="field"></div>
+            </div>
+            <div class="modal-actions">
+              <button id="cfg-save" class="btn primary">Salvar Configurações</button>
             </div>
           </div>
-          <div class="card wide">
-            <h3>Tags</h3>
-            <div class="panel">
-              <input id="tag-name" type="text" placeholder="Nova tag" />
-              <input id="tag-color" type="text" placeholder="Cor (hex opcional)" />
-              <div class="modal-actions">
-                <button id="tag-save" class="btn primary">Salvar tag</button>
+
+          <!-- Tags -->
+          <div class="card">
+            <div class="card-header"><h3>Tags</h3></div>
+            <div class="form-row">
+              <div class="field">
+                <label>Nome</label>
+                <input id="tag-name" type="text" placeholder="Nome da tag" />
+              </div>
+              <div class="field">
+                <label>Cor (hex)</label>
+                <input id="tag-color" type="text" placeholder="#0ef2a8" />
               </div>
             </div>
-            <div class="list" id="tags-list"></div>
+            <div class="modal-actions" style="justify-content:flex-start;">
+              <button id="tag-save" class="btn primary">Criar Tag</button>
+            </div>
+            <div class="list" id="tags-list" style="margin-top:14px;"></div>
           </div>
-          <div class="card wide">
-            <h3>Links</h3>
-            <div class="panel">
-              <input id="link-from-type" type="text" placeholder="from_type (agent, favorite, project...)" />
-              <input id="link-from-id" type="text" placeholder="from_id" />
-              <input id="link-to-type" type="text" placeholder="to_type" />
-              <input id="link-to-id" type="text" placeholder="to_id" />
-              <input id="link-label" type="text" placeholder="Label (opcional)" />
-              <div class="modal-actions">
-                <button id="link-save" class="btn primary">Criar link</button>
+
+          <!-- Links -->
+          <div class="card span-2">
+            <div class="card-header"><h3>Links</h3></div>
+            <div class="form-row">
+              <div class="field">
+                <label>From Type</label>
+                <input id="link-from-type" type="text" placeholder="agent, favorite, project..." />
+              </div>
+              <div class="field">
+                <label>From ID</label>
+                <input id="link-from-id" type="text" placeholder="ID" />
               </div>
             </div>
-            <div class="list" id="links-list"></div>
+            <div class="form-row">
+              <div class="field">
+                <label>To Type</label>
+                <input id="link-to-type" type="text" placeholder="tipo destino" />
+              </div>
+              <div class="field">
+                <label>To ID</label>
+                <input id="link-to-id" type="text" placeholder="ID destino" />
+              </div>
+            </div>
+            <div class="field">
+              <label>Label (opcional)</label>
+              <input id="link-label" type="text" placeholder="Descrição da relação" />
+            </div>
+            <div class="modal-actions" style="justify-content:flex-start;">
+              <button id="link-save" class="btn primary">Criar Link</button>
+            </div>
+            <div class="list" id="links-list" style="margin-top:14px;"></div>
           </div>
-        </div>
+
+        </div><!-- /admin-grid -->
       </section>
-    </main>
-  </div>
 
-  <div id="modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Quick Capture</h3>
-      <textarea id="modal-input" placeholder="Capture algo importante..."></textarea>
-      <div class="modal-actions">
-        <button id="modal-cancel" class="btn ghost">Cancelar</button>
-        <button id="modal-save" class="btn primary">Salvar</button>
-      </div>
+    </div><!-- /view-container -->
+  </main>
+</div>
+
+<!-- ── MODAL QUICK CAPTURE ── -->
+<div id="modal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Quick Capture</h3>
+    <textarea id="modal-input" placeholder="Capture uma ideia, tarefa ou nota importante..." style="min-height:120px;"></textarea>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="btn ghost">Cancelar</button>
+      <button id="modal-save"   class="btn primary">Salvar</button>
     </div>
   </div>
+</div>
 
-  <div id="login-modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Entrar</h3>
-      <input id="login-api-base" type="text" placeholder="Backend URL" />
-      <input id="login-password" type="password" placeholder="Senha" />
-      <input id="login-token-secret" type="password" placeholder="Token secret (apenas no primeiro setup)" />
-      <div class="hint" id="bootstrap-hint">Se for o primeiro acesso, clique em Inicializar.</div>
-      <div class="modal-actions">
-        <button id="login-submit" class="btn primary">Entrar</button>
-        <button id="login-bootstrap" class="btn ghost">Inicializar</button>
-        <button id="login-generate" class="btn ghost">Gerar segredo</button>
-      </div>
+<!-- ── MODAL LOGIN ── -->
+<div id="login-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Entrar no AndClaw</h3>
+    <div class="field">
+      <label>Backend URL</label>
+      <input id="login-api-base" type="text" placeholder="https://seu-backend.onrender.com" />
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input id="login-password" type="password" placeholder="••••••••" />
+    </div>
+    <div class="field">
+      <label>Token Secret <span style="color:var(--t3);font-weight:400;">(apenas no primeiro setup)</span></label>
+      <input id="login-token-secret" type="password" placeholder="Gere abaixo ou deixe vazio" />
+    </div>
+    <div class="hint" id="bootstrap-hint">Primeiro acesso? Clique em Inicializar para configurar.</div>
+    <div class="modal-actions">
+      <button id="login-generate" class="btn ghost">Gerar Segredo</button>
+      <button id="login-bootstrap" class="btn ghost">Inicializar</button>
+      <button id="login-submit"   class="btn primary">Entrar</button>
     </div>
   </div>
+</div>
 
-  <script src="/config.js"></script>
-  <script src="/app.js"></script>
+<script src="/config.js"></script>
+<script src="/app.js"></script>
+
+<!-- Melhorias de UX inline -->
+<script>
+  // Atualizar título da página conforme nav
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const label = item.textContent.trim();
+      const icon  = item.querySelector('svg')?.outerHTML || '';
+      document.getElementById('page-title-el').innerHTML = icon + label;
+    });
+  });
+
+  // Melhorar rendering de mensagens do chat com avatares e bubbles
+  const _origAppendChat = window.appendChatMsg;
+  function renderChatMsg(window_id, role, text) {
+    const win = document.getElementById(window_id);
+    if (!win) return;
+    const wrap = document.createElement('div');
+    wrap.className = `chat-msg ${role === 'user' ? 'user' : 'agent'}`;
+    const avatar = document.createElement('div');
+    avatar.className = `chat-avatar ${role === 'user' ? 'user-av' : 'agent-av'}`;
+    avatar.textContent = role === 'user' ? 'U' : 'A';
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.textContent = text;
+    const time = document.createElement('div');
+    time.className = 'chat-time';
+    time.textContent = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    const inner = document.createElement('div');
+    inner.appendChild(bubble);
+    inner.appendChild(time);
+    wrap.appendChild(avatar);
+    wrap.appendChild(inner);
+    win.appendChild(wrap);
+    win.scrollTop = win.scrollHeight;
+  }
+</script>
 </body>
 </html>
