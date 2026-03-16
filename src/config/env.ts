@@ -21,6 +21,25 @@ export const config = {
     providerChain: (process.env.LLM_PROVIDER_CHAIN || 'gemini-flash,gemini-flash-lite,openrouter,deepseek').split(',').map(p => p.trim()),
     maxIterations: parseInt(process.env.MAX_ITERATIONS || '5', 10),
   },
+  db: {
+    url: process.env.DATABASE_URL || '',
+  },
+  server: {
+    port: parseInt(process.env.PORT || '3000', 10),
+  },
+  google: {
+    accountsJson: process.env.GOOGLE_ACCOUNTS_JSON || '[]',
+  },
+  gitvault: {
+    repo: process.env.GITVAULT_REPO || '',
+    token: process.env.GITHUB_TOKEN || '',
+    basePath: process.env.GITVAULT_BASE_PATH || 'daily',
+  },
+  push: {
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
+    contactEmail: process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com',
+  },
   paths: {
     db: path.join(process.cwd(), 'data', 'db.sqlite'),
     skills: path.join(process.cwd(), '.agents', 'skills'),

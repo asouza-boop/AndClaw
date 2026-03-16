@@ -1,18 +1,21 @@
 import { Bot } from 'grammy';
 import { config } from './config/env';
 import { TelegramInputHandler } from './telegram/TelegramInputHandler';
+import { startServer } from './server';
 
 async function bootstrap() {
     console.log("================================================");
     console.log("   🚀 Inicializando AndClaw       ");
     console.log("================================================");
     
-    if (!config.telegram.token || config.telegram.token === 'YOUR_TELEGRAM_BOT_TOKEN') {
-        console.error("❌ ERRO FATAL: TOKEN do Telegram inválido no .env");
-        process.exit(1);
-    }
+    await startServer();
 
     try {
+        if (!config.telegram.token || config.telegram.token === 'YOUR_TELEGRAM_BOT_TOKEN') {
+            console.warn("⚠️ Telegram desativado: TOKEN inválido.");
+            return;
+        }
+
         const bot = new Bot(config.telegram.token);
         const inputHandler = new TelegramInputHandler(bot);
         
