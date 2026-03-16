@@ -31,6 +31,11 @@ function hideBanner() {
   banner.textContent = '';
 }
 
+function showError(err) {
+  const msg = typeof err === 'string' ? err : (err && err.message) ? err.message : 'Erro inesperado';
+  showBanner(msg);
+}
+
 function getApiBase() {
   return localStorage.getItem('andclaw_api_base') || DEFAULT_API_BASE;
 }
@@ -69,17 +74,17 @@ async function apiFetch(path, options = {}) {
   const apiBase = getApiBase();
   if (!apiBase) {
     showLogin();
-    throw new Error('API base not configured');
+    throw new Error('API base nao configurada');
   }
 
   const res = await fetch(`${apiBase}${path}`, { ...options, headers });
   if (res.status === 401) {
     showLogin();
-    throw new Error('Unauthorized');
+    throw new Error('Nao autorizado. Faça login novamente.');
   }
   if (res.status === 503) {
     showLogin();
-    throw new Error('Bootstrap required');
+    throw new Error('Inicializacao necessaria. Use o botao Inicializar.');
   }
   return res;
 }
@@ -104,24 +109,29 @@ document.getElementById('login-submit').addEventListener('click', async () => {
   const password = loginPassword.value.trim();
   if (!apiBase || !password) return;
   setApiBase(apiBase);
-  const res = await fetch(`${apiBase}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password })
-  });
-  if (res.ok) {
-    const data = await res.json();
-    localStorage.setItem('auth_token', data.token);
-    hideLogin();
-    hideBanner();
-    await initApp();
-  } else {
+  try {
+    const res = await fetch(`${apiBase}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('auth_token', data.token);
+      hideLogin();
+      hideBanner();
+      await initApp();
+      return;
+    }
     const data = await res.json().catch(() => ({}));
     if (data.error === 'auth not configured') {
       bootstrapHint.textContent = 'Configure senha e clique em Inicializar.';
+      showBanner('Auth nao configurado no backend.');
     } else {
       showBanner('Falha no login. Verifique a senha e a URL do backend.');
     }
+  } catch (err) {
+    showError(err);
   }
 });
 
@@ -131,24 +141,28 @@ document.getElementById('login-bootstrap').addEventListener('click', async () =>
   const tokenSecret = loginTokenSecret.value.trim();
   if (!apiBase || !password) return;
   setApiBase(apiBase);
-  const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password, tokenSecret: tokenSecret || undefined })
-  });
-  if (res.ok) {
-    const data = await res.json();
-    localStorage.setItem('auth_token', data.token);
-    hideLogin();
-    hideBanner();
-    await initApp();
-  } else {
+  try {
+    const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, tokenSecret: tokenSecret || undefined })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem('auth_token', data.token);
+      hideLogin();
+      hideBanner();
+      await initApp();
+      return;
+    }
     const data = await res.json().catch(() => ({}));
     if (data.error === 'already_configured') {
       showBanner('Ja configurado. Use Entrar.');
     } else {
       showBanner('Falha na inicializacao. Verifique a URL do backend.');
     }
+  } catch (err) {
+    showError(err);
   }
 });
 
@@ -183,10 +197,14 @@ captureSend.addEventListener('click', async () => {
 
 async function queueCapture(content) {
   if (navigator.onLine) {
-    await apiFetch('/api/captures', {
-      method: 'POST',
-      body: JSON.stringify({ content })
-    });
+    try {
+      await apiFetch('/api/captures', {
+        method: 'POST',
+        body: JSON.stringify({ content })
+      });
+    } catch (err) {
+      showError(err);
+    }
   } else {
     enqueueLocal('captures', { content, createdAt: new Date().toISOString() });
   }
@@ -235,13 +253,17 @@ async function refreshCaptures() {
   });
 
   if (navigator.onLine) {
-    const res = await apiFetch('/api/captures');
-    const data = await res.json();
-    (data.items || []).slice(0, 50).forEach(item => {
-      const div = document.createElement('div');
-      div.textContent = item.content;
-      list.appendChild(div);
-    });
+    try {
+      const res = await apiFetch('/api/captures');
+      const data = await res.json();
+      (data.items || []).slice(0, 50).forEach(item => {
+        const div = document.createElement('div');
+        div.textContent = item.content;
+        list.appendChild(div);
+      });
+    } catch (err) {
+      showError(err);
+    }
   }
 }
 
@@ -255,12 +277,16 @@ const chatWindowFull = document.getElementById('chat-window-full');
 
 async function loadChatHistory() {
   if (!navigator.onLine) return;
-  const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=200');
-  const data = await res.json();
-  const items = data.items || [];
-  const html = items.map(msg => `<div>${msg.role === 'assistant' ? 'Agente' : 'Você'}: ${msg.content}</div>`).join('');
-  chatWindow.innerHTML = html;
-  chatWindowFull.innerHTML = html;
+  try {
+    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=200');
+    const data = await res.json();
+    const items = data.items || [];
+    const html = items.map(msg => `<div>${msg.role === 'assistant' ? 'Agente' : 'Você'}: ${msg.content}</div>`).join('');
+    chatWindow.innerHTML = html;
+    chatWindowFull.innerHTML = html;
+  } catch (err) {
+    showError(err);
+  }
 }
 
 async function sendChatMessage(inputEl, windowEl) {
@@ -276,15 +302,19 @@ async function sendChatMessage(inputEl, windowEl) {
   windowEl.innerHTML += `<div>Você: ${content}</div>`;
 
   if (navigator.onLine) {
-    const res = await apiFetch('/api/agent', {
-      method: 'POST',
-      body: JSON.stringify({ input: content })
-    });
-    const data = await res.json();
-    if (data.reply) {
-      windowEl.innerHTML += `<div>Agente: ${data.reply}</div>`;
+    try {
+      const res = await apiFetch('/api/agent', {
+        method: 'POST',
+        body: JSON.stringify({ input: content })
+      });
+      const data = await res.json();
+      if (data.reply) {
+        windowEl.innerHTML += `<div>Agente: ${data.reply}</div>`;
+      }
+      await loadChatHistory();
+    } catch (err) {
+      showError(err);
     }
-    await loadChatHistory();
   } else {
     enqueueLocal('messages', payload);
   }
@@ -296,45 +326,57 @@ chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow))
 chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chatWindowFull));
 
 async function loadDashboard() {
-  const tasksRes = await apiFetch('/api/tasks');
-  const tasks = (await tasksRes.json()).items || [];
-  const todayList = document.getElementById('today-list');
-  todayList.innerHTML = tasks.slice(0, 5).map(t => `<div>${t.title}</div>`).join('');
+  try {
+    const tasksRes = await apiFetch('/api/tasks');
+    const tasks = (await tasksRes.json()).items || [];
+    const todayList = document.getElementById('today-list');
+    todayList.innerHTML = tasks.slice(0, 5).map(t => `<div>${t.title}</div>`).join('');
 
-  const priorityList = document.getElementById('priority-list');
-  priorityList.innerHTML = tasks.slice(0, 3).map(t => `<div>${t.title}</div>`).join('');
+    const priorityList = document.getElementById('priority-list');
+    priorityList.innerHTML = tasks.slice(0, 3).map(t => `<div>${t.title}</div>`).join('');
 
-  const meetingsRes = await apiFetch('/api/meetings');
-  const meetings = (await meetingsRes.json()).items || [];
-  const meetingsList = document.getElementById('meetings-list');
-  meetingsList.innerHTML = meetings.slice(0, 3).map(m => `<div>${m.title}</div>`).join('');
+    const meetingsRes = await apiFetch('/api/meetings');
+    const meetings = (await meetingsRes.json()).items || [];
+    const meetingsList = document.getElementById('meetings-list');
+    meetingsList.innerHTML = meetings.slice(0, 3).map(m => `<div>${m.title}</div>`).join('');
+  } catch (err) {
+    showError(err);
+  }
 }
 
 async function loadAgenda() {
-  const res = await apiFetch('/api/calendar/combined');
-  const data = await res.json();
-  const list = document.getElementById('agenda-grid');
-  list.innerHTML = (data.items || [])
-    .sort((a, b) => new Date(a.start) - new Date(b.start))
-    .slice(0, 12)
-    .map(item => {
-      const label = item.type === 'task' ? 'Tarefa' : 'Evento';
-      const date = item.start ? new Date(item.start).toLocaleString() : '';
-      return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
-    })
-    .join('');
+  try {
+    const res = await apiFetch('/api/calendar/combined');
+    const data = await res.json();
+    const list = document.getElementById('agenda-grid');
+    list.innerHTML = (data.items || [])
+      .sort((a, b) => new Date(a.start) - new Date(b.start))
+      .slice(0, 12)
+      .map(item => {
+        const label = item.type === 'task' ? 'Tarefa' : 'Evento';
+        const date = item.start ? new Date(item.start).toLocaleString() : '';
+        return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
+      })
+      .join('');
+  } catch (err) {
+    showError(err);
+  }
 }
 
 async function loadAdmin() {
-  const res = await apiFetch('/api/status');
-  const data = await res.json();
+  try {
+    const res = await apiFetch('/api/status');
+    const data = await res.json();
 
-  document.getElementById('status-db').innerHTML = data.db?.ok ? 'OK' : 'Falha';
-  document.getElementById('status-google').innerHTML = (data.google?.connectedAccounts || []).length
-    ? `Conectado (${data.google.connectedAccounts.length})`
-    : 'Nao conectado';
-  document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
-  document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+    document.getElementById('status-db').innerHTML = data.db?.ok ? 'OK' : 'Falha';
+    document.getElementById('status-google').innerHTML = (data.google?.connectedAccounts || []).length
+      ? `Conectado (${data.google.connectedAccounts.length})`
+      : 'Nao conectado';
+    document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
+    document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+  } catch (err) {
+    showError(err);
+  }
 }
 
 async function registerServiceWorker() {
@@ -362,9 +404,13 @@ async function subscribePush() {
 }
 
 async function connectGoogle() {
-  const res = await apiFetch('/api/google/auth/url');
-  const { url } = await res.json();
-  if (url) window.location.href = url;
+  try {
+    const res = await apiFetch('/api/google/auth/url');
+    const { url } = await res.json();
+    if (url) window.location.href = url;
+  } catch (err) {
+    showError(err);
+  }
 }
 
 document.getElementById('google-connect-btn').addEventListener('click', connectGoogle);
