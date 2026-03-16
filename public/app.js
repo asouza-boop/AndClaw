@@ -20,6 +20,7 @@ const loginApiBase = document.getElementById('login-api-base');
 const loginPassword = document.getElementById('login-password');
 const loginTokenSecret = document.getElementById('login-token-secret');
 const bootstrapHint = document.getElementById('bootstrap-hint');
+const adminFeedback = document.getElementById('admin-feedback');
 
 function showBanner(text) {
   banner.textContent = text;
@@ -36,6 +37,17 @@ function showError(err) {
   showBanner(msg);
 }
 
+function showInline(text) {
+  if (!adminFeedback) return;
+  adminFeedback.textContent = text;
+  adminFeedback.classList.remove('hidden');
+}
+
+function hideInline() {
+  if (!adminFeedback) return;
+  adminFeedback.textContent = '';
+  adminFeedback.classList.add('hidden');
+}
 function getApiBase() {
   return localStorage.getItem('andclaw_api_base') || DEFAULT_API_BASE;
 }
@@ -89,7 +101,7 @@ async function apiFetch(path, options = {}) {
   if (res.ok) {
     const ct = res.headers.get('content-type') || '';
     if (ct && !ct.includes('application/json')) {
-      throw new Error('Backend retornou resposta nao-JSON. Verifique a URL do backend.');
+      throw new Error('Resposta invalida do backend.');
     }
   }
   return res;
@@ -130,6 +142,7 @@ document.getElementById('login-submit').addEventListener('click', async () => {
       localStorage.setItem('auth_token', data.token);
       hideLogin();
       hideBanner();
+      hideInline();
       await initApp();
       return;
     }
@@ -545,28 +558,28 @@ cfgSave.addEventListener('click', async () => {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    showBanner('Configuracoes salvas.');
+    showInline('Configuracoes salvas.');
     await loadAdmin();
   } catch (err) {
-    showError(err);
+    showInline('Falha ao salvar configuracoes.');
   }
 });
 
 cfgDeploy.addEventListener('click', async () => {
   try {
     await apiFetch('/api/deploy', { method: 'POST' });
-    showBanner('Deploy disparado.');
+    showInline('Deploy disparado.');
   } catch (err) {
-    showError(err);
+    showInline('Falha ao disparar deploy.');
   }
 });
 
 dbCheck.addEventListener('click', async () => {
   try {
     const res = await apiFetch('/api/health/db');
-    if (res.ok) showBanner('DB OK');
+    if (res.ok) showInline('DB OK');
   } catch (err) {
-    showError(err);
+    showInline('Falha ao checar DB.');
   }
 });
 
@@ -574,34 +587,34 @@ googleConnectAdmin.addEventListener('click', connectGoogle);
 
 googleRefresh.addEventListener('click', async () => {
   await loadAdmin();
-  showBanner('Status atualizado.');
+  showInline('Status atualizado.');
 });
 
 gitvaultExport.addEventListener('click', async () => {
   try {
     await apiFetch('/api/gitvault/export', { method: 'POST' });
-    showBanner('GitVault exportado.');
+    showInline('GitVault exportado.');
   } catch (err) {
-    showError(err);
+    showInline('Falha ao exportar GitVault.');
   }
 });
 
 raindropSync.addEventListener('click', async () => {
   try {
     await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
-    showBanner('Raindrop sincronizado.');
+    showInline('Raindrop sincronizado.');
     await loadFavorites();
   } catch (err) {
-    showError(err);
+    showInline('Falha ao sincronizar Raindrop.');
   }
 });
 
 pushTest.addEventListener('click', async () => {
   try {
     await apiFetch('/api/push/test', { method: 'POST' });
-    showBanner('Push enviado.');
+    showInline('Push enviado.');
   } catch (err) {
-    showError(err);
+    showInline('Falha ao enviar push.');
   }
 });
 
@@ -789,7 +802,7 @@ document.getElementById('favorite-save').addEventListener('click', async () => {
 document.getElementById('favorite-sync').addEventListener('click', async () => {
   try {
     await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
-    showBanner('Raindrop sincronizado.');
+    showInline('Raindrop sincronizado.');
     await loadFavorites();
   } catch (err) {
     showError(err);
@@ -813,13 +826,13 @@ async function initApp() {
   try {
     const apiBase = getApiBase();
     if (!apiBase) {
-      showBanner('Configure a URL do backend para continuar.');
+      showBanner('Configure o backend para continuar.');
       showLogin();
       return;
     }
     const health = await fetch(`${apiBase}/api/health`).then(r => r.ok);
     if (!health) {
-      showBanner('Backend indisponivel ou URL incorreta.');
+      showBanner('Backend indisponivel.');
       showLogin();
       return;
     }

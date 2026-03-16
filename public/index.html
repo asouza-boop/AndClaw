@@ -189,6 +189,7 @@
 
       <section id="view-admin" class="view">
         <h2>Admin</h2>
+        <div class="inline-status hidden" id="admin-feedback"></div>
         <div class="grid">
           <div class="card wide">
             <h3>Onboarding</h3>
@@ -324,7 +325,7 @@
   <div id="login-modal" class="modal hidden">
     <div class="modal-content">
       <h3>Entrar</h3>
-      <input id="login-api-base" type="text" placeholder="URL do backend (Render)" />
+      <input id="login-api-base" type="text" placeholder="Backend URL" />
       <input id="login-password" type="password" placeholder="Senha" />
       <input id="login-token-secret" type="password" placeholder="Token secret (apenas no primeiro setup)" />
       <div class="hint" id="bootstrap-hint">Se for o primeiro acesso, clique em Inicializar.</div>
