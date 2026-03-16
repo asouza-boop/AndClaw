@@ -210,6 +210,16 @@ textarea {
   margin-bottom: 12px;
 }
 
+input[type="password"] {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  margin: 12px 0 16px;
+}
+
 .chat-window {
   min-height: 140px;
   background: var(--surface-2);

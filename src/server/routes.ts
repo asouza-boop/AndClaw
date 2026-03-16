@@ -2,9 +2,12 @@ import { Router, Request, Response } from 'express';
 import { query } from '../db/postgres';
 import { ensureSchema } from '../db/schema';
 import { syncGoogleCalendars, exportTasksToGoogle, importGoogleEvents } from '../integrations/googleCalendar';
+import { getGoogleAuthUrl, handleGoogleOAuthCallback, listConnectedAccounts } from '../integrations/googleCalendar';
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
 import { AgentController } from '../core/AgentController';
+import { issueToken } from './auth';
+import { config } from '../config/env';
 
 const router = Router();
 const agent = new AgentController();
@@ -16,6 +19,22 @@ router.get('/health', async (_req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ ok: false, error: error.message });
   }
+});
+
+router.post('/auth/login', async (req: Request, res: Response) => {
+  const { password } = req.body || {};
+  if (!config.auth.password || !config.auth.tokenSecret) {
+    return res.status(500).json({ error: 'auth not configured' });
+  }
+  if (!password || password !== config.auth.password) {
+    return res.status(401).json({ error: 'invalid password' });
+  }
+  const token = issueToken('andclaw-user');
+  res.json({ token });
+});
+
+router.get('/auth/me', async (_req: Request, res: Response) => {
+  res.json({ ok: true });
 });
 
 router.post('/messages', async (req: Request, res: Response) => {
@@ -143,6 +162,23 @@ router.get('/calendar/events', async (_req: Request, res: Response) => {
 router.post('/calendar/sync', async (_req: Request, res: Response) => {
   await syncGoogleCalendars();
   res.json({ ok: true });
+});
+
+router.get('/google/auth/url', async (_req: Request, res: Response) => {
+  const url = await getGoogleAuthUrl();
+  res.json({ url });
+});
+
+router.get('/google/accounts', async (_req: Request, res: Response) => {
+  const accounts = await listConnectedAccounts();
+  res.json({ ok: true, accounts });
+});
+
+router.get('/google/oauth/callback', async (req: Request, res: Response) => {
+  const { code } = req.query as { code?: string };
+  if (!code) return res.status(400).send('Missing code.');
+  await handleGoogleOAuthCallback(code);
+  res.redirect('/?google=connected');
 });
 
 router.post('/gitvault/export', async (_req: Request, res: Response) => {

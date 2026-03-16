@@ -29,6 +29,14 @@ export const config = {
   },
   google: {
     accountsJson: process.env.GOOGLE_ACCOUNTS_JSON || '[]',
+    oauthClientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+    oauthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+    oauthRedirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
+    exportCalendarId: process.env.GOOGLE_EXPORT_CALENDAR_ID || 'primary',
+  },
+  auth: {
+    password: process.env.AUTH_PASSWORD || '',
+    tokenSecret: process.env.AUTH_TOKEN_SECRET || '',
   },
   gitvault: {
     repo: process.env.GITVAULT_REPO || '',

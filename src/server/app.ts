@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import routes from './routes';
+import { authMiddleware } from './auth';
 
 export function createApp() {
   const app = express();
@@ -10,6 +11,12 @@ export function createApp() {
 
   const publicDir = path.join(process.cwd(), 'public');
   app.use(express.static(publicDir));
+
+  app.use('/api', (req, res, next) => {
+    const openPaths = ['/health', '/auth/login', '/google/oauth/callback'];
+    if (openPaths.includes(req.path)) return next();
+    return authMiddleware(req, res, next);
+  });
 
   app.use('/api', routes);
 

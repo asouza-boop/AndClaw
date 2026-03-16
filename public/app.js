@@ -13,6 +13,8 @@ navItems.forEach(item => {
 
 const modal = document.getElementById('modal');
 const modalInput = document.getElementById('modal-input');
+const loginModal = document.getElementById('login-modal');
+const loginPassword = document.getElementById('login-password');
 
 function openModal() {
   modal.classList.remove('hidden');
@@ -23,6 +25,60 @@ function closeModal() {
   modal.classList.add('hidden');
   modalInput.value = '';
 }
+
+function showLogin() {
+  loginModal.classList.remove('hidden');
+  loginPassword.focus();
+}
+
+function hideLogin() {
+  loginModal.classList.add('hidden');
+  loginPassword.value = '';
+}
+
+async function apiFetch(path, options = {}) {
+  const token = localStorage.getItem('auth_token');
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(path, { ...options, headers });
+  if (res.status === 401) {
+    showLogin();
+    throw new Error('Unauthorized');
+  }
+  return res;
+}
+
+async function ensureAuth() {
+  const token = localStorage.getItem('auth_token');
+  if (!token) {
+    showLogin();
+    return false;
+  }
+  try {
+    await apiFetch('/api/auth/me');
+    return true;
+  } catch {
+    showLogin();
+    return false;
+  }
+}
+
+document.getElementById('login-submit').addEventListener('click', async () => {
+  const password = loginPassword.value.trim();
+  if (!password) return;
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password })
+  });
+  if (res.ok) {
+    const data = await res.json();
+    localStorage.setItem('auth_token', data.token);
+    hideLogin();
+    await initApp();
+  }
+});
 
 document.getElementById('quick-capture-btn').addEventListener('click', openModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
@@ -48,9 +104,8 @@ captureSend.addEventListener('click', async () => {
 
 async function queueCapture(content) {
   if (navigator.onLine) {
-    await fetch('/api/captures', {
+    await apiFetch('/api/captures', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
   } else {
@@ -70,9 +125,8 @@ async function flushQueue() {
   const captures = JSON.parse(localStorage.getItem('captures') || '[]');
   if (captures.length) {
     for (const cap of captures) {
-      await fetch('/api/captures', {
+      await apiFetch('/api/captures', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: cap.content })
       });
     }
@@ -82,9 +136,8 @@ async function flushQueue() {
   const messages = JSON.parse(localStorage.getItem('messages') || '[]');
   if (messages.length) {
     for (const msg of messages) {
-      await fetch('/api/messages', {
+      await apiFetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(msg)
       });
     }
@@ -103,7 +156,7 @@ async function refreshCaptures() {
   });
 
   if (navigator.onLine) {
-    const res = await fetch('/api/captures');
+    const res = await apiFetch('/api/captures');
     const data = await res.json();
     (data.items || []).slice(0, 50).forEach(item => {
       const div = document.createElement('div');
@@ -134,9 +187,8 @@ async function sendChatMessage(inputEl, windowEl) {
   windowEl.innerHTML += `<div>Você: ${content}</div>`;
 
   if (navigator.onLine) {
-    const res = await fetch('/api/agent', {
+    const res = await apiFetch('/api/agent', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ input: content })
     });
     const data = await res.json();
@@ -154,7 +206,7 @@ chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow))
 chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chatWindowFull));
 
 async function loadDashboard() {
-  const tasksRes = await fetch('/api/tasks');
+  const tasksRes = await apiFetch('/api/tasks');
   const tasks = (await tasksRes.json()).items || [];
   const todayList = document.getElementById('today-list');
   todayList.innerHTML = tasks.slice(0, 5).map(t => `<div>${t.title}</div>`).join('');
@@ -162,7 +214,7 @@ async function loadDashboard() {
   const priorityList = document.getElementById('priority-list');
   priorityList.innerHTML = tasks.slice(0, 3).map(t => `<div>${t.title}</div>`).join('');
 
-  const meetingsRes = await fetch('/api/meetings');
+  const meetingsRes = await apiFetch('/api/meetings');
   const meetings = (await meetingsRes.json()).items || [];
   const meetingsList = document.getElementById('meetings-list');
   meetingsList.innerHTML = meetings.slice(0, 3).map(m => `<div>${m.title}</div>`).join('');
@@ -177,7 +229,7 @@ async function registerServiceWorker() {
 async function subscribePush() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   const reg = await navigator.serviceWorker.ready;
-  const res = await fetch('/api/push/vapid');
+  const res = await apiFetch('/api/push/vapid');
   const { publicKey } = await res.json();
   if (!publicKey) return;
 
@@ -186,12 +238,19 @@ async function subscribePush() {
     applicationServerKey: urlBase64ToUint8Array(publicKey)
   });
 
-  await fetch('/api/push/subscribe', {
+  await apiFetch('/api/push/subscribe', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ subscription: sub })
   });
 }
+
+async function connectGoogle() {
+  const res = await apiFetch('/api/google/auth/url');
+  const { url } = await res.json();
+  if (url) window.location.href = url;
+}
+
+document.getElementById('google-connect-btn').addEventListener('click', connectGoogle);
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -206,10 +265,14 @@ function urlBase64ToUint8Array(base64String) {
 
 window.addEventListener('online', flushQueue);
 
-(async () => {
+async function initApp() {
+  const authed = await ensureAuth();
+  if (!authed) return;
   await registerServiceWorker();
   await subscribePush();
   await flushQueue();
   await refreshCaptures();
   await loadDashboard();
-})();
+}
+
+initApp();
