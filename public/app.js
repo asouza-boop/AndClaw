@@ -1,4 +1,4 @@
-const API_BASE = window.ANDCLAW_API_BASE_URL || "";
+const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
 
@@ -15,9 +15,18 @@ navItems.forEach(item => {
 const modal = document.getElementById('modal');
 const modalInput = document.getElementById('modal-input');
 const loginModal = document.getElementById('login-modal');
+const loginApiBase = document.getElementById('login-api-base');
 const loginPassword = document.getElementById('login-password');
 const loginTokenSecret = document.getElementById('login-token-secret');
 const bootstrapHint = document.getElementById('bootstrap-hint');
+
+function getApiBase() {
+  return localStorage.getItem('andclaw_api_base') || DEFAULT_API_BASE;
+}
+
+function setApiBase(value) {
+  if (value) localStorage.setItem('andclaw_api_base', value);
+}
 
 function openModal() {
   modal.classList.remove('hidden');
@@ -31,6 +40,7 @@ function closeModal() {
 
 function showLogin() {
   loginModal.classList.remove('hidden');
+  loginApiBase.value = getApiBase();
   loginPassword.focus();
 }
 
@@ -45,7 +55,13 @@ async function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const apiBase = getApiBase();
+  if (!apiBase) {
+    showLogin();
+    throw new Error('API base not configured');
+  }
+
+  const res = await fetch(`${apiBase}${path}`, { ...options, headers });
   if (res.status === 401) {
     showLogin();
     throw new Error('Unauthorized');
@@ -73,9 +89,11 @@ async function ensureAuth() {
 }
 
 document.getElementById('login-submit').addEventListener('click', async () => {
+  const apiBase = loginApiBase.value.trim();
   const password = loginPassword.value.trim();
-  if (!password) return;
-  const res = await fetch(`${API_BASE}/api/auth/login`, {
+  if (!apiBase || !password) return;
+  setApiBase(apiBase);
+  const res = await fetch(`${apiBase}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password })
@@ -94,10 +112,12 @@ document.getElementById('login-submit').addEventListener('click', async () => {
 });
 
 document.getElementById('login-bootstrap').addEventListener('click', async () => {
+  const apiBase = loginApiBase.value.trim();
   const password = loginPassword.value.trim();
   const tokenSecret = loginTokenSecret.value.trim();
-  if (!password) return;
-  const res = await fetch(`${API_BASE}/api/auth/bootstrap`, {
+  if (!apiBase || !password) return;
+  setApiBase(apiBase);
+  const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password, tokenSecret: tokenSecret || undefined })
@@ -107,6 +127,11 @@ document.getElementById('login-bootstrap').addEventListener('click', async () =>
     localStorage.setItem('auth_token', data.token);
     hideLogin();
     await initApp();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    if (data.error === 'already_configured') {
+      bootstrapHint.textContent = 'Ja configurado. Use Entrar.';
+    }
   }
 });
 

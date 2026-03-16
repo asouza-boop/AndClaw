@@ -220,6 +220,16 @@ input[type="password"] {
   margin: 12px 0 16px;
 }
 
+input[type="text"] {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  margin: 12px 0 16px;
+}
+
 .hint {
   color: var(--muted);
   font-size: 12px;
