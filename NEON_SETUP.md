@@ -23,6 +23,9 @@ Resposta esperada:
 { "ok": true }
 ```
 
+Verificacao somente do banco:
+- `GET /api/health/db`
+
 ## Notas
 - Nao comite o `DATABASE_URL` no git.
 - Se rotacionar a senha no Neon, atualize o `DATABASE_URL` no Render.

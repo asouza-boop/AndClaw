@@ -28,6 +28,15 @@ router.get('/health', async (_req: Request, res: Response) => {
   }
 });
 
+router.get('/health/db', async (_req: Request, res: Response) => {
+  try {
+    await query('SELECT 1 as ok');
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
 router.post('/auth/login', async (req: Request, res: Response) => {
   const { password } = req.body || {};
   if (!config.auth.password || !config.auth.tokenSecret) {
