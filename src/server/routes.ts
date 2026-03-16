@@ -21,6 +21,7 @@ const agent = new AgentController();
 router.get('/health', async (_req: Request, res: Response) => {
   try {
     await ensureSchema();
+    await query('SELECT 1 as ok');
     res.json({ ok: true });
   } catch (error: any) {
     res.status(500).json({ ok: false, error: error.message });
