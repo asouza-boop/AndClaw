@@ -12,9 +12,10 @@ import {
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
 import { AgentController } from '../core/AgentController';
+import { hasLLMConfig, offlineFallbackMessage } from './llm';
 import { issueToken, verifyLoginPassword } from './auth';
 import { config } from '../config/env';
-import { setSetting, loadAuthFromDb } from './settings';
+import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './settings';
 import { hashPassword, randomSecret } from './crypto';
 
 const router = Router();
@@ -46,6 +47,7 @@ router.get('/status', async (_req: Request, res: Response) => {
     db.ok = true;
   } catch {}
 
+  const settings = await loadAppSettings();
   const googleAccounts = await listConnectedAccounts().catch(() => []);
   const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
   const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
@@ -62,7 +64,57 @@ router.get('/status', async (_req: Request, res: Response) => {
     gitvault,
     push,
     llm,
+    deploy: { last: settings.LAST_DEPLOY_AT || null },
   });
+});
+
+router.get('/settings', async (_req: Request, res: Response) => {
+  const settings = await loadAppSettings();
+  res.json({ ok: true, settings });
+});
+
+router.post('/settings', async (req: Request, res: Response) => {
+  const allowed = [
+    'GEMINI_API_KEY',
+    'OPENROUTER_API_KEY',
+    'DEEPSEEK_API_KEY',
+    'DEFAULT_LLM_PROVIDER',
+    'GITVAULT_REPO',
+    'GITHUB_TOKEN',
+    'GITVAULT_BASE_PATH',
+    'GOOGLE_OAUTH_CLIENT_ID',
+    'GOOGLE_OAUTH_CLIENT_SECRET',
+    'GOOGLE_OAUTH_REDIRECT_URI',
+    'GOOGLE_EXPORT_CALENDAR_ID',
+    'VAPID_PUBLIC_KEY',
+    'VAPID_PRIVATE_KEY',
+    'VAPID_CONTACT_EMAIL',
+    'RENDER_DEPLOY_HOOK_URL'
+  ];
+
+  const payload = req.body || {};
+  for (const key of Object.keys(payload)) {
+    if (!allowed.includes(key)) continue;
+    const value = String(payload[key] ?? '');
+    await setSetting(key, value);
+  }
+
+  const settings = await loadAppSettings();
+  applyAppSettingsToConfig(settings);
+
+  res.json({ ok: true });
+});
+
+router.post('/deploy', async (_req: Request, res: Response) => {
+  const settings = await loadAppSettings();
+  const hook = settings.RENDER_DEPLOY_HOOK_URL;
+  if (!hook) return res.status(400).json({ error: 'deploy hook not configured' });
+
+  const resp = await fetch(hook, { method: 'POST' });
+  if (!resp.ok) return res.status(500).json({ error: 'deploy failed' });
+
+  await setSetting('LAST_DEPLOY_AT', new Date().toISOString());
+  res.json({ ok: true });
 });
 
 router.post('/auth/login', async (req: Request, res: Response) => {
@@ -82,6 +134,7 @@ router.post('/auth/bootstrap', async (req: Request, res: Response) => {
   const { password, tokenSecret } = req.body || {};
   if (!password) return res.status(400).json({ error: 'password required' });
 
+  await loadAuthFromDb();
   if (config.auth.password || config.auth.tokenSecret) {
     return res.status(409).json({ error: 'already_configured' });
   }
@@ -143,6 +196,9 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
 router.post('/agent', async (req: Request, res: Response) => {
   const { input, userId = 'pwa-user', options = {} } = req.body || {};
   if (!input) return res.status(400).json({ error: 'input is required' });
+  if (!hasLLMConfig()) {
+    return res.json({ ok: true, reply: offlineFallbackMessage() });
+  }
   const reply = await agent.processInput(userId, input, options);
   res.json({ ok: true, reply });
 });
@@ -199,6 +255,10 @@ router.post('/meetings/analyze', async (req: Request, res: Response) => {
   const rows = await query<any>('SELECT * FROM meetings WHERE id = $1', [meetingId]);
   const meeting = rows[0];
   if (!meeting) return res.status(404).json({ error: 'meeting not found' });
+
+  if (!hasLLMConfig()) {
+    return res.json({ ok: true, insight: offlineFallbackMessage(), offline: true });
+  }
 
   const prompt = `Analise a transcricao a seguir e extraia:\n- Principais decisoes\n- Proximas acoes\n- Riscos e pendencias\n- Insights estrategicos\n\nTranscricao:\n${meeting.transcript_text || ''}`;
 

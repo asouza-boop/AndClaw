@@ -374,6 +374,9 @@ async function loadAdmin() {
       : 'Nao conectado';
     document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
     document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+    document.getElementById('status-deploy').innerHTML = data.deploy?.last
+      ? new Date(data.deploy.last).toLocaleString()
+      : 'Nenhum';
 
     const llm = data.llm || {};
     const llmLines = [];
@@ -381,6 +384,10 @@ async function loadAdmin() {
     llmLines.push(`OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'}`);
     llmLines.push(`DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`);
     document.getElementById('status-llm').innerHTML = llmLines.join(' | ');
+
+    if (!llm.gemini && !llm.openrouter && !llm.deepseek) {
+      showBanner('Modo offline: nenhuma LLM configurada. Configure na seção Configurações.');
+    }
   } catch (err) {
     showError(err);
   }
@@ -477,6 +484,49 @@ async function loadMeetings() {
     showError(err);
   }
 }
+
+const cfgSave = document.getElementById('cfg-save');
+const cfgDeploy = document.getElementById('cfg-deploy');
+
+cfgSave.addEventListener('click', async () => {
+  const payload = {
+    GEMINI_API_KEY: document.getElementById('cfg-gemini').value.trim(),
+    OPENROUTER_API_KEY: document.getElementById('cfg-openrouter').value.trim(),
+    DEEPSEEK_API_KEY: document.getElementById('cfg-deepseek').value.trim(),
+    DEFAULT_LLM_PROVIDER: document.getElementById('cfg-default-provider').value.trim(),
+    GITHUB_TOKEN: document.getElementById('cfg-github-token').value.trim(),
+    GITVAULT_REPO: document.getElementById('cfg-gitvault-repo').value.trim(),
+    GITVAULT_BASE_PATH: document.getElementById('cfg-gitvault-base').value.trim(),
+    GOOGLE_OAUTH_CLIENT_ID: document.getElementById('cfg-google-client-id').value.trim(),
+    GOOGLE_OAUTH_CLIENT_SECRET: document.getElementById('cfg-google-client-secret').value.trim(),
+    GOOGLE_OAUTH_REDIRECT_URI: document.getElementById('cfg-google-redirect').value.trim(),
+    GOOGLE_EXPORT_CALENDAR_ID: document.getElementById('cfg-google-calendar').value.trim(),
+    VAPID_PUBLIC_KEY: document.getElementById('cfg-vapid-public').value.trim(),
+    VAPID_PRIVATE_KEY: document.getElementById('cfg-vapid-private').value.trim(),
+    VAPID_CONTACT_EMAIL: document.getElementById('cfg-vapid-email').value.trim(),
+    RENDER_DEPLOY_HOOK_URL: document.getElementById('cfg-render-hook').value.trim(),
+  };
+
+  try {
+    await apiFetch('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showBanner('Configuracoes salvas.');
+    await loadAdmin();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+cfgDeploy.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/deploy', { method: 'POST' });
+    showBanner('Deploy disparado.');
+  } catch (err) {
+    showError(err);
+  }
+});
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

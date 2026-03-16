@@ -36,3 +36,32 @@ export async function loadAuthFromDb(): Promise<void> {
     config.auth.tokenSecret = tokenSecret;
   }
 }
+
+export function applyAppSettingsToConfig(settings: Record<string, string>): void {
+  config.llm.geminiKey = settings.GEMINI_API_KEY || config.llm.geminiKey;
+  config.llm.openrouterKey = settings.OPENROUTER_API_KEY || config.llm.openrouterKey;
+  config.llm.deepseekKey = settings.DEEPSEEK_API_KEY || config.llm.deepseekKey;
+  config.llm.defaultProvider = settings.DEFAULT_LLM_PROVIDER || config.llm.defaultProvider;
+
+  config.gitvault.repo = settings.GITVAULT_REPO || config.gitvault.repo;
+  config.gitvault.token = settings.GITHUB_TOKEN || config.gitvault.token;
+  config.gitvault.basePath = settings.GITVAULT_BASE_PATH || config.gitvault.basePath;
+
+  config.google.oauthClientId = settings.GOOGLE_OAUTH_CLIENT_ID || config.google.oauthClientId;
+  config.google.oauthClientSecret = settings.GOOGLE_OAUTH_CLIENT_SECRET || config.google.oauthClientSecret;
+  config.google.oauthRedirectUri = settings.GOOGLE_OAUTH_REDIRECT_URI || config.google.oauthRedirectUri;
+  config.google.exportCalendarId = settings.GOOGLE_EXPORT_CALENDAR_ID || config.google.exportCalendarId;
+
+  config.push.vapidPublicKey = settings.VAPID_PUBLIC_KEY || config.push.vapidPublicKey;
+  config.push.vapidPrivateKey = settings.VAPID_PRIVATE_KEY || config.push.vapidPrivateKey;
+  config.push.contactEmail = settings.VAPID_CONTACT_EMAIL || config.push.contactEmail;
+}
+
+export async function loadAppSettings(): Promise<Record<string, string>> {
+  await ensureSchema();
+  const rows = await query<{ key: string; value: string }>('SELECT key, value FROM app_settings');
+  return rows.reduce<Record<string, string>>((acc, row) => {
+    acc[row.key] = row.value;
+    return acc;
+  }, {});
+}
