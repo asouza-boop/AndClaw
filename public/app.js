@@ -374,6 +374,13 @@ async function loadAdmin() {
       : 'Nao conectado';
     document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
     document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+
+    const llm = data.llm || {};
+    const llmLines = [];
+    llmLines.push(`Gemini: ${llm.gemini ? 'OK' : 'OFF'}`);
+    llmLines.push(`OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'}`);
+    llmLines.push(`DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`);
+    document.getElementById('status-llm').innerHTML = llmLines.join(' | ');
   } catch (err) {
     showError(err);
   }
@@ -414,6 +421,62 @@ async function connectGoogle() {
 }
 
 document.getElementById('google-connect-btn').addEventListener('click', connectGoogle);
+
+const meetingTitle = document.getElementById('meeting-title');
+const meetingTranscript = document.getElementById('meeting-transcript');
+const meetingSave = document.getElementById('meeting-save');
+const meetingAnalyze = document.getElementById('meeting-analyze');
+
+meetingSave.addEventListener('click', async () => {
+  const title = meetingTitle.value.trim();
+  const transcript = meetingTranscript.value.trim();
+  if (!title) return showBanner('Informe o titulo da reuniao.');
+  try {
+    await apiFetch('/api/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ title, transcript_text: transcript || null })
+    });
+    meetingTitle.value = '';
+    meetingTranscript.value = '';
+    await loadMeetings();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+meetingAnalyze.addEventListener('click', async () => {
+  const title = meetingTitle.value.trim();
+  const transcript = meetingTranscript.value.trim();
+  if (!title || !transcript) return showBanner('Informe titulo e transcricao.');
+  try {
+    const created = await apiFetch('/api/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ title, transcript_text: transcript })
+    }).then(r => r.json());
+
+    await apiFetch('/api/meetings/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ meetingId: created.item.id })
+    });
+
+    meetingTitle.value = '';
+    meetingTranscript.value = '';
+    await loadMeetings();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+async function loadMeetings() {
+  try {
+    const res = await apiFetch('/api/meetings');
+    const data = await res.json();
+    const list = document.getElementById('meetings-full-list');
+    list.innerHTML = (data.items || []).slice(0, 50).map(m => `<div>${m.title}</div>`).join('');
+  } catch (err) {
+    showError(err);
+  }
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -458,6 +521,7 @@ async function initApp() {
   await loadDashboard();
   await loadAgenda();
   await loadChatHistory();
+  await loadMeetings();
   await loadAdmin();
 }
 

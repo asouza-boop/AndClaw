@@ -113,6 +113,14 @@
 
       <section id="view-meetings" class="view">
         <h2>Reuniões</h2>
+        <div class="panel">
+          <input id="meeting-title" type="text" placeholder="Titulo da reuniao" />
+          <textarea id="meeting-transcript" placeholder="Cole a transcricao aqui..."></textarea>
+          <div class="modal-actions">
+            <button id="meeting-save" class="btn primary">Salvar reuniao</button>
+            <button id="meeting-analyze" class="btn ghost">Analisar transcricao</button>
+          </div>
+        </div>
         <div class="list" id="meetings-full-list"></div>
       </section>
 
@@ -144,6 +152,10 @@
           <div class="card">
             <h3>Push</h3>
             <div class="mini-list" id="status-push"></div>
+          </div>
+          <div class="card wide">
+            <h3>LLM</h3>
+            <div class="mini-list" id="status-llm"></div>
           </div>
         </div>
       </section>

@@ -49,6 +49,11 @@ router.get('/status', async (_req: Request, res: Response) => {
   const googleAccounts = await listConnectedAccounts().catch(() => []);
   const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
   const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
+  const llm = {
+    gemini: Boolean(config.llm.geminiKey),
+    openrouter: Boolean(config.llm.openrouterKey),
+    deepseek: Boolean(config.llm.deepseekKey),
+  };
 
   res.json({
     ok: true,
@@ -56,6 +61,7 @@ router.get('/status', async (_req: Request, res: Response) => {
     google: { connectedAccounts: googleAccounts },
     gitvault,
     push,
+    llm,
   });
 });
 
@@ -184,6 +190,26 @@ router.post('/meetings', async (req: Request, res: Response) => {
     [title, meeting_date || null, transcript_text || null]
   );
   res.json({ ok: true, item: rows[0] });
+});
+
+router.post('/meetings/analyze', async (req: Request, res: Response) => {
+  const { meetingId } = req.body || {};
+  if (!meetingId) return res.status(400).json({ error: 'meetingId is required' });
+
+  const rows = await query<any>('SELECT * FROM meetings WHERE id = $1', [meetingId]);
+  const meeting = rows[0];
+  if (!meeting) return res.status(404).json({ error: 'meeting not found' });
+
+  const prompt = `Analise a transcricao a seguir e extraia:\n- Principais decisoes\n- Proximas acoes\n- Riscos e pendencias\n- Insights estrategicos\n\nTranscricao:\n${meeting.transcript_text || ''}`;
+
+  const reply = await agent.processInput('pwa-user', prompt);
+  await query(
+    `INSERT INTO memory_items (type, content, source_type, source_id)
+     VALUES ($1, $2, $3, $4)`,
+    ['meeting_insight', reply, 'meeting', String(meetingId)]
+  );
+
+  res.json({ ok: true, insight: reply });
 });
 
 router.get('/meetings', async (_req: Request, res: Response) => {
