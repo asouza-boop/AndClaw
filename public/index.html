@@ -29,6 +29,7 @@
         <button class="nav-item" data-view="meetings">Reuniões</button>
         <button class="nav-item" data-view="knowledge">Conhecimento</button>
         <button class="nav-item" data-view="archive">Arquivo</button>
+        <button class="nav-item" data-view="admin">Admin</button>
       </nav>
       <div class="sidebar-footer">
         <div class="status-pill">Online</div>
@@ -123,6 +124,28 @@
         <h2>Arquivo</h2>
         <div class="list" id="archive-list"></div>
       </section>
+
+      <section id="view-admin" class="view">
+        <h2>Admin</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Banco</h3>
+            <div class="mini-list" id="status-db"></div>
+          </div>
+          <div class="card">
+            <h3>Google</h3>
+            <div class="mini-list" id="status-google"></div>
+          </div>
+          <div class="card">
+            <h3>GitVault</h3>
+            <div class="mini-list" id="status-gitvault"></div>
+          </div>
+          <div class="card">
+            <h3>Push</h3>
+            <div class="mini-list" id="status-push"></div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -141,8 +164,12 @@
     <div class="modal-content">
       <h3>Entrar</h3>
       <input id="login-password" type="password" placeholder="Senha" />
+      <input id="login-token-secret" type="password" placeholder="Token secret (apenas no primeiro setup)" />
+      <div class="hint" id="bootstrap-hint">Se for o primeiro acesso, clique em Inicializar.</div>
       <div class="modal-actions">
         <button id="login-submit" class="btn primary">Entrar</button>
+        <button id="login-bootstrap" class="btn ghost">Inicializar</button>
+        <button id="login-generate" class="btn ghost">Gerar segredo</button>
       </div>
     </div>
   </div>

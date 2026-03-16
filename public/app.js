@@ -16,6 +16,8 @@ const modal = document.getElementById('modal');
 const modalInput = document.getElementById('modal-input');
 const loginModal = document.getElementById('login-modal');
 const loginPassword = document.getElementById('login-password');
+const loginTokenSecret = document.getElementById('login-token-secret');
+const bootstrapHint = document.getElementById('bootstrap-hint');
 
 function openModal() {
   modal.classList.remove('hidden');
@@ -35,6 +37,7 @@ function showLogin() {
 function hideLogin() {
   loginModal.classList.add('hidden');
   loginPassword.value = '';
+  loginTokenSecret.value = '';
 }
 
 async function apiFetch(path, options = {}) {
@@ -46,6 +49,10 @@ async function apiFetch(path, options = {}) {
   if (res.status === 401) {
     showLogin();
     throw new Error('Unauthorized');
+  }
+  if (res.status === 503) {
+    showLogin();
+    throw new Error('Bootstrap required');
   }
   return res;
 }
@@ -78,7 +85,36 @@ document.getElementById('login-submit').addEventListener('click', async () => {
     localStorage.setItem('auth_token', data.token);
     hideLogin();
     await initApp();
+  } else {
+    const data = await res.json().catch(() => ({}));
+    if (data.error === 'auth not configured') {
+      bootstrapHint.textContent = 'Configure senha e clique em Inicializar.';
+    }
   }
+});
+
+document.getElementById('login-bootstrap').addEventListener('click', async () => {
+  const password = loginPassword.value.trim();
+  const tokenSecret = loginTokenSecret.value.trim();
+  if (!password) return;
+  const res = await fetch(`${API_BASE}/api/auth/bootstrap`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password, tokenSecret: tokenSecret || undefined })
+  });
+  if (res.ok) {
+    const data = await res.json();
+    localStorage.setItem('auth_token', data.token);
+    hideLogin();
+    await initApp();
+  }
+});
+
+document.getElementById('login-generate').addEventListener('click', () => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const secret = btoa(String.fromCharCode(...bytes)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+  loginTokenSecret.value = secret;
 });
 
 document.getElementById('quick-capture-btn').addEventListener('click', openModal);
@@ -247,6 +283,18 @@ async function loadAgenda() {
     .join('');
 }
 
+async function loadAdmin() {
+  const res = await apiFetch('/api/status');
+  const data = await res.json();
+
+  document.getElementById('status-db').innerHTML = data.db?.ok ? 'OK' : 'Falha';
+  document.getElementById('status-google').innerHTML = (data.google?.connectedAccounts || []).length
+    ? `Conectado (${data.google.connectedAccounts.length})`
+    : 'Nao conectado';
+  document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'OK' : 'Nao configurado';
+  document.getElementById('status-push').innerHTML = data.push ? 'OK' : 'Nao configurado';
+}
+
 async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     await navigator.serviceWorker.register('/sw.js');
@@ -302,6 +350,7 @@ async function initApp() {
   await loadDashboard();
   await loadAgenda();
   await loadChatHistory();
+  await loadAdmin();
 }
 
 initApp();

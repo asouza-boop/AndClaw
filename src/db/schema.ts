@@ -127,6 +127,14 @@ export async function ensureSchema(): Promise<void> {
     );
   `);
 
+  await query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id TEXT`);
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`);
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);

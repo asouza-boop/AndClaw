@@ -220,6 +220,12 @@ input[type="password"] {
   margin: 12px 0 16px;
 }
 
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: -6px 0 12px;
+}
+
 .chat-window {
   min-height: 140px;
   background: var(--surface-2);

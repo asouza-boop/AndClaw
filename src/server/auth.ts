@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { verifyPassword } from './crypto';
 import { config } from '../config/env';
 import { Request, Response, NextFunction } from 'express';
 
@@ -37,6 +38,11 @@ export function verifyToken(token: string): { sub: string } | null {
   const decoded = JSON.parse(base64UrlDecode(payload));
   if (!decoded.exp || decoded.exp < Math.floor(Date.now() / 1000)) return null;
   return { sub: decoded.sub };
+}
+
+export function verifyLoginPassword(password: string): boolean {
+  if (!config.auth.password) return false;
+  return verifyPassword(password, config.auth.password);
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {

@@ -12,8 +12,10 @@ import {
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
 import { AgentController } from '../core/AgentController';
-import { issueToken } from './auth';
+import { issueToken, verifyLoginPassword } from './auth';
 import { config } from '../config/env';
+import { setSetting, loadAuthFromDb } from './settings';
+import { hashPassword, randomSecret } from './crypto';
 
 const router = Router();
 const agent = new AgentController();
@@ -37,16 +39,58 @@ router.get('/health/db', async (_req: Request, res: Response) => {
   }
 });
 
+router.get('/status', async (_req: Request, res: Response) => {
+  const db = { ok: false };
+  try {
+    await query('SELECT 1 as ok');
+    db.ok = true;
+  } catch {}
+
+  const googleAccounts = await listConnectedAccounts().catch(() => []);
+  const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
+  const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
+
+  res.json({
+    ok: true,
+    db,
+    google: { connectedAccounts: googleAccounts },
+    gitvault,
+    push,
+  });
+});
+
 router.post('/auth/login', async (req: Request, res: Response) => {
   const { password } = req.body || {};
+  await loadAuthFromDb();
   if (!config.auth.password || !config.auth.tokenSecret) {
     return res.status(500).json({ error: 'auth not configured' });
   }
-  if (!password || password !== config.auth.password) {
+  if (!password || !verifyLoginPassword(password)) {
     return res.status(401).json({ error: 'invalid password' });
   }
   const token = issueToken('andclaw-user');
   res.json({ token });
+});
+
+router.post('/auth/bootstrap', async (req: Request, res: Response) => {
+  const { password, tokenSecret } = req.body || {};
+  if (!password) return res.status(400).json({ error: 'password required' });
+
+  if (config.auth.password || config.auth.tokenSecret) {
+    return res.status(409).json({ error: 'already_configured' });
+  }
+
+  const passwordHash = hashPassword(password);
+  const secret = tokenSecret || randomSecret(48);
+
+  await setSetting('auth_password_hash', passwordHash);
+  await setSetting('auth_token_secret', secret);
+
+  config.auth.password = passwordHash;
+  config.auth.tokenSecret = secret;
+
+  const token = issueToken('andclaw-user');
+  res.json({ token, tokenSecret: secret });
 });
 
 router.get('/auth/me', async (_req: Request, res: Response) => {

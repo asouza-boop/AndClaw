@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import routes from './routes';
 import { authMiddleware } from './auth';
+import { bootstrapGuard } from './admin';
 
 export function createApp() {
   const app = express();
@@ -13,9 +14,10 @@ export function createApp() {
   app.use(express.static(publicDir));
 
   app.use('/api', (req, res, next) => {
-    const openPaths = ['/health', '/auth/login', '/google/oauth/callback'];
+    const openPaths = ['/health', '/health/db', '/auth/login', '/auth/bootstrap', '/google/oauth/callback'];
     if (openPaths.includes(req.path)) return next();
-    return authMiddleware(req, res, next);
+
+    return bootstrapGuard(req, res, () => authMiddleware(req, res, next));
   });
 
   app.use('/api', routes);
