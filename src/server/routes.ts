@@ -1,8 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db/postgres';
 import { ensureSchema } from '../db/schema';
-import { syncGoogleCalendars, exportTasksToGoogle, importGoogleEvents } from '../integrations/googleCalendar';
-import { getGoogleAuthUrl, handleGoogleOAuthCallback, listConnectedAccounts } from '../integrations/googleCalendar';
+import {
+  syncGoogleCalendars,
+  exportTasksToGoogle,
+  importGoogleEvents,
+  getGoogleAuthUrl,
+  handleGoogleOAuthCallback,
+  listConnectedAccounts,
+} from '../integrations/googleCalendar';
 import { exportDailyGitVault } from '../integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
 import { AgentController } from '../core/AgentController';
@@ -60,6 +66,16 @@ router.get('/messages', async (req: Request, res: Response) => {
   const rows = await query(
     `SELECT * FROM messages ORDER BY created_at DESC LIMIT $1`,
     [limit]
+  );
+  res.json({ ok: true, items: rows });
+});
+
+router.get('/messages/by-conversation/:id', async (req: Request, res: Response) => {
+  const conversationId = req.params.id;
+  const limit = Math.min(parseInt((req.query.limit as string) || '200', 10), 500);
+  const rows = await query(
+    `SELECT * FROM messages WHERE conversation_id = $1 ORDER BY created_at ASC LIMIT $2`,
+    [conversationId, limit]
   );
   res.json({ ok: true, items: rows });
 });
@@ -157,6 +173,29 @@ router.get('/calendar/events', async (_req: Request, res: Response) => {
     `SELECT * FROM calendar_events ORDER BY start_time DESC LIMIT 200`
   );
   res.json({ ok: true, items: rows });
+});
+
+router.get('/calendar/combined', async (req: Request, res: Response) => {
+  const from = (req.query.from as string) || new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString();
+  const to = (req.query.to as string) || new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
+
+  const events = await query(
+    `SELECT 'event' as type, summary as title, start_time as start, end_time as end
+     FROM calendar_events
+     WHERE start_time BETWEEN $1 AND $2
+     ORDER BY start_time ASC`,
+    [from, to]
+  );
+
+  const tasks = await query(
+    `SELECT 'task' as type, title, due_date as start, due_date as end
+     FROM tasks
+     WHERE due_date BETWEEN $1 AND $2
+     ORDER BY due_date ASC`,
+    [from, to]
+  );
+
+  res.json({ ok: true, items: [...events, ...tasks] });
 });
 
 router.post('/calendar/sync', async (_req: Request, res: Response) => {

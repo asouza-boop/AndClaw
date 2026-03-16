@@ -174,6 +174,16 @@ const chatInputFull = document.getElementById('chat-input-full');
 const chatSendFull = document.getElementById('chat-send-full');
 const chatWindowFull = document.getElementById('chat-window-full');
 
+async function loadChatHistory() {
+  if (!navigator.onLine) return;
+  const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=200');
+  const data = await res.json();
+  const items = data.items || [];
+  const html = items.map(msg => `<div>${msg.role === 'assistant' ? 'Agente' : 'Você'}: ${msg.content}</div>`).join('');
+  chatWindow.innerHTML = html;
+  chatWindowFull.innerHTML = html;
+}
+
 async function sendChatMessage(inputEl, windowEl) {
   const content = inputEl.value.trim();
   if (!content) return;
@@ -195,6 +205,7 @@ async function sendChatMessage(inputEl, windowEl) {
     if (data.reply) {
       windowEl.innerHTML += `<div>Agente: ${data.reply}</div>`;
     }
+    await loadChatHistory();
   } else {
     enqueueLocal('messages', payload);
   }
@@ -218,6 +229,21 @@ async function loadDashboard() {
   const meetings = (await meetingsRes.json()).items || [];
   const meetingsList = document.getElementById('meetings-list');
   meetingsList.innerHTML = meetings.slice(0, 3).map(m => `<div>${m.title}</div>`).join('');
+}
+
+async function loadAgenda() {
+  const res = await apiFetch('/api/calendar/combined');
+  const data = await res.json();
+  const list = document.getElementById('agenda-grid');
+  list.innerHTML = (data.items || [])
+    .sort((a, b) => new Date(a.start) - new Date(b.start))
+    .slice(0, 12)
+    .map(item => {
+      const label = item.type === 'task' ? 'Tarefa' : 'Evento';
+      const date = item.start ? new Date(item.start).toLocaleString() : '';
+      return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
+    })
+    .join('');
 }
 
 async function registerServiceWorker() {
@@ -273,6 +299,8 @@ async function initApp() {
   await flushQueue();
   await refreshCaptures();
   await loadDashboard();
+  await loadAgenda();
+  await loadChatHistory();
 }
 
 initApp();
