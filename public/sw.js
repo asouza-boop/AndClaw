@@ -1,4 +1,4 @@
-const CACHE_NAME = 'andclaw-cache-v5';
+const CACHE_NAME = 'andclaw-cache-v6';
 const ASSETS = ['/', '/styles.css', '/app.js', '/manifest.json', '/config.js'];
 
 self.addEventListener('install', event => {

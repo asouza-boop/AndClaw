@@ -190,40 +190,58 @@
       <section id="view-admin" class="view">
         <h2>Admin</h2>
         <div class="grid">
+          <div class="card wide">
+            <h3>Onboarding</h3>
+            <div class="panel">
+              <div class="list">
+                <div>1. Salve as configurações (LLM, Google, GitVault, Raindrop).</div>
+                <div>2. Conecte o Google e recarregue o status.</div>
+                <div>3. Sincronize o Raindrop.</div>
+                <div>4. Teste Push e Deploy.</div>
+              </div>
+              <div class="action-row">
+                <button id="onboard-save" class="btn primary" title="Salvar configuracoes">Salvar configs</button>
+                <button id="onboard-google" class="btn ghost" title="Conectar Google">Conectar Google</button>
+                <button id="onboard-raindrop" class="btn ghost" title="Sincronizar Raindrop">Sync Raindrop</button>
+                <button id="onboard-push" class="btn ghost" title="Testar Push">Testar Push</button>
+                <button id="onboard-deploy" class="btn ghost" title="Deploy backend">Deploy</button>
+              </div>
+            </div>
+          </div>
           <div class="card">
             <h3>Banco</h3>
             <div class="mini-list" id="status-db"></div>
             <div class="action-row">
-              <button id="db-check" class="btn ghost">Checar DB</button>
+              <button id="db-check" class="btn ghost" title="Checar conectividade do banco">Checar DB</button>
             </div>
           </div>
           <div class="card">
             <h3>Google</h3>
             <div class="mini-list" id="status-google"></div>
             <div class="action-row">
-              <button id="google-connect-admin" class="btn primary">Conectar</button>
-              <button id="google-refresh" class="btn ghost">Recarregar</button>
+              <button id="google-connect-admin" class="btn primary" title="Abrir fluxo OAuth">Conectar</button>
+              <button id="google-refresh" class="btn ghost" title="Recarregar status">Recarregar</button>
             </div>
           </div>
           <div class="card">
             <h3>GitVault</h3>
             <div class="mini-list" id="status-gitvault"></div>
             <div class="action-row">
-              <button id="gitvault-export" class="btn ghost">Exportar agora</button>
+              <button id="gitvault-export" class="btn ghost" title="Exportar backup em Markdown">Exportar agora</button>
             </div>
           </div>
           <div class="card">
             <h3>Raindrop</h3>
             <div class="mini-list" id="status-raindrop"></div>
             <div class="action-row">
-              <button id="raindrop-sync" class="btn ghost">Sincronizar</button>
+              <button id="raindrop-sync" class="btn ghost" title="Sincronizar favoritos">Sincronizar</button>
             </div>
           </div>
           <div class="card">
             <h3>Push</h3>
             <div class="mini-list" id="status-push"></div>
             <div class="action-row">
-              <button id="push-test" class="btn ghost">Testar push</button>
+              <button id="push-test" class="btn ghost" title="Enviar push de teste">Testar push</button>
             </div>
           </div>
           <div class="card">

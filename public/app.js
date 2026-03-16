@@ -86,7 +86,17 @@ async function apiFetch(path, options = {}) {
     showLogin();
     throw new Error('Inicializacao necessaria. Use o botao Inicializar.');
   }
+  if (res.ok) {
+    const ct = res.headers.get('content-type') || '';
+    if (ct && !ct.includes('application/json')) {
+      throw new Error('Backend retornou resposta nao-JSON. Verifique a URL do backend.');
+    }
+  }
   return res;
+}
+
+function statusBadge(text, state) {
+  return `<span class=\"status-badge ${state}\">${text}</span>`;
 }
 
 async function ensureAuth() {
@@ -368,16 +378,22 @@ async function loadAdmin() {
     const res = await apiFetch('/api/status');
     const data = await res.json();
 
-    document.getElementById('status-db').innerHTML = data.db?.ok ? 'OK' : 'Falha';
+    document.getElementById('status-db').innerHTML = data.db?.ok
+      ? statusBadge('OK', 'ok')
+      : statusBadge('Falha', 'bad');
     const connected = (data.google?.connectedAccounts || []).length;
     document.getElementById('status-google').innerHTML = data.google?.configured
-      ? `Configurado · Conectado (${connected})`
-      : 'Nao configurado';
-    document.getElementById('status-gitvault').innerHTML = data.gitvault ? 'Configurado' : 'Nao configurado';
+      ? statusBadge(`Conectado (${connected})`, connected ? 'ok' : 'warn')
+      : statusBadge('Nao configurado', 'bad');
+    document.getElementById('status-gitvault').innerHTML = data.gitvault
+      ? statusBadge('Configurado', 'ok')
+      : statusBadge('Nao configurado', 'bad');
     document.getElementById('status-push').innerHTML = data.push
-      ? `Configurado · Subs: ${data.pushSubscriptions || 0}`
-      : 'Nao configurado';
-    document.getElementById('status-raindrop').innerHTML = data.raindrop ? 'Configurado' : 'Nao configurado';
+      ? statusBadge(`Subs: ${data.pushSubscriptions || 0}`, (data.pushSubscriptions || 0) > 0 ? 'ok' : 'warn')
+      : statusBadge('Nao configurado', 'bad');
+    document.getElementById('status-raindrop').innerHTML = data.raindrop
+      ? statusBadge('Configurado', 'ok')
+      : statusBadge('Nao configurado', 'bad');
     document.getElementById('status-deploy').innerHTML = data.deploy?.last
       ? new Date(data.deploy.last).toLocaleString()
       : 'Nenhum';
@@ -497,6 +513,11 @@ const googleRefresh = document.getElementById('google-refresh');
 const gitvaultExport = document.getElementById('gitvault-export');
 const raindropSync = document.getElementById('raindrop-sync');
 const pushTest = document.getElementById('push-test');
+const onboardSave = document.getElementById('onboard-save');
+const onboardGoogle = document.getElementById('onboard-google');
+const onboardRaindrop = document.getElementById('onboard-raindrop');
+const onboardPush = document.getElementById('onboard-push');
+const onboardDeploy = document.getElementById('onboard-deploy');
 
 cfgSave.addEventListener('click', async () => {
   const payload = {
@@ -583,6 +604,12 @@ pushTest.addEventListener('click', async () => {
     showError(err);
   }
 });
+
+onboardSave.addEventListener('click', () => cfgSave.click());
+onboardGoogle.addEventListener('click', () => googleConnectAdmin.click());
+onboardRaindrop.addEventListener('click', () => raindropSync.click());
+onboardPush.addEventListener('click', () => pushTest.click());
+onboardDeploy.addEventListener('click', () => cfgDeploy.click());
 
 function parseList(value) {
   return value.split(',').map(v => v.trim()).filter(Boolean);
