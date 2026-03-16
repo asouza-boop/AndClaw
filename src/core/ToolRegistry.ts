@@ -143,13 +143,45 @@ class GrepTool implements ITool {
 
     async execute({ pattern, path: searchPath }: { pattern: string, path: string }): Promise<string> {
         try {
-            // Implementation shortcut using grep command if on unix
-            const { execSync } = require('child_process');
-            const cmd = `grep -r -E "${pattern}" "${searchPath}" | head -n 20`;
-            const output = execSync(cmd).toString();
-            return output || "Nenhum resultado encontrado.";
+            const absolute = path.resolve(process.cwd(), searchPath);
+            const regex = new RegExp(pattern, 'i');
+            const results: string[] = [];
+
+            const searchInFile = (filePath: string) => {
+                try {
+                    const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
+                    lines.forEach((line, i) => {
+                        if (regex.test(line)) {
+                            results.push(`${filePath}:${i + 1}: ${line.trim()}`);
+                        }
+                    });
+                } catch { /* ignora arquivos binários ou sem permissão */ }
+            };
+
+            const walk = (dir: string) => {
+                if (results.length >= 20) return;
+                const entries = fs.readdirSync(dir, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (results.length >= 20) break;
+                    const full = path.join(dir, entry.name);
+                    if (entry.isDirectory() && !['node_modules', '.git', 'dist'].includes(entry.name)) {
+                        walk(full);
+                    } else if (entry.isFile()) {
+                        searchInFile(full);
+                    }
+                }
+            };
+
+            const stat = fs.statSync(absolute);
+            if (stat.isDirectory()) {
+                walk(absolute);
+            } else {
+                searchInFile(absolute);
+            }
+
+            return results.length > 0 ? results.join('\n') : 'Nenhum resultado encontrado.';
         } catch (e: any) {
-             return `Erro ao executar grep: ${e.message}`;
+            return `Erro ao executar grep: ${e.message}`;
         }
     }
 }
