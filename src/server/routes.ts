@@ -476,7 +476,8 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
 });
 
 router.post('/agent', async (req: Request, res: Response) => {
-  const { input, userId = 'pwa-user', options = {} } = req.body || {};
+  const { input, options = {} } = req.body || {};
+  const userId = (req as any).user?.sub || 'pwa-user';
   if (!input) return res.status(400).json({ error: 'input is required' });
   if (!hasLLMConfig()) {
     return res.json({ ok: true, reply: offlineFallbackMessage() });
