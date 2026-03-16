@@ -1,3 +1,4 @@
+const API_BASE = window.ANDCLAW_API_BASE_URL || "";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
 
@@ -41,7 +42,7 @@ async function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(path, { ...options, headers });
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (res.status === 401) {
     showLogin();
     throw new Error('Unauthorized');
@@ -67,7 +68,7 @@ async function ensureAuth() {
 document.getElementById('login-submit').addEventListener('click', async () => {
   const password = loginPassword.value.trim();
   if (!password) return;
-  const res = await fetch('/api/auth/login', {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password })
