@@ -232,17 +232,17 @@ const captureSend = document.getElementById('capture-send');
 captureSend.addEventListener('click', async () => {
   const text = captureInput.value.trim();
   if (!text) return;
-  await queueCapture(text);
+  await queueCapture(text, inboxCurrentType);
   captureInput.value = '';
   await refreshCaptures();
 });
 
-async function queueCapture(content) {
+async function queueCapture(content, type = 'note') {
   if (navigator.onLine) {
     try {
       await apiFetch('/api/captures', {
         method: 'POST',
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content, type })
       });
     } catch (err) {
       showError(err);
@@ -284,28 +284,131 @@ async function flushQueue() {
   }
 }
 
-async function refreshCaptures() {
-  const list = document.getElementById('captures-list');
-  list.innerHTML = '';
-  const localCaptures = JSON.parse(localStorage.getItem('captures') || '[]');
-  localCaptures.forEach(item => {
-    const div = document.createElement('div');
-    div.textContent = `[offline] ${item.content}`;
-    list.appendChild(div);
-  });
+let inboxFilter = 'all';
+let inboxSort = 'recent';
+let inboxSelected = new Set();
+let inboxCurrentType = 'note';
+let inboxAllItems = [];
 
-  if (navigator.onLine) {
-    try {
-      const res = await apiFetch('/api/captures');
-      const data = await res.json();
-      (data.items || []).slice(0, 50).forEach(item => {
-        const div = document.createElement('div');
-        div.textContent = item.content;
-        list.appendChild(div);
-      });
-    } catch (err) {
-      showError(err);
+const typeMap = { note: 'Nota', task: 'Tarefa', idea: 'Ideia', link: 'Link' };
+const tagClass = { note: 'inbox-tag-note', task: 'inbox-tag-task', idea: 'inbox-tag-idea', link: 'inbox-tag-link' };
+
+function inboxTimeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'agora';
+  if (m < 60) return `há ${m}min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
+}
+
+function inboxRender(items) {
+  inboxAllItems = items;
+  const badge = document.getElementById('inbox-total-badge');
+  const list = document.getElementById('captures-list');
+  const doneList = document.getElementById('captures-done-list');
+  const doneSection = document.getElementById('inbox-label-done');
+  const progressFill = document.getElementById('inbox-progress-fill');
+  const progressCount = document.getElementById('inbox-progress-count');
+
+  let filtered = items.filter(i =>
+    inboxFilter === 'all' || i.type === inboxFilter
+  );
+
+  if (badge) badge.textContent = `${filtered.length} ${filtered.length === 1 ? 'item' : 'itens'}`;
+
+  const pending = filtered.filter(i => i.status !== 'processed' && i.status !== 'archived');
+  const done = filtered.filter(i => i.status === 'processed');
+
+  const total = items.length;
+  const doneCount = items.filter(i => i.status === 'processed').length;
+  if (progressFill) progressFill.style.width = total > 0 ? `${Math.round(doneCount / total * 100)}%` : '0%';
+  if (progressCount) progressCount.textContent = `${doneCount} / ${total}`;
+
+  const uncategorized = items.filter(i => !i.type || i.type === 'note').length;
+  const aiBar = document.getElementById('inbox-ai-bar');
+  const aiMsg = document.getElementById('inbox-ai-msg');
+  if (aiBar) {
+    if (uncategorized > 2) {
+      aiBar.style.display = 'flex';
+      if (aiMsg) aiMsg.textContent = `${uncategorized} itens sem categoria — o agente pode processar e classificar automaticamente.`;
+    } else {
+      aiBar.style.display = 'none';
     }
+  }
+
+  const bulkBar = document.getElementById('inbox-bulk-bar');
+  const selCount = document.getElementById('inbox-selected-count');
+  if (bulkBar) bulkBar.style.display = inboxSelected.size > 0 ? 'flex' : 'none';
+  if (selCount) selCount.textContent = `${inboxSelected.size} selecionado${inboxSelected.size !== 1 ? 's' : ''}`;
+
+  function renderItem(item) {
+    const isSelected = inboxSelected.has(item.id);
+    const isDone = item.status === 'processed';
+    return `<div class="inbox-item${isSelected ? ' inbox-selected' : ''}" data-id="${item.id}">
+      <div class="inbox-check${isDone ? ' inbox-done' : ''}" onclick="inboxToggleDone(${item.id}, '${item.status}')"></div>
+      <div class="inbox-item-body">
+        <div class="inbox-item-text${isDone ? ' inbox-done-text' : ''}">${item.content}</div>
+        <div class="inbox-item-meta">
+          <span class="inbox-type-tag ${tagClass[item.type] || 'inbox-tag-note'}">${typeMap[item.type] || 'Nota'}</span>
+          <span class="inbox-item-time">${inboxTimeAgo(item.created_at)}</span>
+        </div>
+      </div>
+      <div class="inbox-item-actions">
+        <button class="inbox-action-btn" title="Converter em tarefa" onclick="inboxConvertTask(${item.id})">→</button>
+        <button class="inbox-action-btn" title="Arquivar" onclick="inboxArchive(${item.id})">↓</button>
+        <button class="inbox-action-btn" title="Selecionar" onclick="inboxToggleSelect(${item.id})">◻</button>
+        <button class="inbox-action-btn" title="Excluir" onclick="inboxDelete(${item.id})">×</button>
+      </div>
+    </div>`;
+  }
+
+  if (list) list.innerHTML = pending.length > 0
+    ? pending.map(renderItem).join('')
+    : '<div style="padding:32px;text-align:center;color:var(--muted);font-size:13px;">Tudo processado por hoje!</div>';
+
+  if (doneSection) doneSection.style.display = done.length > 0 ? 'flex' : 'none';
+  if (doneList) doneList.innerHTML = done.map(renderItem).join('');
+}
+
+async function inboxToggleDone(id, currentStatus) {
+  const newStatus = currentStatus === 'processed' ? 'new' : 'processed';
+  await apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+  await refreshCaptures();
+}
+
+async function inboxArchive(id) {
+  await apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'archived' }) });
+  await refreshCaptures();
+}
+
+async function inboxDelete(id) {
+  await apiFetch(`/api/captures/${id}`, { method: 'DELETE' });
+  await refreshCaptures();
+}
+
+async function inboxConvertTask(id) {
+  await apiFetch('/api/captures/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ ids: [id], action: 'convert_task' })
+  });
+  await refreshCaptures();
+}
+
+function inboxToggleSelect(id) {
+  if (inboxSelected.has(id)) inboxSelected.delete(id);
+  else inboxSelected.add(id);
+  inboxRender(inboxAllItems);
+}
+
+async function refreshCaptures() {
+  try {
+    const res = await apiFetch('/api/captures');
+    const data = await res.json();
+    inboxRender(data.items || []);
+  } catch (err) {
+    showError(err);
   }
 }
 
@@ -998,6 +1101,82 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 window.addEventListener('online', flushQueue);
+
+document.querySelectorAll('.filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    inboxFilter = pill.dataset.filter || 'all';
+    inboxRender(inboxAllItems);
+  });
+});
+
+document.querySelectorAll('.inbox-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.inbox-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    inboxCurrentType = btn.dataset.type || 'note';
+  });
+});
+
+const inboxSortBtn = document.getElementById('inbox-sort-btn');
+const inboxSortLabel = document.getElementById('inbox-sort-label');
+inboxSortBtn && inboxSortBtn.addEventListener('click', () => {
+  inboxSort = inboxSort === 'recent' ? 'type' : 'recent';
+  if (inboxSortLabel) inboxSortLabel.textContent = inboxSort === 'recent' ? 'Mais recente' : 'Por tipo';
+  const sorted = [...inboxAllItems];
+  if (inboxSort === 'type') sorted.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+  else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  inboxRender(sorted);
+});
+
+const inboxSelectAllBtn = document.getElementById('inbox-select-all-btn');
+inboxSelectAllBtn && inboxSelectAllBtn.addEventListener('click', () => {
+  if (inboxSelected.size === inboxAllItems.length) {
+    inboxSelected.clear();
+  } else {
+    inboxAllItems.forEach(i => inboxSelected.add(i.id));
+  }
+  inboxRender(inboxAllItems);
+});
+
+document.getElementById('bulk-convert-btn')?.addEventListener('click', async () => {
+  if (!inboxSelected.size) return;
+  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'convert_task' }) });
+  inboxSelected.clear();
+  await refreshCaptures();
+});
+
+document.getElementById('bulk-archive-btn')?.addEventListener('click', async () => {
+  if (!inboxSelected.size) return;
+  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'archive' }) });
+  inboxSelected.clear();
+  await refreshCaptures();
+});
+
+document.getElementById('bulk-delete-btn')?.addEventListener('click', async () => {
+  if (!inboxSelected.size) return;
+  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'delete' }) });
+  inboxSelected.clear();
+  await refreshCaptures();
+});
+
+document.getElementById('bulk-cancel-btn')?.addEventListener('click', () => {
+  inboxSelected.clear();
+  inboxRender(inboxAllItems);
+});
+
+document.getElementById('inbox-ai-btn')?.addEventListener('click', async () => {
+  try {
+    const uncategorized = inboxAllItems.filter(i => !i.type || i.type === 'note').map(i => i.content).join('\n');
+    const prompt = `Analise estes itens do inbox e sugira onde cada um deve ir (tarefa, projeto, conhecimento ou favoritos):\n${uncategorized}`;
+    const res = await apiFetch('/api/agent', { method: 'POST', body: JSON.stringify({ input: prompt }) });
+    const data = await res.json();
+    if (data.reply) showBanner(data.reply);
+  } catch (err) {
+    showError(err);
+  }
+});
 
 async function initApp() {
   const savedTheme = localStorage.getItem('andclaw_theme') || 'auto';
