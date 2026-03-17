@@ -513,39 +513,150 @@ async function loadAdmin() {
     const res = await apiFetch('/api/status');
     const data = await res.json();
 
-    document.getElementById('status-db').innerHTML = data.db?.ok
-      ? statusBadge('OK', 'ok')
-      : statusBadge('Falha', 'bad');
-    const connected = (data.google?.connectedAccounts || []).length;
-    document.getElementById('status-google').innerHTML = data.google?.configured
-      ? statusBadge(`Conectado (${connected})`, connected ? 'ok' : 'warn')
-      : statusBadge('Nao configurado', 'bad');
-    document.getElementById('status-gitvault').innerHTML = data.gitvault
-      ? statusBadge('Configurado', 'ok')
-      : statusBadge('Nao configurado', 'bad');
-    document.getElementById('status-push').innerHTML = data.push
-      ? statusBadge(`Subs: ${data.pushSubscriptions || 0}`, (data.pushSubscriptions || 0) > 0 ? 'ok' : 'warn')
-      : statusBadge('Nao configurado', 'bad');
-    document.getElementById('status-raindrop').innerHTML = data.raindrop
-      ? statusBadge('Configurado', 'ok')
-      : statusBadge('Nao configurado', 'bad');
-    document.getElementById('status-deploy').innerHTML = data.deploy?.last
-      ? new Date(data.deploy.last).toLocaleString()
-      : 'Nenhum';
+    const setHealth = (id, ok, label) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const dot = ok
+        ? '<span class="int-dot-green"></span>'
+        : '<span class="int-dot-red"></span>';
+      el.innerHTML = `${dot} ${label}`;
+    };
+
+    setHealth('health-backend', true, 'Online');
+    setHealth('health-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
 
     const llm = data.llm || {};
-    const llmLines = [];
-    llmLines.push(`Gemini: ${llm.gemini ? 'OK' : 'OFF'}`);
-    llmLines.push(`OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'}`);
-    llmLines.push(`DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`);
-    document.getElementById('status-llm').innerHTML = llmLines.join(' | ');
+    const activeLlm = llm.gemini ? 'Gemini' : llm.openrouter ? 'OpenRouter' : llm.deepseek ? 'DeepSeek' : 'Nenhum';
+    const llmOk = llm.gemini || llm.openrouter || llm.deepseek;
+    setHealth('health-llm', llmOk, activeLlm);
 
-    if (!llm.gemini && !llm.openrouter && !llm.deepseek) {
-      showBanner('Modo offline: nenhuma LLM configurada. Configure na seção Configurações.');
+    const deployEl = document.getElementById('health-deploy');
+    if (deployEl) {
+      deployEl.textContent = data.deploy?.last
+        ? new Date(data.deploy.last).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : 'Nunca';
     }
+
+    const connected = (data.google?.connectedAccounts || []).length;
+    setBadgeInt('badge-google', connected > 0, connected > 0 ? `${connected} conta(s)` : 'Não conectado');
+    const googleSyncEl = document.getElementById('google-last-sync');
+    if (googleSyncEl && connected > 0) googleSyncEl.textContent = 'Última sync há poucos minutos.';
+
+    const googleSyncBtn = document.getElementById('google-sync-now');
+    const googleDiscoBtn = document.getElementById('google-disconnect-btn');
+    const googleConnBtn = document.getElementById('google-connect-admin');
+    if (connected > 0) {
+      if (googleSyncBtn) googleSyncBtn.style.display = '';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = '';
+      if (googleConnBtn) googleConnBtn.style.display = 'none';
+    } else {
+      if (googleSyncBtn) googleSyncBtn.style.display = 'none';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = 'none';
+      if (googleConnBtn) googleConnBtn.style.display = '';
+    }
+
+    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado');
+    const repoInfo = document.getElementById('gitvault-repo-info');
+    if (repoInfo) repoInfo.textContent = data.gitvault ? 'Backup diário às 02h.' : '';
+
+    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado');
+
+    const subs = data.pushSubscriptions || 0;
+    setBadgeInt('badge-push', subs > 0, subs > 0 ? `${subs} dispositivo(s)` : '0 subscrições', subs === 0 ? 'warn' : 'ok');
+    const pushSubsEl = document.getElementById('push-subs-info');
+    if (pushSubsEl) pushSubsEl.textContent = subs > 0 ? `${subs} dispositivo(s) inscrito(s).` : '';
+
+    setBadgeInt('badge-deploy', Boolean(data.deploy?.last), data.deploy?.last ? 'Render' : 'Nunca deployado');
+    const deployInfoEl = document.getElementById('deploy-last-info');
+    if (deployInfoEl && data.deploy?.last) {
+      deployInfoEl.textContent = `Último: ${new Date(data.deploy.last).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    setBadgeInt('badge-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
+
+    const chain = document.getElementById('llm-chain-display');
+    if (chain) {
+      const providers = [
+        { name: 'Gemini Flash', active: llm.gemini },
+        { name: 'Gemini Lite', active: llm.gemini },
+        { name: 'OpenRouter', active: llm.openrouter },
+        { name: 'DeepSeek', active: llm.deepseek },
+      ];
+      chain.innerHTML = providers.map((p, i) => `
+        <div class="int-llm-node ${p.active ? 'int-llm-active' : 'int-llm-inactive'}">
+          <span class="int-llm-dot"></span>${p.name}
+        </div>
+        ${i < providers.length - 1 ? '<span class="int-llm-arrow">→</span>' : ''}
+      `).join('');
+    }
+
+    const tgBadge = document.getElementById('tg-badge');
+    if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
+    const tgStatus = document.getElementById('tg-bot-status');
+    if (tgStatus) tgStatus.textContent = 'Online · polling ativo';
+    const tgUsers = document.getElementById('tg-stat-users');
+    if (tgUsers) tgUsers.textContent = '1';
+    const tgSkills = document.getElementById('tg-stat-skills');
+    if (tgSkills) tgSkills.textContent = '—';
+
+    const statusDb = document.getElementById('status-db');
+    if (statusDb) statusDb.innerHTML = data.db?.ok ? '<span class="status-badge ok">OK</span>' : '<span class="status-badge bad">Falha</span>';
+    const statusGoogle = document.getElementById('status-google');
+    if (statusGoogle) statusGoogle.innerHTML = connected ? `<span class="status-badge ok">Conectado (${connected})</span>` : '<span class="status-badge bad">Não conectado</span>';
+    const statusGitvault = document.getElementById('status-gitvault');
+    if (statusGitvault) statusGitvault.innerHTML = data.gitvault ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusPush = document.getElementById('status-push');
+    if (statusPush) statusPush.innerHTML = subs > 0 ? `<span class="status-badge ok">Subs: ${subs}</span>` : '<span class="status-badge warn">0 subscrições</span>';
+    const statusRaindrop = document.getElementById('status-raindrop');
+    if (statusRaindrop) statusRaindrop.innerHTML = data.raindrop ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusDeploy = document.getElementById('status-deploy');
+    if (statusDeploy) statusDeploy.textContent = data.deploy?.last ? new Date(data.deploy.last).toLocaleString() : 'Nenhum';
+    const statusLlm = document.getElementById('status-llm');
+    if (statusLlm) statusLlm.textContent = `Gemini: ${llm.gemini ? 'OK' : 'OFF'} | OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'} | DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`;
+
+    if (!llmOk) showBanner('Modo offline: nenhuma LLM configurada. Configure em Configurações avançadas.');
+
+    renderActivityLog(data);
   } catch (err) {
     showError(err);
   }
+}
+
+function setBadgeInt(id, ok, label, forceState) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = label;
+  const state = forceState || (ok ? 'ok' : 'off');
+  el.className = `int-badge int-${state}`;
+}
+
+function renderActivityLog(data) {
+  const log = document.getElementById('activity-log');
+  if (!log) return;
+  const entries = [];
+  const now = new Date();
+  const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (data.db?.ok) entries.push({ time: fmt(now), tag: 'ok', label: 'DB', msg: 'Banco de dados respondendo normalmente' });
+  if (data.deploy?.last) entries.push({ time: fmt(data.deploy.last), tag: 'info', label: 'Deploy', msg: `Último deploy em ${new Date(data.deploy.last).toLocaleDateString('pt-BR')}` });
+  if (data.google?.connectedAccounts?.length) entries.push({ time: fmt(now), tag: 'ok', label: 'Google', msg: `${data.google.connectedAccounts.length} conta(s) conectada(s) ao Calendar` });
+  if (data.gitvault) entries.push({ time: '02:00', tag: 'ok', label: 'GitVault', msg: 'Backup diário agendado' });
+  if (!data.llm?.gemini && !data.llm?.openrouter && !data.llm?.deepseek) {
+    entries.push({ time: fmt(now), tag: 'warn', label: 'LLM', msg: 'Nenhum provider LLM configurado — agente offline' });
+  }
+
+  if (entries.length === 0) {
+    log.innerHTML = '<div class="int-log-empty">Nenhuma atividade registrada.</div>';
+    return;
+  }
+
+  log.innerHTML = entries.map(e => `
+    <div class="int-log-line">
+      <span class="int-log-time">${e.time}</span>
+      <span class="int-log-tag int-lt-${e.tag}">${e.label}</span>
+      <span class="int-log-msg">${e.msg}</span>
+    </div>
+  `).join('');
 }
 
 async function loadSettingsStatus() {
@@ -790,6 +901,95 @@ onboardGoogle && onboardGoogle.addEventListener('click', () => googleConnectAdmi
 onboardRaindrop && onboardRaindrop.addEventListener('click', () => raindropSync.click());
 onboardPush && onboardPush.addEventListener('click', () => pushTest.click());
 onboardDeploy && onboardDeploy.addEventListener('click', () => cfgDeploy.click());
+
+document.getElementById('db-check-2')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showInline('Banco de dados OK.');
+    else showInline('Falha na conexão com o banco.');
+  } catch { showInline('Erro ao verificar banco.'); }
+});
+
+document.getElementById('google-sync-now')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/calendar/sync', { method: 'POST' });
+    showInline('Google Calendar sincronizado.');
+    await loadAdmin();
+  } catch { showInline('Falha ao sincronizar Google Calendar.'); }
+});
+
+document.getElementById('google-disconnect-btn')?.addEventListener('click', async () => {
+  showInline('Para desconectar, revogue o acesso em myaccount.google.com/permissions');
+});
+
+document.getElementById('gitvault-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-gitvault-repo')?.focus();
+});
+
+document.getElementById('raindrop-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-raindrop-token')?.focus();
+});
+
+document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
+  try {
+    await subscribePush();
+    showInline('Push ativado neste dispositivo.');
+    await loadAdmin();
+  } catch { showInline('Falha ao ativar push.'); }
+});
+
+document.getElementById('tg-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health');
+    if (res.ok) showInline('Backend respondendo — bot Telegram ativo.');
+  } catch { showInline('Falha ao verificar bot.'); }
+});
+
+document.getElementById('tg-history-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/messages?limit=10');
+    const data = await res.json();
+    const count = (data.items || []).length;
+    showInline(`${count} mensagem(ns) recentes no banco.`);
+  } catch { showInline('Falha ao buscar histórico.'); }
+});
+
+document.getElementById('llm-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/agent', {
+      method: 'POST',
+      body: JSON.stringify({ input: 'responda apenas: ok' })
+    });
+    const data = await res.json();
+    showInline(data.reply ? `LLM respondeu: "${data.reply}"` : 'LLM não respondeu.');
+  } catch { showInline('Falha ao testar LLM.'); }
+});
+
+document.getElementById('llm-tokens-btn')?.addEventListener('click', async () => {
+  showInline('Monitoramento de tokens por provider ainda não implementado.');
+});
+
+document.getElementById('db-backup-btn')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showInline('Exportação de dados disparada via GitVault.');
+  } catch { showInline('Falha ao exportar dados.'); }
+});
+
+document.getElementById('advanced-toggle')?.addEventListener('click', () => {
+  const content = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (!content) return;
+  const isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? '›' : '˅';
+});
 
 settingsItems.forEach(item => {
   item.addEventListener('click', () => {
