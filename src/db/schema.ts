@@ -32,6 +32,10 @@ export async function ensureSchema(): Promise<void> {
       processed_at TIMESTAMPTZ
     );
   `);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'note'`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
 
   await query(`
     CREATE TABLE IF NOT EXISTS user_profile (
