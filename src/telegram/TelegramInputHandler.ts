@@ -127,6 +127,52 @@ export class TelegramInputHandler {
              ctx.reply(`⚙️ AndClaw Operante.\nProvider Selecionado: ${config.llm.defaultProvider.toUpperCase()}`);
         });
 
+        // Comando /help
+        this.bot.command('help', (ctx) => {
+            ctx.reply(
+                `🤖 *Comandos disponíveis:*\n\n` +
+                `/start — Apresentação\n` +
+                `/ping — Status do agente\n` +
+                `/clear — Limpar histórico da conversa\n` +
+                `/skills — Listar skills carregadas\n` +
+                `/provider — Ver provider LLM ativo\n` +
+                `/help — Esta mensagem`,
+                { parse_mode: 'Markdown' }
+            );
+        });
+
+        // Comando /clear — limpa o histórico da conversa atual
+        this.bot.command('clear', async (ctx) => {
+            const userId = ctx.from?.id.toString();
+            if (!userId) return;
+            try {
+                await this.controller.clearHistory(userId);
+                ctx.reply('🗑️ Histórico limpo. Começando uma nova conversa.');
+            } catch (e: any) {
+                ctx.reply(`Erro ao limpar histórico: ${e.message}`);
+            }
+        });
+
+        // Comando /skills — lista as skills carregadas
+        this.bot.command('skills', (ctx) => {
+            const skills = this.controller.getLoadedSkills();
+            if (skills.length === 0) {
+                return ctx.reply('Nenhuma skill carregada no momento.');
+            }
+            const list = skills.map(s => `• *${s.metadata.name}*: ${s.metadata.description}`).join('\n');
+            ctx.reply(`⚡ *Skills ativas (${skills.length}):*\n\n${list}`, { parse_mode: 'Markdown' });
+        });
+
+        // Comando /provider — mostra provider ativo e chain configurada
+        this.bot.command('provider', (ctx) => {
+            const chain = config.llm.providerChain.join(' → ');
+            ctx.reply(
+                `🧠 *Provider ativo:* ${config.llm.defaultProvider.toUpperCase()}\n` +
+                `🔗 *Chain de fallback:* ${chain}`,
+                { parse_mode: 'Markdown' }
+            );
+        });
+
         // Error Handler
         this.bot.catch((err) => {
             console.error(`[Telegram Global Error]:`, err);
