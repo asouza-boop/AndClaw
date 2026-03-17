@@ -1095,6 +1095,30 @@ async function analyzeMeeting(meetingId) {
   }
 }
 
+async function loadKnowledge() {
+  try {
+    const res = await apiFetch('/api/memory');
+    const data = await res.json();
+    const list = document.getElementById('memory-list');
+    if (!list) return;
+
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(m => `
+          <div class="list-item">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span class="inbox-type-tag inbox-tag-${m.type === 'meeting_insight' ? 'idea' : 'note'}">${m.type || 'insight'}</span>
+              <span class="inbox-item-time">${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+            <div class="list-item-title">${m.content.substring(0, 120)}${m.content.length > 120 ? '...' : ''}</div>
+            ${m.source_type ? `<div class="list-item-sub">Fonte: ${m.source_type}${m.source_id ? ' #'+m.source_id : ''}</div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state">Nenhum insight salvo ainda. Analise uma reunião para gerar conhecimento.</div>';
+  } catch (err) {
+    showError(err);
+  }
+}
+
 const cfgSave = document.getElementById('cfg-save');
 const cfgDeploy = document.getElementById('cfg-deploy');
 const dbCheck = document.getElementById('db-check');
@@ -2311,6 +2335,7 @@ async function initApp() {
   await loadChatHistory();
   await loadMeetings();
   await loadProjects();
+  await loadKnowledge();
   await loadAdmin();
   await loadSettingsStatus();
   await loadProfile();
