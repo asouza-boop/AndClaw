@@ -119,7 +119,8 @@ export class TelegramInputHandler {
 
         // Basic Info Commands
         this.bot.command('start', (ctx) => {
-            ctx.reply(`👋 Olá Sandeco! Sou o AndClaw, seu agente local.\nUse /ping para status.`);
+            const userName = process.env.AGENT_USER_NAME || 'usuário';
+            ctx.reply(`👋 Olá ${userName}! Sou o AndClaw, seu agente pessoal.\nUse /ping para status ou /help para ver os comandos disponíveis.`);
         });
 
         this.bot.command('ping', (ctx) => {

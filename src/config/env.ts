@@ -10,6 +10,9 @@ export const config = {
     token: process.env.TELEGRAM_BOT_TOKEN || '',
     allowedUsers: (process.env.TELEGRAM_ALLOWED_USER_IDS || '').split(',').map(id => id.trim()),
   },
+  agent: {
+    userName: process.env.AGENT_USER_NAME || 'usuário',
+  },
   llm: {
     geminiKey: process.env.GEMINI_API_KEY || '',
     geminiKey2: process.env.GEMINI_API_KEY_2 || '',

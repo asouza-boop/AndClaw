@@ -16,7 +16,8 @@ export class SkillExecutor {
         options: any = {}
     ): Promise<string> {
         const registry = new ToolRegistry(); // Initialize default tools
-        let basePrompt = "Você é o AndClaw, um agente assistente inteligente projetado para o usuário Sandeco. Você roda localmente e tem acesso a ferramentas locais.\n";
+        const userName = process.env.AGENT_USER_NAME || 'usuário';
+        let basePrompt = `Você é o AndClaw, um agente assistente inteligente projetado para ${userName}. Você tem acesso a ferramentas locais.\n`;
         
         if (skill) {
             basePrompt += `\nINSTRUÇÕES DE HABILIDADE ATIVA (${skill.metadata.name}):\n${skill.content}\n`;
