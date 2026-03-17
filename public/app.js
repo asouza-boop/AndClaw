@@ -32,10 +32,7 @@ navItems.forEach(item => {
 const modal = document.getElementById('modal');
 const modalInput = document.getElementById('modal-input');
 const loginModal = document.getElementById('login-modal');
-const loginApiBase = document.getElementById('login-api-base');
 const loginPassword = document.getElementById('login-password');
-const loginTokenSecret = document.getElementById('login-token-secret');
-const bootstrapHint = document.getElementById('bootstrap-hint');
 const adminFeedback = document.getElementById('admin-feedback');
 
 function showBanner(text) {
@@ -89,14 +86,12 @@ function closeModal() {
 
 function showLogin() {
   loginModal.classList.remove('hidden');
-  loginApiBase.value = getApiBase();
   loginPassword.focus();
 }
 
 function hideLogin() {
   loginModal.classList.add('hidden');
   loginPassword.value = '';
-  loginTokenSecret.value = '';
 }
 
 async function apiFetch(path, options = {}) {
@@ -166,10 +161,9 @@ async function ensureAuth() {
 }
 
 document.getElementById('login-submit').addEventListener('click', async () => {
-  const apiBase = loginApiBase.value.trim();
   const password = loginPassword.value.trim();
-  if (!apiBase || !password) return;
-  setApiBase(apiBase);
+  const apiBase = getApiBase();
+  if (!password) return;
   try {
     const res = await fetch(`${apiBase}/api/auth/login`, {
       method: 'POST',
@@ -186,54 +180,13 @@ document.getElementById('login-submit').addEventListener('click', async () => {
       return;
     }
     const data = await res.json().catch(() => ({}));
-    if (data.error === 'auth not configured') {
-      bootstrapHint.textContent = 'Configure senha e clique em Inicializar.';
-      showBanner('Auth nao configurado no backend.');
-    } else {
-      showBanner('Falha no login. Verifique a senha e a URL do backend.');
-    }
+    showBanner('Falha no login. Verifique a senha.');
   } catch (err) {
     showError(err);
   }
 });
 
-document.getElementById('login-bootstrap').addEventListener('click', async () => {
-  const apiBase = loginApiBase.value.trim();
-  const password = loginPassword.value.trim();
-  const tokenSecret = loginTokenSecret.value.trim();
-  if (!apiBase || !password) return;
-  setApiBase(apiBase);
-  try {
-    const res = await fetch(`${apiBase}/api/auth/bootstrap`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, tokenSecret: tokenSecret || undefined })
-    });
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem('auth_token', data.token);
-      hideLogin();
-      hideBanner();
-      await initApp();
-      return;
-    }
-    const data = await res.json().catch(() => ({}));
-    if (data.error === 'already_configured') {
-      showBanner('Ja configurado. Use Entrar.');
-    } else {
-      showBanner('Falha na inicializacao. Verifique a URL do backend.');
-    }
-  } catch (err) {
-    showError(err);
-  }
-});
-
-document.getElementById('login-generate').addEventListener('click', () => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const secret = btoa(String.fromCharCode(...bytes)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  loginTokenSecret.value = secret;
-});
+// bootstrap flow removed from UI
 
 document.getElementById('quick-capture-btn').addEventListener('click', openModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
