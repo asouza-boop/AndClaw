@@ -467,6 +467,17 @@ body[data-theme="dark"] input[type="password"] {
   width: min(520px, 90vw);
 }
 
+.password-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.password-row .btn {
+  padding: 10px 14px;
+}
+
 .modal-actions,
 .action-row {
   display: flex;

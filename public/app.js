@@ -34,6 +34,7 @@ const modalInput = document.getElementById('modal-input');
 const loginModal = document.getElementById('login-modal');
 const loginPassword = document.getElementById('login-password');
 const adminFeedback = document.getElementById('admin-feedback');
+const togglePassword = document.getElementById('toggle-password');
 
 function showBanner(text) {
   banner.textContent = text;
@@ -160,7 +161,20 @@ async function ensureAuth() {
   }
 }
 
+let loginAttempts = 0;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 60 * 1000;
+let loginLockedUntil = 0;
+
+function isLoginLocked() {
+  return Date.now() < loginLockedUntil;
+}
+
 document.getElementById('login-submit').addEventListener('click', async () => {
+  if (isLoginLocked()) {
+    showBanner('Muitas tentativas. Aguarde 1 minuto.');
+    return;
+  }
   const password = loginPassword.value.trim();
   const apiBase = getApiBase();
   if (!password) return;
@@ -176,14 +190,27 @@ document.getElementById('login-submit').addEventListener('click', async () => {
       hideLogin();
       hideBanner();
       hideInline();
+      loginAttempts = 0;
       await initApp();
       return;
     }
-    const data = await res.json().catch(() => ({}));
-    showBanner('Falha no login. Verifique a senha.');
+    await res.json().catch(() => ({}));
+    loginAttempts += 1;
+    if (loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      loginLockedUntil = Date.now() + LOGIN_LOCK_MS;
+      showBanner('Muitas tentativas. Aguarde 1 minuto.');
+    } else {
+      showBanner('Falha no login. Verifique a senha.');
+    }
   } catch (err) {
     showError(err);
   }
+});
+
+togglePassword && togglePassword.addEventListener('click', () => {
+  const isHidden = loginPassword.type === 'password';
+  loginPassword.type = isHidden ? 'text' : 'password';
+  togglePassword.textContent = isHidden ? 'Ocultar' : 'Mostrar';
 });
 
 // bootstrap flow removed from UI
