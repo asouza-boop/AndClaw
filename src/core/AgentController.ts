@@ -55,4 +55,20 @@ export class AgentController {
             return `[Erro Crítico] Ocorreu uma falha ao processar sua solicitação: ${e.message}. Por favor, tente novamente em instantes.`;
         }
     }
+
+    /**
+     * Limpa o histórico da conversa ativa do usuário criando uma nova conversa.
+     */
+    public async clearHistory(userId: string): Promise<void> {
+        const providerName = config.llm.defaultProvider;
+        await this.memoryManager.initConversation(userId, providerName);
+        console.log(`[Controller] Histórico limpo para usuário ${userId}`);
+    }
+
+    /**
+     * Retorna as skills atualmente carregadas (para exibição via /skills).
+     */
+    public getLoadedSkills() {
+        return this.skillLoader.fetchSkills();
+    }
 }
