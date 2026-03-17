@@ -26,9 +26,12 @@ export class SkillLoader {
   }
 
   private skillsCache: Skill[] | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_TTL_MS = 60_000; // 60 segundos
 
   public fetchSkills(): Skill[] {
-    if (this.skillsCache) {
+    const now = Date.now();
+    if (this.skillsCache && (now - this.cacheTimestamp) < this.CACHE_TTL_MS) {
       // console.log(`[SkillLoader] Servindo ${this.skillsCache.length} skills do cache.`);
       return this.skillsCache;
     }
@@ -81,6 +84,7 @@ export class SkillLoader {
     }
     
     this.skillsCache = skills;
+    this.cacheTimestamp = Date.now();
     return skills;
   }
 
