@@ -2310,6 +2310,7 @@ async function initApp() {
   await loadAgenda();
   await loadChatHistory();
   await loadMeetings();
+  await loadProjects();
   await loadAdmin();
   await loadSettingsStatus();
   await loadProfile();
