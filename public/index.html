@@ -335,7 +335,8 @@
             </div>
             <div class="field">
               <label>Tags</label>
-              <input id="agent-tags" type="text" placeholder="separadas por vírgula" />
+              <input id="agent-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
+              <div id="agent-tags-suggestions" class="tag-suggestions hidden"></div>
             </div>
           </div>
           <div class="field">
@@ -405,7 +406,8 @@
           </div>
           <div class="field">
             <label>Tags</label>
-            <input id="favorite-tags" type="text" placeholder="separadas por vírgula" />
+            <input id="favorite-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
+            <div id="favorite-tags-suggestions" class="tag-suggestions hidden"></div>
           </div>
           <div class="modal-actions">
             <button id="favorite-sync" class="btn ghost">Sync Raindrop</button>
@@ -870,22 +872,38 @@
                   </div>
                 </div>
                 <div class="admin-grid">
-                  <div class="card">
+                  <div class="card span-2">
                     <div class="card-header"><h3>Tags</h3></div>
-                    <div class="form-row">
-                      <div class="field">
+                    <div class="tag-create-row">
+                      <div class="field" style="flex:1;">
                         <label>Nome</label>
                         <input id="tag-name" type="text" placeholder="Nome da tag" />
                       </div>
                       <div class="field">
-                        <label>Cor (hex)</label>
-                        <input id="tag-color" type="text" placeholder="#0ef2a8" />
+                        <label>Cor</label>
+                        <div class="tag-color-picker">
+                          <div class="tag-color-palette" id="tag-color-palette">
+                            <button class="tag-color-swatch active" data-color="#8b5cf6" style="background:#8b5cf6;" title="Roxo"></button>
+                            <button class="tag-color-swatch" data-color="#22d3ee" style="background:#22d3ee;" title="Ciano"></button>
+                            <button class="tag-color-swatch" data-color="#10b981" style="background:#10b981;" title="Verde"></button>
+                            <button class="tag-color-swatch" data-color="#f59e0b" style="background:#f59e0b;" title="Âmbar"></button>
+                            <button class="tag-color-swatch" data-color="#e11d48" style="background:#e11d48;" title="Vermelho"></button>
+                            <button class="tag-color-swatch" data-color="#3b82f6" style="background:#3b82f6;" title="Azul"></button>
+                            <button class="tag-color-swatch" data-color="#ec4899" style="background:#ec4899;" title="Rosa"></button>
+                            <button class="tag-color-swatch" data-color="#f97316" style="background:#f97316;" title="Laranja"></button>
+                            <button class="tag-color-swatch" data-color="#6b7280" style="background:#6b7280;" title="Cinza"></button>
+                          </div>
+                          <input id="tag-color" type="text" value="#8b5cf6" placeholder="#hex" style="width:90px;" />
+                        </div>
                       </div>
                     </div>
-                    <div class="modal-actions" style="justify-content:flex-start;">
+                    <div style="margin-top:4px;">
+                      <span id="tag-preview-pill" class="tag-pill" style="background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.35);color:#8b5cf6;">prévia</span>
+                    </div>
+                    <div class="modal-actions" style="justify-content:flex-start;margin-top:14px;">
                       <button id="tag-save" class="btn primary">Criar Tag</button>
                     </div>
-                    <div class="list" id="tags-list" style="margin-top:14px;"></div>
+                    <div id="tags-list" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
                   </div>
 
                   <div class="card span-2">

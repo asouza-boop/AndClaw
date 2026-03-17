@@ -202,6 +202,12 @@ router.get('/tags', async (_req: Request, res: Response) => {
   res.json({ ok: true, items: rows });
 });
 
+router.delete('/tags/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query(`DELETE FROM tags WHERE id = $1`, [id]);
+  res.json({ ok: true });
+});
+
 router.post('/tags', async (req: Request, res: Response) => {
   const { name, color } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });

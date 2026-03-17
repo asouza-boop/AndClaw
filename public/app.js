@@ -1216,6 +1216,63 @@ document.querySelectorAll('.theme-card').forEach(card => {
   });
 });
 
+// ── Tag autocomplete para campos de texto ──
+function initTagAutocomplete(inputId, suggestionsId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  if (!input || !box) return;
+
+  input.addEventListener('input', () => {
+    const val = input.value;
+    const lastComma = val.lastIndexOf(',');
+    const typing = val.slice(lastComma + 1).trim().toLowerCase();
+    if (!typing || cachedTags.length === 0) { box.classList.add('hidden'); return; }
+
+    const matches = cachedTags.filter(t =>
+      t.name.toLowerCase().includes(typing) &&
+      !val.split(',').map(s => s.trim()).includes(t.name)
+    );
+
+    if (matches.length === 0) { box.classList.add('hidden'); return; }
+
+    box.innerHTML = matches.slice(0, 6).map(t => {
+      const color = t.color || '#8b5cf6';
+      return `<div class="tag-suggestion-item" onclick="selectTagSuggestion('${inputId}', '${suggestionsId}', '${t.name}')">
+        <span class="tag-suggestion-dot" style="background:${color};"></span>
+        ${t.name}
+      </div>`;
+    }).join('');
+    box.classList.remove('hidden');
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => box.classList.add('hidden'), 150);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') box.classList.add('hidden');
+  });
+}
+
+function selectTagSuggestion(inputId, suggestionsId, tagName) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  if (!input) return;
+  const val = input.value;
+  const lastComma = val.lastIndexOf(',');
+  const prefix = lastComma >= 0 ? val.slice(0, lastComma + 1) + ' ' : '';
+  input.value = prefix + tagName + ', ';
+  input.focus();
+  if (box) box.classList.add('hidden');
+}
+
+// Inicializar autocomplete após DOM pronto
+document.addEventListener('DOMContentLoaded', () => {
+  initTagAutocomplete('agent-tags', 'agent-tags-suggestions');
+  initTagAutocomplete('favorite-tags', 'favorite-tags-suggestions');
+});
+
+
 function parseList(value) {
   return value.split(',').map(v => v.trim()).filter(Boolean);
 }
@@ -1296,30 +1353,113 @@ document.getElementById('agent-save').addEventListener('click', async () => {
   }
 });
 
+let cachedTags = [];
+
 async function loadTags() {
   try {
     const res = await apiFetch('/api/tags');
     const data = await res.json();
-    const list = document.getElementById('tags-list');
-    list.innerHTML = (data.items || []).map(tag => `<div>${tag.name}</div>`).join('');
+    cachedTags = data.items || [];
+    renderTagsList();
   } catch (err) {
     showError(err);
   }
 }
 
+function renderTagsList() {
+  const list = document.getElementById('tags-list');
+  if (!list) return;
+  if (cachedTags.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhuma tag criada ainda.</div>';
+    return;
+  }
+  list.innerHTML = cachedTags.map(tag => {
+    const color = tag.color || '#8b5cf6';
+    const bg = hexToRgba(color, 0.13);
+    const border = hexToRgba(color, 0.35);
+    return `<span class="tag-item" style="background:${bg};border:1px solid ${border};color:${color};">
+      <span class="tag-item-dot" style="background:${color};"></span>
+      ${tag.name}
+      <button class="tag-item-del" onclick="deleteTag(${tag.id})" title="Remover">×</button>
+    </span>`;
+  }).join('');
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  if (isNaN(r)||isNaN(g)||isNaN(b)) return \`rgba(139,92,246,${alpha})\`;
+  return \`rgba(${r},${g},${b},${alpha})\`;
+}
+
+async function deleteTag(id) {
+  try {
+    await apiFetch(\`/api/tags/\${id}\`, { method: 'DELETE' });
+    await loadTags();
+    showInline('Tag removida.');
+  } catch (err) { showError(err); }
+}
+
+// ── Tag color palette ──
+let selectedTagColor = '#8b5cf6';
+
+document.querySelectorAll('.tag-color-swatch').forEach(swatch => {
+  swatch.addEventListener('click', () => {
+    document.querySelectorAll('.tag-color-swatch').forEach(s => s.classList.remove('active'));
+    swatch.classList.add('active');
+    selectedTagColor = swatch.dataset.color;
+    const colorInput = document.getElementById('tag-color');
+    if (colorInput) colorInput.value = selectedTagColor;
+    updateTagPreview();
+  });
+});
+
+document.getElementById('tag-color')?.addEventListener('input', (e) => {
+  const val = e.target.value.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    selectedTagColor = val;
+    document.querySelectorAll('.tag-color-swatch').forEach(s => {
+      s.classList.toggle('active', s.dataset.color === val);
+    });
+    updateTagPreview();
+  }
+});
+
+document.getElementById('tag-name')?.addEventListener('input', updateTagPreview);
+
+function updateTagPreview() {
+  const name = document.getElementById('tag-name')?.value.trim() || 'prévia';
+  const color = selectedTagColor || '#8b5cf6';
+  const pill = document.getElementById('tag-preview-pill');
+  if (!pill) return;
+  const bg = hexToRgba(color, 0.14);
+  const border = hexToRgba(color, 0.35);
+  pill.style.background = bg;
+  pill.style.borderColor = border;
+  pill.style.color = color;
+  pill.textContent = name;
+}
+
 document.getElementById('tag-save').addEventListener('click', async () => {
-  const name = document.getElementById('tag-name').value.trim();
-  const color = document.getElementById('tag-color').value.trim();
-  if (!name) return;
+  const nameEl = document.getElementById('tag-name');
+  const name = nameEl?.value.trim();
+  if (!name) { showInline('Informe o nome da tag.'); return; }
+  const color = selectedTagColor || document.getElementById('tag-color')?.value.trim() || '#8b5cf6';
   try {
     await apiFetch('/api/tags', { method: 'POST', body: JSON.stringify({ name, color }) });
-    document.getElementById('tag-name').value = '';
-    document.getElementById('tag-color').value = '';
-    showInline('Tag criada.');
+    if (nameEl) nameEl.value = '';
+    showInline('Tag criada com sucesso.');
+    updateTagPreview();
     await loadTags();
   } catch (err) {
     showError(err);
   }
+});
+
+// Enter no campo de nome da tag salva
+document.getElementById('tag-name')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('tag-save')?.click();
 });
 
 async function loadLinks() {
@@ -1419,14 +1559,26 @@ async function loadFavorites() {
     const res = await apiFetch('/api/favorites');
     const data = await res.json();
     const list = document.getElementById('favorites-list');
-    list.innerHTML = (data.items || []).map(fav => {
-      const tags = (fav.tags || []).map(t => `<span class="tag-pill">${t.name}</span>`).join('');
-      return `<div class="card">
-        <strong>${fav.title}</strong>
-        <div><a href="${fav.url}" target="_blank" rel="noreferrer">${fav.url}</a></div>
-        <div class="tag-row">${tags}</div>
-      </div>`;
-    }).join('');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(fav => {
+          const tags = (fav.tags || []).map(t => {
+            const color = t.color || '#8b5cf6';
+            const bg = hexToRgba(color, 0.13);
+            const border = hexToRgba(color, 0.3);
+            return `<span class="tag-inline-pill" style="background:${bg};border:1px solid ${border};color:${color};">${t.name}</span>`;
+          }).join('');
+          const domain = (() => { try { return new URL(fav.url).hostname; } catch { return fav.url; } })();
+          return `<div class="list-item" style="gap:8px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+              <div class="list-item-title">${fav.title}</div>
+              <a href="${fav.url}" target="_blank" rel="noreferrer" style="font-size:11px;color:var(--accent-2);white-space:nowrap;">${domain}</a>
+            </div>
+            ${tags ? `<div class="tag-inline-pills">${tags}</div>` : ''}
+          </div>`;
+        }).join('')
+      : '<div class="empty-state">Nenhum favorito salvo.</div>';
   } catch (err) {
     showError(err);
   }
