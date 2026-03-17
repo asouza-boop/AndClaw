@@ -31,9 +31,10 @@ export class MemoryManager {
     await this.conversationRepo.updateTimestamp(conversationId);
   }
 
-  public async getHistory(userId: string, provider: string, limit: number = 20): Promise<Array<{role: string, content: string}>> {
+  public async getHistory(userId: string, provider: string, limit?: number): Promise<Array<{role: string, content: string}>> {
+    const resolvedLimit = limit ?? parseInt(process.env.MEMORY_WINDOW_SIZE || '20', 10);
     const conversationId = await this.getOrCreateActiveConversation(userId, provider);
-    const messages = await this.messageRepo.getByConversationId(conversationId, limit);
+    const messages = await this.messageRepo.getByConversationId(conversationId, resolvedLimit);
     return messages.map(m => ({ role: m.role, content: m.content }));
   }
 }
