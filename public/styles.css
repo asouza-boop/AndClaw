@@ -29,7 +29,7 @@ body[data-theme="dark"] {
   --border: rgba(255, 255, 255, 0.08);
   --text: #eef2ff;
   --muted: #97a3bb;
-  --shadow: 0 18px 40px rgba(5, 8, 14, 0.4);
+  --shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
 }
 
 * {
@@ -244,6 +244,15 @@ body[data-theme="dark"] .brand-subtitle {
   border-color: var(--border);
 }
 
+body[data-theme="dark"] .btn.ghost {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body[data-theme="dark"] .btn.primary {
+  box-shadow: 0 12px 28px rgba(139, 92, 246, 0.35);
+}
+
 .btn:hover {
   transform: translateY(-1px);
 }
@@ -342,6 +351,13 @@ body[data-theme="dark"] .brand-subtitle {
   box-shadow: var(--shadow);
 }
 
+body[data-theme="dark"] .card,
+body[data-theme="dark"] .panel,
+body[data-theme="dark"] .settings-card {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(13, 18, 33, 0.96));
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .card.wide {
   grid-column: span 2;
 }
@@ -387,6 +403,13 @@ input[type="password"] {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
+}
+
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] input[type="text"],
+body[data-theme="dark"] input[type="password"] {
+  background: rgba(21, 28, 47, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .field {
@@ -578,6 +601,14 @@ input[type="password"] {
   box-shadow: 0 12px 24px rgba(139, 92, 246, 0.25);
 }
 
+body[data-theme="dark"] .settings-item {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+body[data-theme="dark"] .settings-item.active {
+  box-shadow: 0 12px 26px rgba(139, 92, 246, 0.35);
+}
+
 .settings-panel {
   display: grid;
   gap: 18px;
@@ -683,6 +714,14 @@ input[type="password"] {
   background: #fff;
   border-radius: 50%;
   transition: all 0.2s ease;
+}
+
+body[data-theme="dark"] .switch span {
+  background: rgba(31, 41, 55, 0.9);
+}
+
+body[data-theme="dark"] .switch span::after {
+  background: #e2e8f0;
 }
 
 .switch input:checked + span {
