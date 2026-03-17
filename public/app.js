@@ -375,6 +375,17 @@ togglePassword && togglePassword.addEventListener('click', () => {
 // bootstrap flow removed from UI
 
 document.getElementById('quick-capture-btn').addEventListener('click', openModal);
+document.getElementById('new-task-btn')?.addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelector('[data-view="meetings"]')?.click();
+  setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
+});
+
+document.getElementById('new-meeting-btn')?.addEventListener('click', () => {
+  document.querySelector('[data-view="meetings"]')?.click();
+  setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
+});
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 
 document.getElementById('new-task-btn')?.addEventListener('click', () => {
