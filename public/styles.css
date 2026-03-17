@@ -68,6 +68,11 @@ body[data-theme="dark"] {
   gap: 18px;
 }
 
+body[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #0f1626, #111827 40%, #0b1222);
+  border-right: 1px solid var(--border);
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -128,6 +133,19 @@ body[data-theme="dark"] {
 .nav-item svg {
   width: 18px;
   height: 18px;
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .nav-item {
+  color: var(--text);
+}
+
+body[data-theme="dark"] .nav-item svg {
+  color: var(--muted);
+}
+
+body[data-theme="dark"] .nav-group-label,
+body[data-theme="dark"] .brand-subtitle {
   color: var(--muted);
 }
 
