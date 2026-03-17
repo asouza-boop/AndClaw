@@ -3,7 +3,11 @@ import { AgentLoop } from '../core/AgentLoop';
 import { ToolRegistry } from '../core/ToolRegistry';
 
 export class SkillExecutor {
-    constructor() {}
+    private registry: ToolRegistry;
+
+    constructor() {
+        this.registry = new ToolRegistry(); // Instanciado uma única vez
+    }
 
     /**
      * Executes the main loop, injecting the Skill's context if a skill was identified.
@@ -15,7 +19,6 @@ export class SkillExecutor {
         providerName: string,
         options: any = {}
     ): Promise<string> {
-        const registry = new ToolRegistry(); // Initialize default tools
         const userName = process.env.AGENT_USER_NAME || 'usuário';
         let basePrompt = `Você é o AndClaw, um agente assistente inteligente projetado para ${userName}. Você tem acesso a ferramentas locais.\n`;
         
@@ -25,7 +28,7 @@ export class SkillExecutor {
             basePrompt += "\nComporte-se como um assistente casual prestativo. Nenhuma habilidade específica ativa no momento.\n";
         }
 
-        const loop = new AgentLoop(providerName, registry);
+        const loop = new AgentLoop(providerName, this.registry);
         const finalAnswer = await loop.run(basePrompt, conversationHistory, input, options);
         
         return finalAnswer;
