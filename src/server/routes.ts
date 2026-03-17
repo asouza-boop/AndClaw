@@ -574,18 +574,78 @@ router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
 });
 
 router.post('/captures', async (req: Request, res: Response) => {
-  const { content, source = 'pwa' } = req.body || {};
+  const { content, source = 'pwa', type = 'note', tags = [], project_id, due_date } = req.body || {};
   if (!content) return res.status(400).json({ error: 'content is required' });
   const rows = await query(
-    `INSERT INTO captures (content, source) VALUES ($1, $2) RETURNING *`,
-    [content, source]
+    `INSERT INTO captures (content, source, type, tags, project_id, due_date)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [content, source, type, tags, project_id || null, due_date || null]
   );
   res.json({ ok: true, item: rows[0] });
 });
 
-router.get('/captures', async (_req: Request, res: Response) => {
-  const rows = await query(`SELECT * FROM captures ORDER BY created_at DESC LIMIT 200`);
+router.get('/captures', async (req: Request, res: Response) => {
+  const { type, status } = req.query as { type?: string; status?: string };
+  let sql = `SELECT * FROM captures WHERE 1=1`;
+  const params: any[] = [];
+  if (type) { params.push(type); sql += ` AND type = $${params.length}`; }
+  if (status) { params.push(status); sql += ` AND status = $${params.length}`; }
+  sql += ` ORDER BY created_at DESC LIMIT 200`;
+  const rows = await query(sql, params);
   res.json({ ok: true, items: rows });
+});
+
+router.patch('/captures/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, type, tags, project_id, due_date } = req.body || {};
+  const updates: string[] = [];
+  const params: any[] = [];
+
+  if (status !== undefined) { params.push(status); updates.push(`status = $${params.length}`); }
+  if (type !== undefined) { params.push(type); updates.push(`type = $${params.length}`); }
+  if (tags !== undefined) { params.push(tags); updates.push(`tags = $${params.length}`); }
+  if (project_id !== undefined) { params.push(project_id); updates.push(`project_id = $${params.length}`); }
+  if (due_date !== undefined) { params.push(due_date); updates.push(`due_date = $${params.length}`); }
+  if (status === 'processed') { updates.push(`processed_at = NOW()`); }
+
+  if (updates.length === 0) return res.status(400).json({ error: 'nothing to update' });
+
+  params.push(id);
+  const rows = await query(
+    `UPDATE captures SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+    params
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.delete('/captures/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query(`DELETE FROM captures WHERE id = $1`, [id]);
+  res.json({ ok: true });
+});
+
+router.post('/captures/bulk', async (req: Request, res: Response) => {
+  const { ids, action, type } = req.body || {};
+  if (!ids?.length || !action) return res.status(400).json({ error: 'ids and action required' });
+
+  if (action === 'delete') {
+    await query(`DELETE FROM captures WHERE id = ANY($1)`, [ids]);
+  } else if (action === 'archive') {
+    await query(`UPDATE captures SET status = 'archived', processed_at = NOW() WHERE id = ANY($1)`, [ids]);
+  } else if (action === 'convert_task') {
+    const items = await query<any>(`SELECT * FROM captures WHERE id = ANY($1)`, [ids]);
+    for (const item of items) {
+      await query(
+        `INSERT INTO tasks (title, status, priority) VALUES ($1, 'open', 'normal')`,
+        [item.content]
+      );
+    }
+    await query(`UPDATE captures SET status = 'processed', processed_at = NOW() WHERE id = ANY($1)`, [ids]);
+  } else if (action === 'set_type' && type) {
+    await query(`UPDATE captures SET type = $1 WHERE id = ANY($2)`, [type, ids]);
+  }
+
+  res.json({ ok: true });
 });
 
 router.post('/tasks', async (req: Request, res: Response) => {
