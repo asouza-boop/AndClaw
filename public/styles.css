@@ -1183,3 +1183,94 @@ body[data-theme="dark"] .int-card {
   .int-grid { grid-template-columns: 1fr; }
   .int-stats-row { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ─── LIST ITEMS ─────────────────────────────────────── */
+.list-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.13s;
+}
+.list-item:hover { border-color: var(--border-md); }
+body[data-theme="dark"] .list-item { background: var(--surface); border-color: rgba(255,255,255,0.07); }
+.list-item-title { font-size: 14px; color: var(--text); font-weight: 400; line-height: 1.4; }
+.list-item-sub { font-size: 12px; color: var(--muted); }
+
+/* ─── CHAT BUBBLES ───────────────────────────────────── */
+.chat-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.agent-av { background: linear-gradient(135deg, #8b5cf6, #22d3ee); color: #fff; }
+.user-av  { background: var(--surface-3); color: var(--muted); }
+.chat-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  word-break: break-word;
+}
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(135deg, rgba(139,92,246,0.18), rgba(34,211,238,0.12));
+  border-color: rgba(139,92,246,0.25);
+}
+.chat-time {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-family: 'Fira Code', monospace;
+}
+.chat-msg.user .chat-time { text-align: right; }
+
+/* ─── SELECT ─────────────────────────────────────────── */
+select {
+  width: 100%;
+  padding: 10px 32px 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236c7488' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.15s;
+}
+select:focus { border-color: rgba(139,92,246,0.4); }
+body[data-theme="dark"] select {
+  background-color: rgba(20,28,48,0.8);
+  border-color: rgba(255,255,255,0.09);
+  color: var(--text);
+}
+
+/* ─── TYPING INDICATOR ───────────────────────────────── */
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.2; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}

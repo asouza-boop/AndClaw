@@ -218,6 +218,16 @@ togglePassword && togglePassword.addEventListener('click', () => {
 document.getElementById('quick-capture-btn').addEventListener('click', openModal);
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 
+document.getElementById('new-task-btn')?.addEventListener('click', () => {
+  document.querySelector('[data-view="meetings"]')?.click();
+  setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
+});
+
+document.getElementById('new-meeting-btn')?.addEventListener('click', () => {
+  document.querySelector('[data-view="meetings"]')?.click();
+  setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
+});
+
 document.getElementById('modal-save').addEventListener('click', async () => {
   const text = modalInput.value.trim();
   if (!text) return;
@@ -423,12 +433,30 @@ const chatWindowFull = document.getElementById('chat-window-full');
 async function loadChatHistory() {
   if (!navigator.onLine) return;
   try {
-    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=200');
+    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=50');
     const data = await res.json();
     const items = data.items || [];
-    const html = items.map(msg => `<div>${msg.role === 'assistant' ? 'Agente' : 'Você'}: ${msg.content}</div>`).join('');
-    chatWindow.innerHTML = html;
-    chatWindowFull.innerHTML = html;
+    const renderMsgs = (windowEl) => {
+      if (!windowEl) return;
+      if (items.length === 0) {
+        windowEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">Nenhuma mensagem ainda. Diga olá ao agente!</div>';
+        return;
+      }
+      windowEl.innerHTML = items.map(msg => {
+        const isUser = msg.role === 'user';
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="chat-msg ${isUser ? 'user' : 'agent'}">
+          <div class="chat-avatar ${isUser ? 'user-av' : 'agent-av'}">${isUser ? 'U' : 'A'}</div>
+          <div>
+            <div class="chat-bubble">${msg.content}</div>
+            ${time ? `<div class="chat-time">${time}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      windowEl.scrollTop = windowEl.scrollHeight;
+    };
+    renderMsgs(chatWindow);
+    renderMsgs(chatWindowFull);
   } catch (err) {
     showError(err);
   }
@@ -437,14 +465,27 @@ async function loadChatHistory() {
 async function sendChatMessage(inputEl, windowEl) {
   const content = inputEl.value.trim();
   if (!content) return;
-  const payload = {
-    content,
-    client_message_id: crypto.randomUUID(),
-    role: 'user',
-    conversationId: 'pwa-user'
-  };
+  inputEl.value = '';
 
-  windowEl.innerHTML += `<div>Você: ${content}</div>`;
+  const userTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  windowEl.innerHTML += `<div class="chat-msg user">
+    <div class="chat-avatar user-av">U</div>
+    <div><div class="chat-bubble">${content}</div><div class="chat-time">${userTime}</div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
+
+  const typingId = 'typing-' + Date.now();
+  windowEl.innerHTML += `<div id="${typingId}" class="chat-msg agent">
+    <div class="chat-avatar agent-av">A</div>
+    <div><div class="chat-bubble" style="padding:10px 16px;">
+      <span style="display:flex;gap:5px;align-items:center;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.2s;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.4s;"></span>
+      </span>
+    </div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
 
   if (navigator.onLine) {
     try {
@@ -453,18 +494,23 @@ async function sendChatMessage(inputEl, windowEl) {
         body: JSON.stringify({ input: content })
       });
       const data = await res.json();
+      document.getElementById(typingId)?.remove();
       if (data.reply) {
-        windowEl.innerHTML += `<div>Agente: ${data.reply}</div>`;
+        const agentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        windowEl.innerHTML += `<div class="chat-msg agent">
+          <div class="chat-avatar agent-av">A</div>
+          <div><div class="chat-bubble">${data.reply}</div><div class="chat-time">${agentTime}</div></div>
+        </div>`;
+        windowEl.scrollTop = windowEl.scrollHeight;
       }
-      await loadChatHistory();
     } catch (err) {
+      document.getElementById(typingId)?.remove();
       showError(err);
     }
   } else {
-    enqueueLocal('messages', payload);
+    document.getElementById(typingId)?.remove();
+    enqueueLocal('messages', { content, client_message_id: crypto.randomUUID(), role: 'user', conversationId: 'pwa-user' });
   }
-
-  inputEl.value = '';
 }
 
 chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow));
@@ -472,18 +518,42 @@ chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chat
 
 async function loadDashboard() {
   try {
-    const tasksRes = await apiFetch('/api/tasks');
-    const tasks = (await tasksRes.json()).items || [];
-    const todayList = document.getElementById('today-list');
-    todayList.innerHTML = tasks.slice(0, 5).map(t => `<div>${t.title}</div>`).join('');
-
-    const priorityList = document.getElementById('priority-list');
-    priorityList.innerHTML = tasks.slice(0, 3).map(t => `<div>${t.title}</div>`).join('');
-
-    const meetingsRes = await apiFetch('/api/meetings');
+    const [tasksRes, meetingsRes, capturesRes] = await Promise.all([
+      apiFetch('/api/tasks'),
+      apiFetch('/api/meetings'),
+      apiFetch('/api/captures'),
+    ]);
+    const tasks    = (await tasksRes.json()).items    || [];
     const meetings = (await meetingsRes.json()).items || [];
-    const meetingsList = document.getElementById('meetings-list');
-    meetingsList.innerHTML = meetings.slice(0, 3).map(m => `<div>${m.title}</div>`).join('');
+    const captures = (await capturesRes.json()).items || [];
+
+    const openTasks    = tasks.filter(t => t.status !== 'done');
+    const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'alta');
+    const newCaptures  = captures.filter(c => c.status === 'new');
+
+    const el = id => document.getElementById(id);
+    if (el('stat-tasks'))    el('stat-tasks').textContent    = openTasks.length;
+    if (el('stat-priority')) el('stat-priority').textContent = highPriority.length;
+    if (el('stat-meetings')) el('stat-meetings').textContent = meetings.length;
+    if (el('stat-inbox'))    el('stat-inbox').textContent    = newCaptures.length;
+
+    const today = new Date().toDateString();
+    const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
+    if (el('today-list')) {
+      el('today-list').innerHTML = todayTasks.length > 0
+        ? todayTasks.slice(0, 5).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.priority || 'normal'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas para hoje</div>';
+    }
+    if (el('priority-list')) {
+      el('priority-list').innerHTML = openTasks.length > 0
+        ? openTasks.slice(0, 3).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.status || 'open'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas</div>';
+    }
+    if (el('meetings-list')) {
+      el('meetings-list').innerHTML = meetings.length > 0
+        ? meetings.slice(0, 3).map(m => `<div class="list-item"><div class="list-item-title">${m.title}</div><div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div></div>`).join('')
+        : '<div class="empty-state">Sem reuniões</div>';
+    }
   } catch (err) {
     showError(err);
   }
@@ -748,6 +818,7 @@ meetingSave.addEventListener('click', async () => {
     });
     meetingTitle.value = '';
     meetingTranscript.value = '';
+    showInline('Reunião salva.');
     await loadMeetings();
   } catch (err) {
     showError(err);
@@ -782,9 +853,32 @@ async function loadMeetings() {
     const res = await apiFetch('/api/meetings');
     const data = await res.json();
     const list = document.getElementById('meetings-full-list');
-    list.innerHTML = (data.items || []).slice(0, 50).map(m => `<div>${m.title}</div>`).join('');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.slice(0, 50).map(m => `
+          <div class="list-item" style="gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="list-item-title">${m.title}</div>
+              <span class="inbox-item-time">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+            ${m.transcript_text ? `<div class="list-item-sub">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
+            ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state">Nenhuma reunião registrada.</div>';
   } catch (err) {
     showError(err);
+  }
+}
+
+async function analyzeMeeting(meetingId) {
+  try {
+    showInline('Analisando transcrição...');
+    await apiFetch('/api/meetings/analyze', { method: 'POST', body: JSON.stringify({ meetingId }) });
+    showInline('Análise concluída — insight salvo em Conhecimento.');
+    await loadMeetings();
+  } catch (err) {
+    showInline('Falha ao analisar reunião.');
   }
 }
 
@@ -796,11 +890,7 @@ const googleRefresh = document.getElementById('google-refresh');
 const gitvaultExport = document.getElementById('gitvault-export');
 const raindropSync = document.getElementById('raindrop-sync');
 const pushTest = document.getElementById('push-test');
-const onboardSave = document.getElementById('onboard-save');
-const onboardGoogle = document.getElementById('onboard-google');
-const onboardRaindrop = document.getElementById('onboard-raindrop');
-const onboardPush = document.getElementById('onboard-push');
-const onboardDeploy = document.getElementById('onboard-deploy');
+
 
 const settingsItems = document.querySelectorAll('.settings-item');
 const settingsViews = document.querySelectorAll('.settings-view');
@@ -896,11 +986,7 @@ pushTest && pushTest.addEventListener('click', async () => {
   }
 });
 
-onboardSave && onboardSave.addEventListener('click', () => cfgSave.click());
-onboardGoogle && onboardGoogle.addEventListener('click', () => googleConnectAdmin.click());
-onboardRaindrop && onboardRaindrop.addEventListener('click', () => raindropSync.click());
-onboardPush && onboardPush.addEventListener('click', () => pushTest.click());
-onboardDeploy && onboardDeploy.addEventListener('click', () => cfgDeploy.click());
+
 
 document.getElementById('db-check-2')?.addEventListener('click', async () => {
   try {
@@ -1177,6 +1263,7 @@ document.getElementById('agent-save').addEventListener('click', async () => {
     await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
     document.getElementById('agent-name').value = '';
     document.getElementById('agent-description').value = '';
+    showInline('Agente criado com sucesso.');
     await loadAgents();
   } catch (err) {
     showError(err);
@@ -1202,6 +1289,7 @@ document.getElementById('tag-save').addEventListener('click', async () => {
     await apiFetch('/api/tags', { method: 'POST', body: JSON.stringify({ name, color }) });
     document.getElementById('tag-name').value = '';
     document.getElementById('tag-color').value = '';
+    showInline('Tag criada.');
     await loadTags();
   } catch (err) {
     showError(err);
@@ -1219,6 +1307,61 @@ async function loadLinks() {
   } catch (err) {
     showError(err);
   }
+}
+
+async function loadProjects() {
+  try {
+    const res = await apiFetch('/api/projects');
+    const data = await res.json();
+    const list = document.getElementById('projects-list');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(p => `<div class="list-item">
+          <div class="list-item-title">${p.name}</div>
+          <div class="list-item-sub">${p.status || 'ativo'} · ${p.summary || 'Sem descrição'}</div>
+        </div>`).join('')
+      : '<div class="empty-state">Nenhum projeto criado ainda.</div>';
+  } catch (err) { showError(err); }
+}
+
+async function loadKnowledge() {
+  try {
+    const res = await apiFetch('/api/memory');
+    const data = await res.json();
+    const list = document.getElementById('memory-list');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(m => `<div class="list-item">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span class="inbox-type-tag inbox-tag-idea">${m.type || 'insight'}</span>
+            <span class="inbox-item-time">${new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+          </div>
+          <div class="list-item-title">${m.content.substring(0, 120)}${m.content.length > 120 ? '...' : ''}</div>
+          ${m.source_type ? `<div class="list-item-sub">Fonte: ${m.source_type}</div>` : ''}
+        </div>`).join('')
+      : '<div class="empty-state">Nenhum insight salvo. Analise uma reunião para gerar conhecimento.</div>';
+  } catch (err) { showError(err); }
+}
+
+async function loadArchive() {
+  try {
+    const res = await apiFetch('/api/captures?status=archived');
+    const data = await res.json();
+    const list = document.getElementById('archive-list');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(c => `<div class="list-item">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span class="inbox-type-tag inbox-tag-${c.type || 'note'}">${c.type || 'nota'}</span>
+            <span class="inbox-item-time">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
+          </div>
+          <div class="list-item-title">${c.content.substring(0, 100)}${c.content.length > 100 ? '...' : ''}</div>
+        </div>`).join('')
+      : '<div class="empty-state">Arquivo vazio.</div>';
+  } catch (err) { showError(err); }
 }
 
 document.getElementById('link-save').addEventListener('click', async () => {
@@ -1273,6 +1416,7 @@ document.getElementById('favorite-save').addEventListener('click', async () => {
     document.getElementById('favorite-title').value = '';
     document.getElementById('favorite-url').value = '';
     document.getElementById('favorite-tags').value = '';
+    showInline('Favorito salvo.');
     await loadFavorites();
   } catch (err) {
     showError(err);
@@ -1299,6 +1443,21 @@ function urlBase64ToUint8Array(base64String) {
   }
   return outputArray;
 }
+
+document.querySelector('.search input')?.addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  const term = e.target.value.trim();
+  if (!term) return;
+  e.target.value = '';
+  document.querySelector('[data-view="chat"]')?.click();
+  setTimeout(async () => {
+    const input = document.getElementById('chat-input-full');
+    if (input) {
+      input.value = `Buscar em tudo: "${term}"`;
+      await sendChatMessage(input, document.getElementById('chat-window-full'));
+    }
+  }, 150);
+});
 
 window.addEventListener('online', flushQueue);
 
@@ -1422,6 +1581,9 @@ async function initApp() {
   await loadFavorites();
   await loadTags();
   await loadLinks();
+  await loadProjects();
+  await loadKnowledge();
+  await loadArchive();
 }
 
 initApp();
