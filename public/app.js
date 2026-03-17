@@ -2229,6 +2229,21 @@ document.querySelector('.search input')?.addEventListener('keydown', async (e) =
 
 window.addEventListener('online', flushQueue);
 
+document.querySelector('.search input')?.addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter') return;
+  const term = e.target.value.trim();
+  if (!term) return;
+
+  document.querySelector('[data-view="chat"]')?.click();
+  setTimeout(async () => {
+    const input = document.getElementById('chat-input-full');
+    if (input) {
+      input.value = `Buscar em tudo: "${term}"`;
+      await sendChatMessage(input, document.getElementById('chat-window-full'));
+    }
+  }, 100);
+});
+
 document.querySelectorAll('.filter-pill').forEach(pill => {
   pill.addEventListener('click', () => {
     document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
