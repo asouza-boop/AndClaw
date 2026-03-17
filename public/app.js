@@ -2,6 +2,7 @@ const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
 const banner = document.getElementById('banner');
+const pageTitleEl = document.getElementById('page-title-el');
 
 navItems.forEach(item => {
   item.addEventListener('click', () => {
@@ -10,6 +11,21 @@ navItems.forEach(item => {
     const target = item.dataset.view;
     views.forEach(v => v.classList.remove('active'));
     document.getElementById(`view-${target}`).classList.add('active');
+    const titles = {
+      dashboard: 'Dashboard',
+      inbox: 'Inbox',
+      chat: 'Chat',
+      agenda: 'Agenda',
+      projects: 'Projetos',
+      agents: 'Agentes',
+      skills: 'Skills',
+      meetings: 'Reuniões',
+      favorites: 'Favoritos',
+      knowledge: 'Conhecimento',
+      archive: 'Arquivo',
+      admin: 'Configurações',
+    };
+    if (pageTitleEl && titles[target]) pageTitleEl.textContent = titles[target];
   });
 });
 
@@ -109,6 +125,17 @@ async function apiFetch(path, options = {}) {
 
 function statusBadge(text, state) {
   return `<span class=\"status-badge ${state}\">${text}</span>`;
+}
+
+function applyTheme(theme) {
+  const root = document.body;
+  if (theme === 'auto') {
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = prefersDark ? 'dark' : 'light';
+  } else {
+    root.dataset.theme = theme;
+  }
+  localStorage.setItem('andclaw_theme', theme);
 }
 
 async function ensureAuth() {
@@ -569,6 +596,13 @@ const onboardRaindrop = document.getElementById('onboard-raindrop');
 const onboardPush = document.getElementById('onboard-push');
 const onboardDeploy = document.getElementById('onboard-deploy');
 
+const settingsItems = document.querySelectorAll('.settings-item');
+const settingsViews = document.querySelectorAll('.settings-view');
+const profileSave = document.getElementById('profile-save');
+const notificationsSave = document.getElementById('notifications-save');
+const appearanceSave = document.getElementById('appearance-save');
+const profileAvatar = document.getElementById('profile-avatar');
+
 cfgSave.addEventListener('click', async () => {
   const payload = {
     GEMINI_API_KEY: document.getElementById('cfg-gemini').value.trim(),
@@ -603,7 +637,7 @@ cfgSave.addEventListener('click', async () => {
   }
 });
 
-cfgDeploy.addEventListener('click', async () => {
+cfgDeploy && cfgDeploy.addEventListener('click', async () => {
   try {
     await apiFetch('/api/deploy', { method: 'POST' });
     showInline('Deploy disparado.');
@@ -612,7 +646,7 @@ cfgDeploy.addEventListener('click', async () => {
   }
 });
 
-dbCheck.addEventListener('click', async () => {
+dbCheck && dbCheck.addEventListener('click', async () => {
   try {
     const res = await apiFetch('/api/health/db');
     if (res.ok) showInline('DB OK');
@@ -621,14 +655,14 @@ dbCheck.addEventListener('click', async () => {
   }
 });
 
-googleConnectAdmin.addEventListener('click', connectGoogle);
+googleConnectAdmin && googleConnectAdmin.addEventListener('click', connectGoogle);
 
-googleRefresh.addEventListener('click', async () => {
+googleRefresh && googleRefresh.addEventListener('click', async () => {
   await loadAdmin();
   showInline('Status atualizado.');
 });
 
-gitvaultExport.addEventListener('click', async () => {
+gitvaultExport && gitvaultExport.addEventListener('click', async () => {
   try {
     await apiFetch('/api/gitvault/export', { method: 'POST' });
     showInline('GitVault exportado.');
@@ -637,7 +671,7 @@ gitvaultExport.addEventListener('click', async () => {
   }
 });
 
-raindropSync.addEventListener('click', async () => {
+raindropSync && raindropSync.addEventListener('click', async () => {
   try {
     await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
     showInline('Raindrop sincronizado.');
@@ -647,7 +681,7 @@ raindropSync.addEventListener('click', async () => {
   }
 });
 
-pushTest.addEventListener('click', async () => {
+pushTest && pushTest.addEventListener('click', async () => {
   try {
     await apiFetch('/api/push/test', { method: 'POST' });
     showInline('Push enviado.');
@@ -656,11 +690,123 @@ pushTest.addEventListener('click', async () => {
   }
 });
 
-onboardSave.addEventListener('click', () => cfgSave.click());
-onboardGoogle.addEventListener('click', () => googleConnectAdmin.click());
-onboardRaindrop.addEventListener('click', () => raindropSync.click());
-onboardPush.addEventListener('click', () => pushTest.click());
-onboardDeploy.addEventListener('click', () => cfgDeploy.click());
+onboardSave && onboardSave.addEventListener('click', () => cfgSave.click());
+onboardGoogle && onboardGoogle.addEventListener('click', () => googleConnectAdmin.click());
+onboardRaindrop && onboardRaindrop.addEventListener('click', () => raindropSync.click());
+onboardPush && onboardPush.addEventListener('click', () => pushTest.click());
+onboardDeploy && onboardDeploy.addEventListener('click', () => cfgDeploy.click());
+
+settingsItems.forEach(item => {
+  item.addEventListener('click', () => {
+    settingsItems.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const target = item.dataset.settings;
+    settingsViews.forEach(v => v.classList.remove('active'));
+    document.querySelector(`[data-settings-view=\"${target}\"]`)?.classList.add('active');
+  });
+});
+
+async function loadProfile() {
+  try {
+    const res = await apiFetch('/api/profile');
+    const data = await res.json();
+    const profile = data.profile || {};
+    document.getElementById('profile-name').value = profile.fullName || '';
+    document.getElementById('profile-email').value = profile.email || '';
+    document.getElementById('profile-company').value = profile.company || '';
+    document.getElementById('profile-role').value = profile.role || '';
+    document.getElementById('profile-photo').value = profile.photoUrl || '';
+    if (profileAvatar) {
+      if (profile.photoUrl) {
+        profileAvatar.style.backgroundImage = `url(${profile.photoUrl})`;
+        profileAvatar.style.backgroundSize = 'cover';
+        profileAvatar.style.backgroundPosition = 'center';
+        profileAvatar.textContent = '';
+      } else {
+        const initial = (profile.fullName || 'A').trim()[0] || 'A';
+        profileAvatar.style.backgroundImage = '';
+        profileAvatar.textContent = initial.toUpperCase();
+      }
+    }
+  } catch {}
+}
+
+async function loadPreferences() {
+  try {
+    const res = await apiFetch('/api/preferences');
+    const data = await res.json();
+    const prefs = data.preferences || {};
+    const theme = prefs.theme || localStorage.getItem('andclaw_theme') || 'auto';
+    applyTheme(theme);
+    document.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('active', card.dataset.theme === theme);
+    });
+    document.getElementById('pref-language').value = prefs.language || 'pt-BR';
+    document.getElementById('pref-date-format').value = prefs.dateFormat || 'DD/MM/YYYY';
+    document.getElementById('notify-email').checked = prefs.notifyEmail === 'true';
+    document.getElementById('notify-push').checked = prefs.notifyPush === 'true';
+    document.getElementById('notify-weekly').checked = prefs.notifyWeekly === 'true';
+    document.getElementById('notify-analysis').checked = prefs.notifyAnalysis === 'true';
+  } catch {}
+}
+
+profileSave && profileSave.addEventListener('click', async () => {
+  const payload = {
+    fullName: document.getElementById('profile-name').value.trim(),
+    email: document.getElementById('profile-email').value.trim(),
+    company: document.getElementById('profile-company').value.trim(),
+    role: document.getElementById('profile-role').value.trim(),
+    photoUrl: document.getElementById('profile-photo').value.trim(),
+  };
+  try {
+    await apiFetch('/api/profile', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Perfil atualizado.');
+    await loadProfile();
+  } catch {
+    showInline('Falha ao salvar perfil.');
+  }
+});
+
+notificationsSave && notificationsSave.addEventListener('click', async () => {
+  const payload = {
+    notifyEmail: String(document.getElementById('notify-email').checked),
+    notifyPush: String(document.getElementById('notify-push').checked),
+    notifyWeekly: String(document.getElementById('notify-weekly').checked),
+    notifyAnalysis: String(document.getElementById('notify-analysis').checked),
+  };
+  try {
+    if (payload.notifyPush === 'true') {
+      await subscribePush();
+    }
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Preferências salvas.');
+  } catch {
+    showInline('Falha ao salvar preferências.');
+  }
+});
+
+appearanceSave && appearanceSave.addEventListener('click', async () => {
+  const selected = document.querySelector('.theme-card.active')?.dataset.theme || 'auto';
+  const payload = {
+    theme: selected,
+    language: document.getElementById('pref-language').value.trim(),
+    dateFormat: document.getElementById('pref-date-format').value.trim(),
+  };
+  try {
+    applyTheme(selected);
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Aparência salva.');
+  } catch {
+    showInline('Falha ao salvar aparência.');
+  }
+});
+
+document.querySelectorAll('.theme-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+  });
+});
 
 function parseList(value) {
   return value.split(',').map(v => v.trim()).filter(Boolean);
@@ -884,7 +1030,6 @@ async function initApp() {
   if (!authed) return;
   hideBanner();
   await registerServiceWorker();
-  await subscribePush();
   await flushQueue();
   await refreshCaptures();
   await loadDashboard();
@@ -893,6 +1038,8 @@ async function initApp() {
   await loadMeetings();
   await loadAdmin();
   await loadSettingsStatus();
+  await loadProfile();
+  await loadPreferences();
   await loadSkills();
   await loadAgents();
   await loadFavorites();

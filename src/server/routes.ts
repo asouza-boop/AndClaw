@@ -25,6 +25,32 @@ import path from 'path';
 const router = Router();
 const agent = new AgentController();
 
+async function getProfileValues(userId: string, prefix: string) {
+  const rows = await query<{ key: string; value: string }>(
+    `SELECT key, value FROM user_profile WHERE key LIKE $1`,
+    [`${prefix}:${userId}:%`]
+  );
+  return rows.reduce<Record<string, string>>((acc, row) => {
+    const parts = row.key.split(':');
+    const field = parts[2];
+    if (field) acc[field] = row.value;
+    return acc;
+  }, {});
+}
+
+async function setProfileValues(userId: string, prefix: string, values: Record<string, string>) {
+  const entries = Object.entries(values);
+  for (const [field, value] of entries) {
+    const key = `${prefix}:${userId}:${field}`;
+    await query(
+      `INSERT INTO user_profile (key, value, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+      [key, value]
+    );
+  }
+}
+
 const agentLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -444,6 +470,58 @@ router.post('/auth/bootstrap', async (req: Request, res: Response) => {
 });
 
 router.get('/auth/me', async (_req: Request, res: Response) => {
+  res.json({ ok: true });
+});
+
+router.get('/profile', async (req: Request, res: Response) => {
+  const userId = (req as any).user?.sub || 'pwa-user';
+  const profile = await getProfileValues(userId, 'profile');
+  res.json({ ok: true, profile });
+});
+
+router.post('/profile', async (req: Request, res: Response) => {
+  const userId = (req as any).user?.sub || 'pwa-user';
+  const { fullName = '', email = '', company = '', role = '', photoUrl = '' } = req.body || {};
+  await setProfileValues(userId, 'profile', {
+    fullName: String(fullName),
+    email: String(email),
+    company: String(company),
+    role: String(role),
+    photoUrl: String(photoUrl),
+  });
+  res.json({ ok: true });
+});
+
+router.get('/preferences', async (req: Request, res: Response) => {
+  const userId = (req as any).user?.sub || 'pwa-user';
+  const prefs = await getProfileValues(userId, 'pref');
+  res.json({ ok: true, preferences: prefs });
+});
+
+router.post('/preferences', async (req: Request, res: Response) => {
+  const userId = (req as any).user?.sub || 'pwa-user';
+  const current = await getProfileValues(userId, 'pref');
+  const body = req.body || {};
+  const merged = {
+    theme: body.theme ?? current.theme ?? 'auto',
+    language: body.language ?? current.language ?? 'pt-BR',
+    dateFormat: body.dateFormat ?? current.dateFormat ?? 'DD/MM/YYYY',
+    notifyEmail: body.notifyEmail ?? current.notifyEmail ?? 'false',
+    notifyPush: body.notifyPush ?? current.notifyPush ?? 'false',
+    notifyWeekly: body.notifyWeekly ?? current.notifyWeekly ?? 'false',
+    notifyAnalysis: body.notifyAnalysis ?? current.notifyAnalysis ?? 'false',
+  };
+
+  await setProfileValues(userId, 'pref', {
+    theme: String(merged.theme),
+    language: String(merged.language),
+    dateFormat: String(merged.dateFormat),
+    notifyEmail: String(merged.notifyEmail),
+    notifyPush: String(merged.notifyPush),
+    notifyWeekly: String(merged.notifyWeekly),
+    notifyAnalysis: String(merged.notifyAnalysis),
+  });
+
   res.json({ ok: true });
 });
 

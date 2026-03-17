@@ -88,7 +88,7 @@
       <div class="nav-group">
         <button class="nav-item" data-view="admin">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          Admin
+          Configurações
         </button>
       </div>
     </nav>
@@ -363,220 +363,352 @@
         <div class="list" id="archive-list"></div>
       </section>
 
-      <!-- ── ADMIN ── -->
+      <!-- ── CONFIGURACOES ── -->
       <section id="view-admin" class="view">
-        <h2>Admin</h2>
+        <h2>Configurações</h2>
+        <p class="settings-subtitle">Gerencie preferências, aparência e integrações do AndClaw.</p>
         <div class="inline-status hidden" id="admin-feedback"></div>
 
-        <div class="admin-grid">
+        <div class="settings-layout">
+          <aside class="settings-nav">
+            <button class="settings-item active" data-settings="profile"><span>Perfil</span></button>
+            <button class="settings-item" data-settings="notifications"><span>Notificações</span></button>
+            <button class="settings-item" data-settings="appearance"><span>Aparência</span></button>
+            <button class="settings-item" data-settings="integrations"><span>Integrações</span></button>
+            <button class="settings-item" data-settings="data"><span>Dados</span></button>
+          </aside>
 
-          <!-- Onboarding -->
-          <div class="card wide">
-            <div class="card-header"><h3>Onboarding</h3></div>
-            <p style="font-size:13px;color:var(--t2);margin-bottom:14px;">1. Salve as configurações → 2. Conecte o Google → 3. Sincronize o Raindrop → 4. Teste Push → 5. Deploy</p>
-            <div class="action-row">
-              <button id="onboard-save"     class="btn primary">Salvar configs</button>
-              <button id="onboard-google"   class="btn ghost">Conectar Google</button>
-              <button id="onboard-raindrop" class="btn ghost">Sync Raindrop</button>
-              <button id="onboard-push"     class="btn ghost">Testar Push</button>
-              <button id="onboard-deploy"   class="btn ghost">Deploy</button>
+          <div class="settings-panel">
+            <!-- PROFILE -->
+            <div class="settings-view active" data-settings-view="profile">
+              <div class="settings-card">
+                <div class="settings-header">
+                  <div>
+                    <h3>Perfil</h3>
+                    <p>Atualize suas informações e foto.</p>
+                  </div>
+                  <button id="profile-save" class="btn primary">Salvar alterações</button>
+                </div>
+                <div class="profile-row">
+                  <div class="avatar-preview" id="profile-avatar">A</div>
+                  <div class="field">
+                    <label>Foto (URL)</label>
+                    <input id="profile-photo" type="text" placeholder="https://..." />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Nome completo</label>
+                    <input id="profile-name" type="text" placeholder="Seu nome" />
+                  </div>
+                  <div class="field">
+                    <label>Email</label>
+                    <input id="profile-email" type="text" placeholder="voce@email.com" />
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Empresa</label>
+                    <input id="profile-company" type="text" placeholder="Sua empresa" />
+                  </div>
+                  <div class="field">
+                    <label>Cargo</label>
+                    <input id="profile-role" type="text" placeholder="Seu cargo" />
+                  </div>
+                </div>
+              </div>
             </div>
+
+            <!-- NOTIFICATIONS -->
+            <div class="settings-view" data-settings-view="notifications">
+              <div class="settings-card">
+                <div class="settings-header">
+                  <div>
+                    <h3>Notificações</h3>
+                    <p>Controle alertas e notificações do sistema.</p>
+                  </div>
+                  <button id="notifications-save" class="btn primary">Salvar alterações</button>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-title">Alertas por e-mail</div>
+                    <div class="toggle-sub">Envio de avisos importantes no e-mail.</div>
+                  </div>
+                  <label class="switch"><input id="notify-email" type="checkbox" /><span></span></label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-title">Notificações push</div>
+                    <div class="toggle-sub">Receba notificações no navegador.</div>
+                  </div>
+                  <label class="switch"><input id="notify-push" type="checkbox" /><span></span></label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-title">Relatórios semanais</div>
+                    <div class="toggle-sub">Resumo semanal do desempenho.</div>
+                  </div>
+                  <label class="switch"><input id="notify-weekly" type="checkbox" /><span></span></label>
+                </div>
+                <div class="toggle-row">
+                  <div>
+                    <div class="toggle-title">Análises concluídas</div>
+                    <div class="toggle-sub">Alertas quando análises terminarem.</div>
+                  </div>
+                  <label class="switch"><input id="notify-analysis" type="checkbox" /><span></span></label>
+                </div>
+              </div>
+            </div>
+
+            <!-- APPEARANCE -->
+            <div class="settings-view" data-settings-view="appearance">
+              <div class="settings-card">
+                <div class="settings-header">
+                  <div>
+                    <h3>Aparência</h3>
+                    <p>Escolha tema e preferências visuais.</p>
+                  </div>
+                  <button id="appearance-save" class="btn primary">Salvar alterações</button>
+                </div>
+                <div class="appearance-grid">
+                  <button class="theme-card" data-theme="light"><div class="theme-icon">☀️</div><div>Claro</div></button>
+                  <button class="theme-card" data-theme="dark"><div class="theme-icon">🌙</div><div>Escuro</div></button>
+                  <button class="theme-card" data-theme="auto"><div class="theme-icon">🌓</div><div>Auto</div></button>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Idioma</label>
+                    <input id="pref-language" type="text" placeholder="pt-BR" />
+                  </div>
+                  <div class="field">
+                    <label>Formato de data</label>
+                    <input id="pref-date-format" type="text" placeholder="DD/MM/YYYY" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- INTEGRATIONS -->
+            <div class="settings-view" data-settings-view="integrations">
+              <div class="settings-card">
+                <div class="settings-header">
+                  <div>
+                    <h3>Integrações</h3>
+                    <p>Conecte serviços e configure chaves.</p>
+                  </div>
+                </div>
+                <div class="admin-grid">
+                  <div class="card">
+                    <div class="card-header"><h3>Banco de Dados</h3></div>
+                    <div class="mini-list" id="status-db"></div>
+                    <div class="action-row"><button id="db-check" class="btn ghost">Verificar</button></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-header"><h3>Google</h3></div>
+                    <div class="mini-list" id="status-google"></div>
+                    <div class="action-row">
+                      <button id="google-connect-admin" class="btn primary">Conectar</button>
+                      <button id="google-refresh" class="btn ghost">Recarregar</button>
+                    </div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-header"><h3>GitVault</h3></div>
+                    <div class="mini-list" id="status-gitvault"></div>
+                    <div class="action-row"><button id="gitvault-export" class="btn ghost">Exportar</button></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-header"><h3>Raindrop</h3></div>
+                    <div class="mini-list" id="status-raindrop"></div>
+                    <div class="action-row"><button id="raindrop-sync" class="btn ghost">Sincronizar</button></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-header"><h3>Push</h3></div>
+                    <div class="mini-list" id="status-push"></div>
+                    <div class="action-row"><button id="push-test" class="btn ghost">Testar</button></div>
+                  </div>
+
+                  <div class="card">
+                    <div class="card-header"><h3>Deploy</h3></div>
+                    <div class="mini-list" id="status-deploy"></div>
+                    <div class="action-row"><button id="cfg-deploy" class="btn primary">Deploy Backend</button></div>
+                  </div>
+
+                  <div class="card span-2">
+                    <div class="card-header"><h3>LLM</h3></div>
+                    <div class="mini-list" id="status-llm"></div>
+                  </div>
+
+                  <div class="card span-2">
+                    <div class="card-header"><h3>Configurações</h3></div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
+                        <input id="cfg-gemini" type="password" placeholder="AIza..." />
+                      </div>
+                      <div class="field">
+                        <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
+                        <input id="cfg-openrouter" type="password" placeholder="sk-or-..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
+                        <input id="cfg-deepseek" type="password" placeholder="sk-..." />
+                      </div>
+                      <div class="field">
+                        <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
+                        <input id="cfg-default-provider" type="text" placeholder="gemini" />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
+                        <input id="cfg-github-token" type="password" placeholder="ghp_..." />
+                      </div>
+                      <div class="field">
+                        <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
+                        <input id="cfg-gitvault-repo" type="text" placeholder="owner/repo" />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
+                        <input id="cfg-gitvault-base" type="text" placeholder="daily" />
+                      </div>
+                      <div class="field">
+                        <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
+                        <input id="cfg-google-client-id" type="password" placeholder="..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
+                        <input id="cfg-google-client-secret" type="password" placeholder="..." />
+                      </div>
+                      <div class="field">
+                        <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
+                        <input id="cfg-google-redirect" type="text" placeholder="https://..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
+                        <input id="cfg-google-calendar" type="text" placeholder="primary" />
+                      </div>
+                      <div class="field">
+                        <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
+                        <input id="cfg-vapid-public" type="password" placeholder="..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
+                        <input id="cfg-vapid-private" type="password" placeholder="..." />
+                      </div>
+                      <div class="field">
+                        <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
+                        <input id="cfg-vapid-email" type="text" placeholder="mailto:admin@..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
+                        <input id="cfg-render-hook" type="password" placeholder="https://api.render.com/..." />
+                      </div>
+                      <div class="field">
+                        <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
+                        <input id="cfg-raindrop-token" type="password" placeholder="..." />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
+                        <input id="cfg-raindrop-collection" type="text" placeholder="0" />
+                      </div>
+                      <div class="field"></div>
+                    </div>
+                    <div class="modal-actions">
+                      <button id="cfg-save" class="btn primary">Salvar Configurações</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DATA -->
+            <div class="settings-view" data-settings-view="data">
+              <div class="settings-card">
+                <div class="settings-header">
+                  <div>
+                    <h3>Dados</h3>
+                    <p>Gerencie tags e links internos do sistema.</p>
+                  </div>
+                </div>
+                <div class="admin-grid">
+                  <div class="card">
+                    <div class="card-header"><h3>Tags</h3></div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>Nome</label>
+                        <input id="tag-name" type="text" placeholder="Nome da tag" />
+                      </div>
+                      <div class="field">
+                        <label>Cor (hex)</label>
+                        <input id="tag-color" type="text" placeholder="#0ef2a8" />
+                      </div>
+                    </div>
+                    <div class="modal-actions" style="justify-content:flex-start;">
+                      <button id="tag-save" class="btn primary">Criar Tag</button>
+                    </div>
+                    <div class="list" id="tags-list" style="margin-top:14px;"></div>
+                  </div>
+
+                  <div class="card span-2">
+                    <div class="card-header"><h3>Links</h3></div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>From Type</label>
+                        <input id="link-from-type" type="text" placeholder="agent, favorite, project..." />
+                      </div>
+                      <div class="field">
+                        <label>From ID</label>
+                        <input id="link-from-id" type="text" placeholder="ID" />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>To Type</label>
+                        <input id="link-to-type" type="text" placeholder="project, favorite..." />
+                      </div>
+                      <div class="field">
+                        <label>To ID</label>
+                        <input id="link-to-id" type="text" placeholder="ID" />
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="field">
+                        <label>Label</label>
+                        <input id="link-label" type="text" placeholder="Relacionamento" />
+                      </div>
+                      <div class="field"></div>
+                    </div>
+                    <div class="modal-actions" style="justify-content:flex-start;">
+                      <button id="link-save" class="btn primary">Criar Link</button>
+                    </div>
+                    <div class="list" id="links-list" style="margin-top:14px;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
-
-          <!-- Status cards -->
-          <div class="card">
-            <div class="card-header"><h3>Banco de Dados</h3></div>
-            <div class="mini-list" id="status-db"></div>
-            <div class="action-row"><button id="db-check" class="btn ghost">Verificar</button></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h3>Google</h3></div>
-            <div class="mini-list" id="status-google"></div>
-            <div class="action-row">
-              <button id="google-connect-admin" class="btn primary">Conectar</button>
-              <button id="google-refresh" class="btn ghost">Recarregar</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h3>GitVault</h3></div>
-            <div class="mini-list" id="status-gitvault"></div>
-            <div class="action-row"><button id="gitvault-export" class="btn ghost">Exportar</button></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h3>Raindrop</h3></div>
-            <div class="mini-list" id="status-raindrop"></div>
-            <div class="action-row"><button id="raindrop-sync" class="btn ghost">Sincronizar</button></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h3>Push</h3></div>
-            <div class="mini-list" id="status-push"></div>
-            <div class="action-row"><button id="push-test" class="btn ghost">Testar</button></div>
-          </div>
-
-          <div class="card">
-            <div class="card-header"><h3>Deploy</h3></div>
-            <div class="mini-list" id="status-deploy"></div>
-            <div class="action-row"><button id="cfg-deploy" class="btn primary">Deploy Backend</button></div>
-          </div>
-
-          <div class="card span-2">
-            <div class="card-header"><h3>LLM</h3></div>
-            <div class="mini-list" id="status-llm"></div>
-          </div>
-
-          <!-- Configurações -->
-          <div class="card wide">
-            <div class="card-header"><h3>Configurações</h3></div>
-            <div class="form-row">
-              <div class="field">
-                <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
-                <input id="cfg-gemini" type="password" placeholder="AIza..." />
-              </div>
-              <div class="field">
-                <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
-                <input id="cfg-openrouter" type="password" placeholder="sk-or-..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
-                <input id="cfg-deepseek" type="password" placeholder="sk-..." />
-              </div>
-              <div class="field">
-                <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
-                <input id="cfg-default-provider" type="text" placeholder="gemini" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
-                <input id="cfg-github-token" type="password" placeholder="ghp_..." />
-              </div>
-              <div class="field">
-                <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
-                <input id="cfg-gitvault-repo" type="text" placeholder="owner/repo" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
-                <input id="cfg-gitvault-base" type="text" placeholder="daily" />
-              </div>
-              <div class="field">
-                <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
-                <input id="cfg-google-client-id" type="password" placeholder="..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
-                <input id="cfg-google-client-secret" type="password" placeholder="..." />
-              </div>
-              <div class="field">
-                <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
-                <input id="cfg-google-redirect" type="text" placeholder="https://..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
-                <input id="cfg-google-calendar" type="text" placeholder="primary" />
-              </div>
-              <div class="field">
-                <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
-                <input id="cfg-vapid-public" type="password" placeholder="..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
-                <input id="cfg-vapid-private" type="password" placeholder="..." />
-              </div>
-              <div class="field">
-                <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
-                <input id="cfg-vapid-email" type="text" placeholder="mailto:admin@..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
-                <input id="cfg-render-hook" type="password" placeholder="https://api.render.com/..." />
-              </div>
-              <div class="field">
-                <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
-                <input id="cfg-raindrop-token" type="password" placeholder="..." />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
-                <input id="cfg-raindrop-collection" type="text" placeholder="0" />
-              </div>
-              <div class="field"></div>
-            </div>
-            <div class="modal-actions">
-              <button id="cfg-save" class="btn primary">Salvar Configurações</button>
-            </div>
-          </div>
-
-          <!-- Tags -->
-          <div class="card">
-            <div class="card-header"><h3>Tags</h3></div>
-            <div class="form-row">
-              <div class="field">
-                <label>Nome</label>
-                <input id="tag-name" type="text" placeholder="Nome da tag" />
-              </div>
-              <div class="field">
-                <label>Cor (hex)</label>
-                <input id="tag-color" type="text" placeholder="#0ef2a8" />
-              </div>
-            </div>
-            <div class="modal-actions" style="justify-content:flex-start;">
-              <button id="tag-save" class="btn primary">Criar Tag</button>
-            </div>
-            <div class="list" id="tags-list" style="margin-top:14px;"></div>
-          </div>
-
-          <!-- Links -->
-          <div class="card span-2">
-            <div class="card-header"><h3>Links</h3></div>
-            <div class="form-row">
-              <div class="field">
-                <label>From Type</label>
-                <input id="link-from-type" type="text" placeholder="agent, favorite, project..." />
-              </div>
-              <div class="field">
-                <label>From ID</label>
-                <input id="link-from-id" type="text" placeholder="ID" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>To Type</label>
-                <input id="link-to-type" type="text" placeholder="tipo destino" />
-              </div>
-              <div class="field">
-                <label>To ID</label>
-                <input id="link-to-id" type="text" placeholder="ID destino" />
-              </div>
-            </div>
-            <div class="field">
-              <label>Label (opcional)</label>
-              <input id="link-label" type="text" placeholder="Descrição da relação" />
-            </div>
-            <div class="modal-actions" style="justify-content:flex-start;">
-              <button id="link-save" class="btn primary">Criar Link</button>
-            </div>
-            <div class="list" id="links-list" style="margin-top:14px;"></div>
-          </div>
-
-        </div><!-- /admin-grid -->
+        </div>
       </section>
+
 
     </div><!-- /view-container -->
   </main>
