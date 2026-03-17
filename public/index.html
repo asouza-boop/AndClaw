@@ -546,150 +546,307 @@
 
             <!-- INTEGRATIONS -->
             <div class="settings-view" data-settings-view="integrations">
-              <div class="settings-card">
+              <!-- Saúde do sistema -->
+              <div class="settings-card" style="margin-bottom: 16px;">
+                <div class="settings-header">
+                  <div>
+                    <h3>Saúde do sistema</h3>
+                    <p>Estado em tempo real de todos os serviços.</p>
+                  </div>
+                  <button id="google-refresh" class="btn ghost" style="font-size:12px;padding:6px 12px;">Atualizar</button>
+                </div>
+                <div class="int-health-grid">
+                  <div class="int-health-card">
+                    <div class="int-health-label">Backend</div>
+                    <div class="int-health-val" id="health-backend">—</div>
+                  </div>
+                  <div class="int-health-card">
+                    <div class="int-health-label">Banco de dados</div>
+                    <div class="int-health-val" id="health-db">—</div>
+                  </div>
+                  <div class="int-health-card">
+                    <div class="int-health-label">LLM ativo</div>
+                    <div class="int-health-val" id="health-llm">—</div>
+                  </div>
+                  <div class="int-health-card">
+                    <div class="int-health-label">Último deploy</div>
+                    <div class="int-health-val" id="health-deploy">—</div>
+                  </div>
+                </div>
+                <div id="status-db" style="display:none"></div>
+                <div id="status-google" style="display:none"></div>
+                <div id="status-gitvault" style="display:none"></div>
+                <div id="status-push" style="display:none"></div>
+                <div id="status-raindrop" style="display:none"></div>
+                <div id="status-deploy" style="display:none"></div>
+                <div id="status-llm" style="display:none"></div>
+              </div>
+
+              <!-- Telegram Bot -->
+              <div class="settings-card" style="margin-bottom: 16px;">
+                <div class="settings-header">
+                  <div>
+                    <h3>Telegram Bot</h3>
+                    <p>Controle o agente e monitore o uso via Telegram.</p>
+                  </div>
+                </div>
+                <div class="int-tg-row">
+                  <div class="int-tg-avatar">🤖</div>
+                  <div class="int-tg-info">
+                    <div class="int-tg-name" id="tg-bot-name">AndClaw Bot</div>
+                    <div class="int-tg-sub" id="tg-bot-status">Verificando status...</div>
+                  </div>
+                  <span class="int-badge" id="tg-badge">—</span>
+                </div>
+                <div class="int-stats-row">
+                  <div class="int-stat-card">
+                    <div class="int-stat-val" id="tg-stat-users">—</div>
+                    <div class="int-stat-lbl">Usuários autorizados</div>
+                  </div>
+                  <div class="int-stat-card">
+                    <div class="int-stat-val" id="tg-stat-msgs">—</div>
+                    <div class="int-stat-lbl">Msgs processadas hoje</div>
+                  </div>
+                  <div class="int-stat-card">
+                    <div class="int-stat-val" id="tg-stat-skills">—</div>
+                    <div class="int-stat-lbl">Skills carregadas</div>
+                  </div>
+                </div>
+                <div class="int-actions-row" style="margin-top:14px;">
+                  <button class="int-act-btn" id="tg-test-btn">Testar bot</button>
+                  <button class="int-act-btn" id="tg-history-btn">Ver histórico</button>
+                </div>
+              </div>
+
+              <!-- LLM Chain -->
+              <div class="settings-card" style="margin-bottom: 16px;">
+                <div class="settings-header">
+                  <div>
+                    <h3>Inteligência artificial</h3>
+                    <p>Chain de fallback — tenta os providers em ordem até um responder.</p>
+                  </div>
+                </div>
+                <div class="int-llm-chain" id="llm-chain-display"></div>
+                <div class="int-actions-row" style="margin-top:12px;">
+                  <button class="int-act-btn int-act-primary" id="llm-test-btn">Testar conexão</button>
+                  <button class="int-act-btn" id="llm-tokens-btn">Ver uso de tokens</button>
+                </div>
+              </div>
+
+              <!-- Grid de integrações -->
+              <div class="settings-card" style="margin-bottom: 16px;">
                 <div class="settings-header">
                   <div>
                     <h3>Integrações</h3>
-                    <p>Conecte serviços e configure chaves.</p>
+                    <p>Conecte e gerencie serviços externos.</p>
                   </div>
                 </div>
-                <div class="admin-grid">
-                  <div class="card">
-                    <div class="card-header"><h3>Banco de Dados</h3></div>
-                    <div class="mini-list" id="status-db"></div>
-                    <div class="action-row"><button id="db-check" class="btn ghost">Verificar</button></div>
-                  </div>
-
-                  <div class="card">
-                    <div class="card-header"><h3>Google</h3></div>
-                    <div class="mini-list" id="status-google"></div>
-                    <div class="action-row">
-                      <button id="google-connect-admin" class="btn primary">Conectar</button>
-                      <button id="google-refresh" class="btn ghost">Recarregar</button>
+                <div class="int-grid">
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-blue">📅</div>
+                        Google Calendar
+                      </div>
+                      <span class="int-badge" id="badge-google">—</span>
+                    </div>
+                    <div class="int-card-desc">Sincroniza eventos e exporta tarefas. <span id="google-last-sync"></span></div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn int-act-primary" id="google-connect-admin">Conectar</button>
+                      <button class="int-act-btn" id="google-sync-now" style="display:none">Sync agora</button>
+                      <button class="int-act-btn" id="google-disconnect-btn" style="display:none">Desconectar</button>
                     </div>
                   </div>
 
-                  <div class="card">
-                    <div class="card-header"><h3>GitVault</h3></div>
-                    <div class="mini-list" id="status-gitvault"></div>
-                    <div class="action-row"><button id="gitvault-export" class="btn ghost">Exportar</button></div>
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-amber">💾</div>
+                        GitVault
+                      </div>
+                      <span class="int-badge" id="badge-gitvault">—</span>
+                    </div>
+                    <div class="int-card-desc">Backup diário às 02h em Markdown. <span id="gitvault-repo-info"></span></div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn" id="gitvault-export">Exportar agora</button>
+                      <button class="int-act-btn" id="gitvault-config-btn">Configurar</button>
+                    </div>
                   </div>
 
-                  <div class="card">
-                    <div class="card-header"><h3>Raindrop</h3></div>
-                    <div class="mini-list" id="status-raindrop"></div>
-                    <div class="action-row"><button id="raindrop-sync" class="btn ghost">Sincronizar</button></div>
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-purple">🔖</div>
+                        Raindrop
+                      </div>
+                      <span class="int-badge" id="badge-raindrop">—</span>
+                    </div>
+                    <div class="int-card-desc">Sincronize favoritos e links salvos direto no Inbox.</div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn int-act-primary" id="raindrop-sync">Sincronizar</button>
+                      <button class="int-act-btn" id="raindrop-config-btn">Configurar token</button>
+                    </div>
                   </div>
 
-                  <div class="card">
-                    <div class="card-header"><h3>Push</h3></div>
-                    <div class="mini-list" id="status-push"></div>
-                    <div class="action-row"><button id="push-test" class="btn ghost">Testar</button></div>
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-green">🔔</div>
+                        Push Notifications
+                      </div>
+                      <span class="int-badge" id="badge-push">—</span>
+                    </div>
+                    <div class="int-card-desc">Alertas de tarefas e lembretes neste dispositivo. <span id="push-subs-info"></span></div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn int-act-primary" id="push-enable-btn">Ativar neste dispositivo</button>
+                      <button class="int-act-btn" id="push-test">Testar push</button>
+                    </div>
                   </div>
 
-                  <div class="card">
-                    <div class="card-header"><h3>Deploy</h3></div>
-                    <div class="mini-list" id="status-deploy"></div>
-                    <div class="action-row"><button id="cfg-deploy" class="btn primary">Deploy Backend</button></div>
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-gray">🚀</div>
+                        Deploy
+                      </div>
+                      <span class="int-badge" id="badge-deploy">—</span>
+                    </div>
+                    <div class="int-card-desc">Redeploy do backend sem acessar o Render. <span id="deploy-last-info"></span></div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn int-act-primary" id="cfg-deploy">Deploy agora</button>
+                      <button class="int-act-btn" id="db-check">Checar banco</button>
+                    </div>
                   </div>
 
-                  <div class="card span-2">
-                    <div class="card-header"><h3>LLM</h3></div>
-                    <div class="mini-list" id="status-llm"></div>
+                  <div class="int-card">
+                    <div class="int-card-header">
+                      <div class="int-card-name">
+                        <div class="int-icon int-icon-blue">🗄️</div>
+                        Banco de dados
+                      </div>
+                      <span class="int-badge" id="badge-db">—</span>
+                    </div>
+                    <div class="int-card-desc">PostgreSQL. Tabelas e schema gerenciados automaticamente.</div>
+                    <div class="int-actions-row">
+                      <button class="int-act-btn" id="db-check-2">Verificar conexão</button>
+                      <button class="int-act-btn" id="db-backup-btn">Exportar dados</button>
+                    </div>
                   </div>
+                </div>
+              </div>
 
-                  <div class="card span-2">
-                    <div class="card-header"><h3>Configurações</h3></div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
-                        <input id="cfg-gemini" type="password" placeholder="AIza..." />
-                      </div>
-                      <div class="field">
-                        <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
-                        <input id="cfg-openrouter" type="password" placeholder="sk-or-..." />
-                      </div>
+              <!-- Log de atividade -->
+              <div class="settings-card" style="margin-bottom: 16px;">
+                <div class="settings-header">
+                  <div>
+                    <h3>Log de atividade</h3>
+                    <p>Últimas ações realizadas pelo sistema.</p>
+                  </div>
+                </div>
+                <div id="activity-log">
+                  <div class="int-log-empty">Carregando log...</div>
+                </div>
+              </div>
+
+              <!-- Configurações avançadas (colapsável) -->
+              <div class="settings-card">
+                <div class="settings-header" style="cursor:pointer;" id="advanced-toggle">
+                  <div>
+                    <h3>Configurações avançadas</h3>
+                    <p>API keys e variáveis de ambiente. Clique para expandir.</p>
+                  </div>
+                  <span id="advanced-arrow" style="font-size:18px;color:var(--muted);">›</span>
+                </div>
+                <div id="advanced-content" style="display:none;">
+                  <div class="form-row">
+                    <div class="field">
+                      <label>GEMINI_API_KEY <span class="field-status" id="cfg-status-gemini"></span></label>
+                      <input id="cfg-gemini" type="password" placeholder="AIza..." />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
-                        <input id="cfg-deepseek" type="password" placeholder="sk-..." />
-                      </div>
-                      <div class="field">
-                        <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
-                        <input id="cfg-default-provider" type="text" placeholder="gemini" />
-                      </div>
+                    <div class="field">
+                      <label>OPENROUTER_API_KEY <span class="field-status" id="cfg-status-openrouter"></span></label>
+                      <input id="cfg-openrouter" type="password" placeholder="sk-or-..." />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
-                        <input id="cfg-github-token" type="password" placeholder="ghp_..." />
-                      </div>
-                      <div class="field">
-                        <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
-                        <input id="cfg-gitvault-repo" type="text" placeholder="owner/repo" />
-                      </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>DEEPSEEK_API_KEY <span class="field-status" id="cfg-status-deepseek"></span></label>
+                      <input id="cfg-deepseek" type="password" placeholder="sk-..." />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
-                        <input id="cfg-gitvault-base" type="text" placeholder="daily" />
-                      </div>
-                      <div class="field">
-                        <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
-                        <input id="cfg-google-client-id" type="password" placeholder="..." />
-                      </div>
+                    <div class="field">
+                      <label>DEFAULT_LLM_PROVIDER <span class="field-status" id="cfg-status-default-provider"></span></label>
+                      <input id="cfg-default-provider" type="text" placeholder="gemini" />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
-                        <input id="cfg-google-client-secret" type="password" placeholder="..." />
-                      </div>
-                      <div class="field">
-                        <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
-                        <input id="cfg-google-redirect" type="text" placeholder="https://..." />
-                      </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>GITHUB_TOKEN <span class="field-status" id="cfg-status-github-token"></span></label>
+                      <input id="cfg-github-token" type="password" placeholder="ghp_..." />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
-                        <input id="cfg-google-calendar" type="text" placeholder="primary" />
-                      </div>
-                      <div class="field">
-                        <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
-                        <input id="cfg-vapid-public" type="password" placeholder="..." />
-                      </div>
+                    <div class="field">
+                      <label>GITVAULT_REPO <span class="field-status" id="cfg-status-gitvault-repo"></span></label>
+                      <input id="cfg-gitvault-repo" type="text" placeholder="owner/repo" />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
-                        <input id="cfg-vapid-private" type="password" placeholder="..." />
-                      </div>
-                      <div class="field">
-                        <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
-                        <input id="cfg-vapid-email" type="text" placeholder="mailto:admin@..." />
-                      </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>GITVAULT_BASE_PATH <span class="field-status" id="cfg-status-gitvault-base"></span></label>
+                      <input id="cfg-gitvault-base" type="text" placeholder="daily" />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
-                        <input id="cfg-render-hook" type="password" placeholder="https://api.render.com/..." />
-                      </div>
-                      <div class="field">
-                        <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
-                        <input id="cfg-raindrop-token" type="password" placeholder="..." />
-                      </div>
+                    <div class="field">
+                      <label>GOOGLE_OAUTH_CLIENT_ID <span class="field-status" id="cfg-status-google-client-id"></span></label>
+                      <input id="cfg-google-client-id" type="password" placeholder="..." />
                     </div>
-                    <div class="form-row">
-                      <div class="field">
-                        <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
-                        <input id="cfg-raindrop-collection" type="text" placeholder="0" />
-                      </div>
-                      <div class="field"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>GOOGLE_OAUTH_CLIENT_SECRET <span class="field-status" id="cfg-status-google-client-secret"></span></label>
+                      <input id="cfg-google-client-secret" type="password" placeholder="..." />
                     </div>
-                    <div class="modal-actions">
-                      <button id="cfg-save" class="btn primary">Salvar Configurações</button>
+                    <div class="field">
+                      <label>GOOGLE_OAUTH_REDIRECT_URI <span class="field-status" id="cfg-status-google-redirect"></span></label>
+                      <input id="cfg-google-redirect" type="text" placeholder="https://..." />
                     </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>GOOGLE_EXPORT_CALENDAR_ID <span class="field-status" id="cfg-status-google-calendar"></span></label>
+                      <input id="cfg-google-calendar" type="text" placeholder="primary" />
+                    </div>
+                    <div class="field">
+                      <label>VAPID_PUBLIC_KEY <span class="field-status" id="cfg-status-vapid-public"></span></label>
+                      <input id="cfg-vapid-public" type="password" placeholder="..." />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>VAPID_PRIVATE_KEY <span class="field-status" id="cfg-status-vapid-private"></span></label>
+                      <input id="cfg-vapid-private" type="password" placeholder="..." />
+                    </div>
+                    <div class="field">
+                      <label>VAPID_CONTACT_EMAIL <span class="field-status" id="cfg-status-vapid-email"></span></label>
+                      <input id="cfg-vapid-email" type="text" placeholder="mailto:admin@..." />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>RENDER_DEPLOY_HOOK_URL <span class="field-status" id="cfg-status-render-hook"></span></label>
+                      <input id="cfg-render-hook" type="password" placeholder="https://api.render.com/..." />
+                    </div>
+                    <div class="field">
+                      <label>RAINDROP_TOKEN <span class="field-status" id="cfg-status-raindrop-token"></span></label>
+                      <input id="cfg-raindrop-token" type="password" placeholder="..." />
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field">
+                      <label>RAINDROP_COLLECTION_ID <span class="field-status" id="cfg-status-raindrop-collection"></span></label>
+                      <input id="cfg-raindrop-collection" type="text" placeholder="0" />
+                    </div>
+                    <div class="field"></div>
+                  </div>
+                  <div class="modal-actions">
+                    <button id="cfg-save" class="btn primary">Salvar Configurações</button>
                   </div>
                 </div>
               </div>
