@@ -4,7 +4,8 @@ import { syncGoogleCalendars } from '../integrations/googleCalendar';
 import { sendDailyTaskAlerts } from '../integrations/push';
 
 export function startSchedulers() {
-  cron.schedule('*/10 * * * *', async () => {
+  const calendarSyncInterval = process.env.CALENDAR_SYNC_INTERVAL_MIN || '30';
+  cron.schedule(`*/${calendarSyncInterval} * * * *`, async () => {
     try {
       await syncGoogleCalendars();
     } catch (error) {

@@ -37,6 +37,7 @@ export const config = {
     oauthClientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
     oauthRedirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
     exportCalendarId: process.env.GOOGLE_EXPORT_CALENDAR_ID || 'primary',
+    calendarSyncInterval: parseInt(process.env.CALENDAR_SYNC_INTERVAL_MIN || '30', 10),
   },
   auth: {
     password: process.env.AUTH_PASSWORD || '',
