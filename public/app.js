@@ -696,36 +696,62 @@ async function loadDashboard() {
       apiFetch('/api/meetings'),
       apiFetch('/api/captures'),
     ]);
-    const tasks    = (await tasksRes.json()).items    || [];
+    const tasks = (await tasksRes.json()).items || [];
     const meetings = (await meetingsRes.json()).items || [];
     const captures = (await capturesRes.json()).items || [];
 
-    const openTasks    = tasks.filter(t => t.status !== 'done');
+    const openTasks = tasks.filter(t => t.status === 'open' || t.status !== 'done');
     const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'alta');
-    const newCaptures  = captures.filter(c => c.status === 'new');
+    const newCaptures = captures.filter(c => c.status === 'new');
 
-    const el = id => document.getElementById(id);
-    if (el('stat-tasks'))    el('stat-tasks').textContent    = openTasks.length;
-    if (el('stat-priority')) el('stat-priority').textContent = highPriority.length;
-    if (el('stat-meetings')) el('stat-meetings').textContent = meetings.length;
-    if (el('stat-inbox'))    el('stat-inbox').textContent    = newCaptures.length;
+    const statTasks = document.getElementById('stat-tasks');
+    const statPriority = document.getElementById('stat-priority');
+    const statMeetings = document.getElementById('stat-meetings');
+    const statInbox = document.getElementById('stat-inbox');
 
-    const today = new Date().toDateString();
-    const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
-    if (el('today-list')) {
-      el('today-list').innerHTML = todayTasks.length > 0
-        ? todayTasks.slice(0, 5).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.priority || 'normal'}</div></div>`).join('')
+    if (statTasks) statTasks.textContent = openTasks.length;
+    if (statPriority) statPriority.textContent = highPriority.length;
+    if (statMeetings) statMeetings.textContent = meetings.length;
+    if (statInbox) statInbox.textContent = newCaptures.length;
+
+    const todayList = document.getElementById('today-list');
+    if (todayList) {
+      const today = new Date().toDateString();
+      const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
+      todayList.innerHTML = todayTasks.length > 0
+        ? todayTasks.slice(0, 5).map(t => `
+            <div class="list-item">
+              <div class="list-item-title">${t.title}</div>
+              <div class="list-item-sub">${t.priority || 'normal'}</div>
+            </div>`).join('')
         : '<div class="empty-state">Sem tarefas para hoje</div>';
     }
-    if (el('priority-list')) {
-      el('priority-list').innerHTML = openTasks.length > 0
-        ? openTasks.slice(0, 3).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.status || 'open'}</div></div>`).join('')
-        : '<div class="empty-state">Sem tarefas</div>';
+
+    const priorityList = document.getElementById('priority-list');
+    if (priorityList) {
+      priorityList.innerHTML = openTasks.slice(0, 3).map(t => `
+        <div class="list-item">
+          <div class="list-item-title">${t.title}</div>
+          <div class="list-item-sub">${t.status || 'open'}</div>
+        </div>`).join('') || '<div class="empty-state">Sem tarefas</div>';
     }
-    if (el('meetings-list')) {
-      el('meetings-list').innerHTML = meetings.length > 0
-        ? meetings.slice(0, 3).map(m => `<div class="list-item"><div class="list-item-title">${m.title}</div><div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div></div>`).join('')
-        : '<div class="empty-state">Sem reuniões</div>';
+
+    const meetingsList = document.getElementById('meetings-list');
+    if (meetingsList) {
+      meetingsList.innerHTML = meetings.slice(0, 3).map(m => `
+        <div class="list-item">
+          <div class="list-item-title">${m.title}</div>
+          <div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div>
+        </div>`).join('') || '<div class="empty-state">Sem reuniões</div>';
+    }
+
+    const inboxEl = document.getElementById('inbox-list');
+    if (inboxEl) {
+      inboxEl.innerHTML = newCaptures.slice(0, 3).map(c => `
+        <div class="list-item">
+          <div class="list-item-title">${c.content.substring(0, 60)}${c.content.length > 60 ? '...' : ''}</div>
+          <div class="list-item-sub">${c.type || 'note'}</div>
+        </div>`).join('') || '<div class="empty-state">Inbox vazio</div>';
     }
   } catch (err) {
     showError(err);
