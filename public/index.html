@@ -204,14 +204,70 @@
 
       <!-- ── INBOX ── -->
       <section id="view-inbox" class="view">
-        <h2>Inbox</h2>
-        <div class="panel">
-          <textarea id="capture-input" placeholder="Escreva um input rápido, ideia ou nota..."></textarea>
-          <div class="modal-actions">
-            <button id="capture-send" class="btn primary">Salvar no Inbox</button>
+        <div class="inbox-toolbar">
+          <div class="inbox-toolbar-left">
+            <span class="inbox-title">Inbox</span>
+            <span class="count-badge" id="inbox-total-badge">0 itens</span>
+            <button class="filter-pill active" data-filter="all">Todos</button>
+            <button class="filter-pill" data-filter="task">Tarefas</button>
+            <button class="filter-pill" data-filter="note">Notas</button>
+            <button class="filter-pill" data-filter="idea">Ideias</button>
+            <button class="filter-pill" data-filter="link">Links</button>
+          </div>
+          <div class="inbox-toolbar-right">
+            <button class="inbox-sort-btn" id="inbox-sort-btn">
+              <span id="inbox-sort-label">Mais recente</span>
+            </button>
+            <button class="inbox-sort-btn" id="inbox-select-all-btn">Selecionar todos</button>
           </div>
         </div>
+
+        <div class="inbox-ai-bar" id="inbox-ai-bar" style="display:none">
+          <span class="inbox-ai-icon">✦</span>
+          <span id="inbox-ai-msg">Itens sem categoria detectados.</span>
+          <button class="inbox-ai-action" id="inbox-ai-btn">Processar com IA</button>
+        </div>
+
+        <div class="inbox-progress-row">
+          <span class="inbox-progress-label">Processados hoje</span>
+          <div class="inbox-progress-track">
+            <div class="inbox-progress-fill" id="inbox-progress-fill" style="width:0%"></div>
+          </div>
+          <span class="inbox-progress-count" id="inbox-progress-count">0 / 0</span>
+        </div>
+
+        <div class="inbox-capture-box">
+          <div class="inbox-type-row" id="inbox-type-row">
+            <button class="inbox-type-btn active" data-type="note">Nota</button>
+            <button class="inbox-type-btn" data-type="task">Tarefa</button>
+            <button class="inbox-type-btn" data-type="idea">Ideia</button>
+            <button class="inbox-type-btn" data-type="link">Link</button>
+          </div>
+          <textarea id="capture-input" class="inbox-capture-textarea" rows="2"
+            placeholder="Escreva um input rápido, ideia ou nota..."></textarea>
+          <div class="inbox-capture-footer">
+            <div class="inbox-meta-row">
+              <button class="inbox-meta-btn" id="inbox-meta-tag">+ Tag</button>
+              <button class="inbox-meta-btn" id="inbox-meta-project">+ Projeto</button>
+              <button class="inbox-meta-btn" id="inbox-meta-date">+ Data</button>
+            </div>
+            <button id="capture-send" class="btn primary">Salvar</button>
+          </div>
+        </div>
+
+        <div class="inbox-bulk-bar" id="inbox-bulk-bar" style="display:none">
+          <span id="inbox-selected-count">0 selecionados</span>
+          <button class="inbox-bulk-action" id="bulk-convert-btn">Converter em tarefas</button>
+          <button class="inbox-bulk-action" id="bulk-archive-btn">Arquivar</button>
+          <button class="inbox-bulk-action inbox-bulk-danger" id="bulk-delete-btn">Excluir</button>
+          <button class="inbox-bulk-action" id="bulk-cancel-btn" style="margin-left:auto">Cancelar</button>
+        </div>
+
+        <div class="inbox-section-label" id="inbox-label-pending">Não processados</div>
         <div class="list" id="captures-list"></div>
+
+        <div class="inbox-section-label" id="inbox-label-done" style="display:none">Processados</div>
+        <div class="list" id="captures-done-list"></div>
       </section>
 
       <!-- ── CHAT ── -->
