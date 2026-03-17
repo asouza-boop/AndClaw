@@ -986,41 +986,6 @@
 <script src="/config.js"></script>
 <script src="/app.js"></script>
 
-<!-- Melhorias de UX inline -->
-<script>
-  // Atualizar título da página conforme nav
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const label = item.textContent.trim();
-      const icon  = item.querySelector('svg')?.outerHTML || '';
-      document.getElementById('page-title-el').innerHTML = icon + label;
-    });
-  });
 
-  // Melhorar rendering de mensagens do chat com avatares e bubbles
-  const _origAppendChat = window.appendChatMsg;
-  function renderChatMsg(window_id, role, text) {
-    const win = document.getElementById(window_id);
-    if (!win) return;
-    const wrap = document.createElement('div');
-    wrap.className = `chat-msg ${role === 'user' ? 'user' : 'agent'}`;
-    const avatar = document.createElement('div');
-    avatar.className = `chat-avatar ${role === 'user' ? 'user-av' : 'agent-av'}`;
-    avatar.textContent = role === 'user' ? 'U' : 'A';
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-    bubble.textContent = text;
-    const time = document.createElement('div');
-    time.className = 'chat-time';
-    time.textContent = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    const inner = document.createElement('div');
-    inner.appendChild(bubble);
-    inner.appendChild(time);
-    wrap.appendChild(avatar);
-    wrap.appendChild(inner);
-    win.appendChild(wrap);
-    win.scrollTop = win.scrollHeight;
-  }
-</script>
 </body>
 </html>
