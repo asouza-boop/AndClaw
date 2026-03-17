@@ -183,7 +183,17 @@ export class TelegramInputHandler {
         const userId = ctx.from?.id.toString();
         if (!userId) return;
 
-        console.log(`[TelegramInput] Recebido de ${userId}: ${text}`);
+        // Limite de 4000 caracteres por mensagem
+        const MAX_INPUT_LENGTH = 4000;
+        if (text.length > MAX_INPUT_LENGTH) {
+            return ctx.reply(
+                `⚠️ Mensagem muito longa (${text.length} chars). ` +
+                `Limite: ${MAX_INPUT_LENGTH} caracteres. ` +
+                `Tente dividir em partes menores.`
+            );
+        }
+
+        console.log(`[TelegramInput] Recebido de ${userId}: ${text.substring(0, 100)}...`);
 
         ctx.replyWithChatAction('typing').catch(console.error);
         const typingInterval = this.startTypingEffect(ctx, 'typing');
