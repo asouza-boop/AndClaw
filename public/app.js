@@ -797,6 +797,7 @@ document.querySelectorAll('.theme-card').forEach(card => {
   card.addEventListener('click', () => {
     document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
     card.classList.add('active');
+    applyTheme(card.dataset.theme);
   });
 });
 
