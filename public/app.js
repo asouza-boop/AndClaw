@@ -104,7 +104,7 @@ async function apiFetch(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const apiBase = getApiBase();
+  let apiBase = getApiBase();
   if (!apiBase) {
     showLogin();
     throw new Error('API base nao configurada');
@@ -122,6 +122,13 @@ async function apiFetch(path, options = {}) {
   if (res.ok) {
     const ct = res.headers.get('content-type') || '';
     if (ct && !ct.includes('application/json')) {
+      const fallback = DEFAULT_API_BASE;
+      if (fallback && apiBase !== fallback) {
+        setApiBase(fallback);
+        apiBase = fallback;
+        const retry = await fetch(`${apiBase}${path}`, { ...options, headers });
+        return retry;
+      }
       throw new Error('Backend respondeu em formato inválido.');
     }
   }
