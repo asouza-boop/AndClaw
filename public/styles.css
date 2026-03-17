@@ -906,6 +906,9 @@ body[data-theme="dark"] .inbox-item:hover { border-color: rgba(255,255,255,0.13)
   display: grid; place-items: center; transition: all 0.13s;
 }
 .inbox-action-btn:hover { background: var(--surface-2); color: var(--text); }
+.inbox-action-danger { color: var(--danger) !important; }
+.inbox-action-danger:hover { background: rgba(225,29,72,0.08) !important; }
+.inbox-item { cursor: pointer; }
 
 /* ─── RESPONSIVE ─────────────────────────────────────── */
 @media (max-width: 1024px) {

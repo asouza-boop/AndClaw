@@ -247,6 +247,17 @@ captureSend.addEventListener('click', async () => {
   await refreshCaptures();
 });
 
+captureInput?.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    const text = captureInput.value.trim();
+    if (!text) return;
+    await queueCapture(text, inboxCurrentType);
+    captureInput.value = '';
+    await refreshCaptures();
+  }
+});
+
 async function queueCapture(content, type = 'note') {
   if (navigator.onLine) {
     try {
@@ -354,10 +365,10 @@ function inboxRender(items) {
   if (selCount) selCount.textContent = `${inboxSelected.size} selecionado${inboxSelected.size !== 1 ? 's' : ''}`;
 
   function renderItem(item) {
-    const isSelected = inboxSelected.has(item.id);
+    const isSelected = inboxSelected.has(Number(item.id));
     const isDone = item.status === 'processed';
-    return `<div class="inbox-item${isSelected ? ' inbox-selected' : ''}" data-id="${item.id}">
-      <div class="inbox-check${isDone ? ' inbox-done' : ''}" onclick="inboxToggleDone(${item.id}, '${item.status}')"></div>
+    return `<div class="inbox-item${isSelected ? ' inbox-selected' : ''}" data-id="${item.id}" onclick="inboxToggleSelect(${item.id})">
+      <div class="inbox-check${isDone ? ' inbox-done' : ''}" onclick="event.stopPropagation(); inboxToggleDone(${item.id}, '${item.status}')"></div>
       <div class="inbox-item-body">
         <div class="inbox-item-text${isDone ? ' inbox-done-text' : ''}">${item.content}</div>
         <div class="inbox-item-meta">
@@ -365,11 +376,10 @@ function inboxRender(items) {
           <span class="inbox-item-time">${inboxTimeAgo(item.created_at)}</span>
         </div>
       </div>
-      <div class="inbox-item-actions">
-        <button class="inbox-action-btn" title="Converter em tarefa" onclick="inboxConvertTask(${item.id})">→</button>
-        <button class="inbox-action-btn" title="Arquivar" onclick="inboxArchive(${item.id})">↓</button>
-        <button class="inbox-action-btn" title="Selecionar" onclick="inboxToggleSelect(${item.id})">◻</button>
-        <button class="inbox-action-btn" title="Excluir" onclick="inboxDelete(${item.id})">×</button>
+      <div class="inbox-item-actions" onclick="event.stopPropagation()">
+        <button class="inbox-action-btn" title="Converter em tarefa" onclick="inboxConvertTask(${item.id})">✓ Tarefa</button>
+        <button class="inbox-action-btn" title="Arquivar" onclick="inboxArchive(${item.id})">Arquivar</button>
+        <button class="inbox-action-btn inbox-action-danger" title="Excluir" onclick="inboxDelete(${item.id})">Excluir</button>
       </div>
     </div>`;
   }
@@ -383,32 +393,48 @@ function inboxRender(items) {
 }
 
 async function inboxToggleDone(id, currentStatus) {
+  const numId = Number(id);
   const newStatus = currentStatus === 'processed' ? 'new' : 'processed';
-  await apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
-  await refreshCaptures();
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 }
 
 async function inboxArchive(id) {
-  await apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'archived' }) });
-  await refreshCaptures();
+  const numId = Number(id);
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'PATCH', body: JSON.stringify({ status: 'archived' }) });
+    showInline('Item arquivado.');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 }
 
 async function inboxDelete(id) {
-  await apiFetch(`/api/captures/${id}`, { method: 'DELETE' });
-  await refreshCaptures();
+  const numId = Number(id);
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'DELETE' });
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 }
 
 async function inboxConvertTask(id) {
-  await apiFetch('/api/captures/bulk', {
-    method: 'POST',
-    body: JSON.stringify({ ids: [id], action: 'convert_task' })
-  });
-  await refreshCaptures();
+  const numId = Number(id);
+  try {
+    const res = await apiFetch('/api/captures/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: [numId], action: 'convert_task' })
+    });
+    const data = await res.json();
+    if (data.ok) showInline('Convertido em tarefa com sucesso.');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 }
 
 function inboxToggleSelect(id) {
-  if (inboxSelected.has(id)) inboxSelected.delete(id);
-  else inboxSelected.add(id);
+  const numId = Number(id);
+  if (inboxSelected.has(numId)) inboxSelected.delete(numId);
+  else inboxSelected.add(numId);
   inboxRender(inboxAllItems);
 }
 
@@ -1501,23 +1527,31 @@ inboxSelectAllBtn && inboxSelectAllBtn.addEventListener('click', () => {
 
 document.getElementById('bulk-convert-btn')?.addEventListener('click', async () => {
   if (!inboxSelected.size) return;
-  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'convert_task' }) });
-  inboxSelected.clear();
-  await refreshCaptures();
+  try {
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'convert_task' }) });
+    showInline('Convertidos em tarefas com sucesso.');
+    inboxSelected.clear();
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 });
 
 document.getElementById('bulk-archive-btn')?.addEventListener('click', async () => {
   if (!inboxSelected.size) return;
-  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'archive' }) });
-  inboxSelected.clear();
-  await refreshCaptures();
+  try {
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'archive' }) });
+    showInline('Itens arquivados.');
+    inboxSelected.clear();
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 });
 
 document.getElementById('bulk-delete-btn')?.addEventListener('click', async () => {
   if (!inboxSelected.size) return;
-  await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'delete' }) });
-  inboxSelected.clear();
-  await refreshCaptures();
+  try {
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'delete' }) });
+    inboxSelected.clear();
+    await refreshCaptures();
+  } catch (err) { showError(err); }
 });
 
 document.getElementById('bulk-cancel-btn')?.addEventListener('click', () => {
