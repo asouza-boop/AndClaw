@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "";
+const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "https://andclaw.onrender.com";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
 const banner = document.getElementById('banner');
@@ -65,7 +65,12 @@ function hideInline() {
   adminFeedback.classList.add('hidden');
 }
 function getApiBase() {
-  return localStorage.getItem('andclaw_api_base') || DEFAULT_API_BASE;
+  const stored = localStorage.getItem('andclaw_api_base');
+  const base = stored || DEFAULT_API_BASE;
+  if (base && base.includes('vercel.app') && base === window.location.origin) {
+    return DEFAULT_API_BASE;
+  }
+  return base;
 }
 
 function setApiBase(value) {
@@ -117,7 +122,7 @@ async function apiFetch(path, options = {}) {
   if (res.ok) {
     const ct = res.headers.get('content-type') || '';
     if (ct && !ct.includes('application/json')) {
-      throw new Error('Resposta invalida do backend.');
+      throw new Error('Backend respondeu em formato inválido.');
     }
   }
   return res;
