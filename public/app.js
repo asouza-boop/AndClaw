@@ -1000,6 +1000,11 @@ function urlBase64ToUint8Array(base64String) {
 window.addEventListener('online', flushQueue);
 
 async function initApp() {
+  const savedTheme = localStorage.getItem('andclaw_theme') || 'auto';
+  applyTheme(savedTheme);
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.theme === savedTheme);
+  });
   try {
     const apiBase = getApiBase();
     if (!apiBase) {
