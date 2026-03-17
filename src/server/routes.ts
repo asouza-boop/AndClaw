@@ -792,7 +792,10 @@ router.get('/google/oauth/callback', async (req: Request, res: Response) => {
   const { code } = req.query as { code?: string };
   if (!code) return res.status(400).send('Missing code.');
   await handleGoogleOAuthCallback(code);
-  res.redirect('/?google=connected');
+  // Redirecionar para o frontend correto
+  // Usa FRONTEND_URL se definido, senão a própria origin do request
+  const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  res.redirect(`${frontendUrl}/?google=connected`);
 });
 
 router.post('/gitvault/export', async (_req: Request, res: Response) => {

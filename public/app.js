@@ -64,11 +64,16 @@ function hideInline() {
 }
 function getApiBase() {
   const stored = localStorage.getItem('andclaw_api_base');
-  const base = stored || DEFAULT_API_BASE;
-  if (base && base.includes('vercel.app') && base === window.location.origin) {
-    return DEFAULT_API_BASE;
+  // Se o frontend está rodando no mesmo servidor do backend (onrender, oracle, etc.)
+  // usar a própria origin como base — sem precisar de configuração manual
+  const origin = window.location.origin;
+  const isVercelOnly = origin.includes('vercel.app');
+  if (!isVercelOnly) {
+    // Estamos no backend diretamente — usar origin
+    setApiBase(origin);
+    return origin;
   }
-  return base;
+  return stored || DEFAULT_API_BASE;
 }
 
 function setApiBase(value) {
@@ -1729,6 +1734,14 @@ async function initApp() {
   document.querySelectorAll('.theme-card').forEach(c => {
     c.classList.toggle('active', c.dataset.theme === savedTheme);
   });
+
+  // Tratar retorno do OAuth Google
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('google') === 'connected') {
+    history.replaceState({}, '', '/'); // limpar query string
+    showBanner('Google conectado com sucesso! Sincronizando calendário...');
+    setTimeout(() => hideBanner(), 4000);
+  }
   try {
     const apiBase = getApiBase();
     if (!apiBase) {
