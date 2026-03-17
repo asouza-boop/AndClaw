@@ -1119,6 +1119,29 @@ async function loadKnowledge() {
   }
 }
 
+async function loadArchive() {
+  try {
+    const res = await apiFetch('/api/captures?status=archived');
+    const data = await res.json();
+    const list = document.getElementById('archive-list');
+    if (!list) return;
+
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.map(c => `
+          <div class="list-item">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span class="inbox-type-tag inbox-tag-${c.type || 'note'}">${c.type || 'note'}</span>
+              <span class="inbox-item-time">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+            <div class="list-item-title">${c.content.substring(0, 100)}${c.content.length > 100 ? '...' : ''}</div>
+          </div>`).join('')
+      : '<div class="empty-state">Arquivo vazio.</div>';
+  } catch (err) {
+    showError(err);
+  }
+}
+
 const cfgSave = document.getElementById('cfg-save');
 const cfgDeploy = document.getElementById('cfg-deploy');
 const dbCheck = document.getElementById('db-check');
@@ -2336,6 +2359,7 @@ async function initApp() {
   await loadMeetings();
   await loadProjects();
   await loadKnowledge();
+  await loadArchive();
   await loadAdmin();
   await loadSettingsStatus();
   await loadProfile();
