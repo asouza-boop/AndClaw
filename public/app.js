@@ -4,28 +4,38 @@ const navItems = document.querySelectorAll('.nav-item');
 const banner = document.getElementById('banner');
 const pageTitleEl = document.getElementById('page-title-el');
 
+const VIEW_TITLES = {
+  dashboard: 'Dashboard', inbox: 'Inbox', chat: 'Chat', agenda: 'Agenda',
+  projects: 'Projetos', agents: 'Agentes', skills: 'Skills', meetings: 'Reuniões',
+  favorites: 'Favoritos', knowledge: 'Conhecimento', archive: 'Arquivo', admin: 'Configurações',
+};
+
+function navigateTo(target) {
+  if (!target) return;
+  // Atualizar nav items
+  document.querySelectorAll('.nav-item').forEach(i => {
+    i.classList.toggle('active', i.dataset.view === target);
+  });
+  // Trocar views
+  document.querySelectorAll('.view').forEach(v => {
+    v.classList.remove('active');
+  });
+  const targetView = document.getElementById('view-' + target);
+  if (targetView) {
+    targetView.classList.add('active');
+  } else {
+    console.warn('[nav] view não encontrada: view-' + target);
+  }
+  // Atualizar título
+  if (pageTitleEl && VIEW_TITLES[target]) {
+    pageTitleEl.textContent = VIEW_TITLES[target];
+  }
+}
+
 navItems.forEach(item => {
-  item.addEventListener('click', () => {
-    navItems.forEach(i => i.classList.remove('active'));
-    item.classList.add('active');
-    const target = item.dataset.view;
-    views.forEach(v => v.classList.remove('active'));
-    document.getElementById(`view-${target}`).classList.add('active');
-    const titles = {
-      dashboard: 'Dashboard',
-      inbox: 'Inbox',
-      chat: 'Chat',
-      agenda: 'Agenda',
-      projects: 'Projetos',
-      agents: 'Agentes',
-      skills: 'Skills',
-      meetings: 'Reuniões',
-      favorites: 'Favoritos',
-      knowledge: 'Conhecimento',
-      archive: 'Arquivo',
-      admin: 'Configurações',
-    };
-    if (pageTitleEl && titles[target]) pageTitleEl.textContent = titles[target];
+  item.addEventListener('click', (e) => {
+    const target = item.dataset.view || e.currentTarget?.dataset?.view;
+    navigateTo(target);
   });
 });
 
@@ -224,12 +234,12 @@ document.getElementById('quick-capture-btn').addEventListener('click', openModal
 document.getElementById('modal-cancel').addEventListener('click', closeModal);
 
 document.getElementById('new-task-btn')?.addEventListener('click', () => {
-  document.querySelector('[data-view="meetings"]')?.click();
+  document.navigateTo('meetings');
   setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
 });
 
 document.getElementById('new-meeting-btn')?.addEventListener('click', () => {
-  document.querySelector('[data-view="meetings"]')?.click();
+  document.navigateTo('meetings');
   setTimeout(() => document.getElementById('meeting-title')?.focus(), 100);
 });
 
@@ -1632,7 +1642,7 @@ document.querySelector('.search input')?.addEventListener('keydown', async (e) =
   const term = e.target.value.trim();
   if (!term) return;
   e.target.value = '';
-  document.querySelector('[data-view="chat"]')?.click();
+  document.navigateTo('chat');
   setTimeout(async () => {
     const input = document.getElementById('chat-input-full');
     if (input) {
