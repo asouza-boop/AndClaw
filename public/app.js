@@ -125,7 +125,7 @@ async function apiFetch(path, options = {}) {
         const retry = await fetch(`${apiBase}${path}`, { ...options, headers });
         return retry;
       }
-      throw new Error('Backend respondeu em formato inválido.');
+      throw new Error('Backend indisponível ou inicializando. Aguarde alguns segundos e tente novamente.');
     }
   }
   return res;
