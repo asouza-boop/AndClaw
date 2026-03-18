@@ -1192,7 +1192,7 @@ cfgSave.addEventListener('click', async () => {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    showInline('Configuracoes salvas.');
+    showInline('Configurações salvas com sucesso.');
     await loadAdmin();
     await loadSettingsStatus();
   } catch (err) {
@@ -2002,12 +2002,14 @@ function updateTagPreview() {
 
 document.getElementById('tag-save').addEventListener('click', async () => {
   const nameEl = document.getElementById('tag-name');
+  const colorEl = document.getElementById('tag-color');
   const name = nameEl?.value.trim();
   if (!name) { showInline('Informe o nome da tag.'); return; }
   const color = selectedTagColor || document.getElementById('tag-color')?.value.trim() || '#8b5cf6';
   try {
     await apiFetch('/api/tags', { method: 'POST', body: JSON.stringify({ name, color }) });
     if (nameEl) nameEl.value = '';
+    if (colorEl) colorEl.value = '';
     showInline('Tag criada com sucesso.');
     updateTagPreview();
     await loadTags();
