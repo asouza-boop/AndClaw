@@ -635,6 +635,29 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
   res.json({ ok: true, items: rows });
 });
 
+router.post('/skill-chat', async (req: Request, res: Response) => {
+  const { system, messages } = req.body || {};
+  if (!messages?.length) return res.status(400).json({ error: 'messages required' });
+  if (!hasLLMConfig()) {
+    return res.json({ ok: true, reply: 'LLM não configurado. Configure GEMINI_API_KEY nas variáveis de ambiente do backend (Render).' });
+  }
+  try {
+    // Montar input completo: system prompt + histórico da conversa
+    const historyText = messages.slice(0, -1).map((m: any) =>
+      `${m.role === 'user' ? 'Usuário' : 'Assistente'}: ${m.content}`
+    ).join('\n\n');
+    const lastUserMsg = messages[messages.length - 1]?.content || '';
+    const fullInput = system
+      ? `${system}\n\n${historyText ? '--- Histórico da conversa ---\n' + historyText + '\n\n--- Nova mensagem do usuário ---\n' : ''}${lastUserMsg}`
+      : lastUserMsg;
+
+    const reply = await agent.processInput('skill-creator', fullInput, {});
+    res.json({ ok: true, reply });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message || 'Erro no LLM' });
+  }
+});
+
 router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
   const { input, options = {} } = req.body || {};
   const userId = (req as any).user?.sub || 'pwa-user';

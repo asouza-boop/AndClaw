@@ -2535,12 +2535,9 @@ async function skChatSend() {
       return { role: m.role === 'user' ? 'user' : 'assistant', content: m.content };
     });
 
-    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiRes = await apiFetch('/api/skill-chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
         system: SK_SYSTEM_PROMPT,
         messages: messages,
       })
@@ -2549,7 +2546,7 @@ async function skChatSend() {
     const apiData = await apiRes.json();
     if (typingEl) typingEl.remove();
 
-    const reply = (apiData.content && apiData.content[0] && apiData.content[0].text) ? apiData.content[0].text : 'Sem resposta.';
+    const reply = apiData.reply || 'Sem resposta.';
     skChatHistory.push({ role: 'assistant', content: reply });
     skChatRenderMsg('skill', reply, null);
 
