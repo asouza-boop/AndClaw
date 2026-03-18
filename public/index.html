@@ -593,98 +593,66 @@ Exemplos do que incluir:
 
         <!-- TAB: Criar Skill -->
         <div class="sk-tab-content" id="sktab-criar">
-          <div class="sk-create-layout">
+          <div class="skchat-layout">
 
-            <!-- Formulário -->
-            <div class="sk-create-form">
-              <div class="sk-section-title">📝 Identidade da Skill</div>
-              <div class="form-row">
-                <div class="field">
-                  <label>Nome da skill *</label>
-                  <input id="sk-title" type="text" placeholder="Ex: AWS Cost Analyst" />
-                </div>
-                <div class="field">
-                  <label>Slug (gerado automaticamente)</label>
-                  <input id="sk-slug" type="text" placeholder="aws-cost-analyst" style="font-family:'Fira Code',monospace;" />
-                </div>
-              </div>
-              <div class="field">
-                <label>Descrição curta *</label>
-                <textarea id="sk-description" rows="2" placeholder="Descreva em 1-2 frases o que esta skill faz e quando deve ser ativada..."></textarea>
+            <!-- Chat principal com a skill-creator -->
+            <div class="skchat-main">
+              <div class="skchat-bar">
+                <div class="skchat-bar-dot" style="background:#10b981;"></div>
+                <span>skill-creator</span>
+                <span class="skchat-bar-sub">guia a criação passo a passo</span>
+                <button class="skchat-reset-btn" id="skchat-reset" title="Reiniciar conversa">↺ Reiniciar</button>
               </div>
 
-              <div class="sk-section-title" style="margin-top:18px;">🔧 Ferramentas permitidas</div>
-              <div class="sk-tools-picker" id="sk-tools-picker"></div>
+              <div class="skchat-window" id="skchat-window">
+                <!-- Mensagens injetadas por JS -->
+              </div>
 
-              <div class="sk-section-title" style="margin-top:18px;">📄 Conteúdo da skill</div>
-              <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Escreva as instruções em Markdown. Use cabeçalhos ##, tabelas, exemplos. Quanto mais estruturado, melhor o agente vai seguir.</p>
-              <textarea id="sk-content" rows="14" placeholder="## Quando Ativar&#10;- Sempre que o usuário pedir análise de custo AWS&#10;&#10;## Protocolo&#10;1. Verificar região e serviços&#10;2. ..."></textarea>
-
-              <div class="sk-section-title" style="margin-top:18px;">📎 Documento de referência (opcional)</div>
-              <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Cole aqui um documento base — playbook, especificação técnica, runbook, glossário. Será incluído como contexto rico na skill.</p>
-              <textarea id="sk-refdoc" rows="6" placeholder="Cole aqui documentação de referência: políticas, padrões, exemplos reais, regras do cliente..."></textarea>
-
-              <div class="modal-actions" style="margin-top:20px;">
-                <button class="btn primary" id="sk-save-btn">💾 Criar Skill</button>
-                <button class="btn ghost" id="sk-ai-help-btn">✦ Sugerir com IA</button>
+              <div class="skchat-input-row">
+                <textarea id="skchat-input" class="skchat-input" rows="2"
+                  placeholder="Descreva a skill que você quer criar... Ex: 'Quero uma skill que analisa custos AWS e gera relatórios de anomalias'"></textarea>
+                <button class="btn primary skchat-send-btn" id="skchat-send">Enviar</button>
               </div>
             </div>
 
-            <!-- Painel de recomendações -->
-            <div class="sk-recommendations">
-              <div class="sk-rec-header">✦ Recomendações para uma skill poderosa</div>
-              <div id="sk-rec-content" class="sk-rec-body">
-                <div class="sk-rec-item sk-rec-tip">
-                  <div class="sk-rec-icon">🎯</div>
-                  <div>
-                    <strong>Defina o gatilho com precisão</strong>
-                    <p>Especifique exatamente quando a skill deve ser ativada. Frases como "sempre que o usuário pedir X" são mais eficazes do que descrições genéricas.</p>
-                  </div>
+            <!-- Painel direito: preview ao vivo + ações -->
+            <div class="skchat-side">
+
+              <div class="skchat-side-header">Prévia do SKILL.md</div>
+
+              <div class="skchat-preview-meta" id="skchat-preview-meta">
+                <div class="skchat-meta-row">
+                  <span class="skchat-meta-label">Slug</span>
+                  <span class="skchat-meta-val" id="prev-slug">—</span>
                 </div>
-                <div class="sk-rec-item sk-rec-tip">
-                  <div class="sk-rec-icon">📋</div>
-                  <div>
-                    <strong>Use um protocolo em etapas</strong>
-                    <p>Skills com passos numerados (1, 2, 3…) têm maior taxa de seguimento pelo agente. Inclua exemplos de input/output esperados.</p>
-                  </div>
+                <div class="skchat-meta-row">
+                  <span class="skchat-meta-label">Ferramentas</span>
+                  <span class="skchat-meta-val" id="prev-tools">—</span>
                 </div>
-                <div class="sk-rec-item sk-rec-tip">
-                  <div class="sk-rec-icon">🔧</div>
-                  <div>
-                    <strong>Declare as ferramentas necessárias</strong>
-                    <p>Se a skill precisa ler arquivos ou consultar dados, declare as ferramentas. O agente só usa o que estiver explicitamente permitido.</p>
-                  </div>
+                <div class="skchat-meta-row">
+                  <span class="skchat-meta-label">Seções</span>
+                  <span class="skchat-meta-val" id="prev-sections">—</span>
                 </div>
-                <div class="sk-rec-item sk-rec-tip">
-                  <div class="sk-rec-icon">📎</div>
-                  <div>
-                    <strong>Documento base aumenta precisão</strong>
-                    <p>Para skills de domínio (AWS, negócios, jurídico), cole um documento de referência. O agente usa como fonte de verdade.</p>
-                  </div>
-                </div>
-                <div class="sk-rec-item sk-rec-warn">
-                  <div class="sk-rec-icon">⚠️</div>
-                  <div>
-                    <strong>Evite skills genéricas demais</strong>
-                    <p>Uma skill que "faz tudo" não faz nada bem. Prefira skills focadas e composíveis — combine-as no agente.</p>
-                  </div>
-                </div>
-                <div id="sk-ai-recommendations" style="display:none;"></div>
               </div>
-              <div class="sk-rec-templates">
-                <div class="sk-rec-header" style="margin-top:16px;">📐 Templates prontos</div>
-                <button class="sk-template-btn" onclick="applySkillTemplate('analyst')">📊 Analista de Dados</button>
-                <button class="sk-template-btn" onclick="applySkillTemplate('monitor')">🔍 Monitor / Alertas</button>
-                <button class="sk-template-btn" onclick="applySkillTemplate('writer')">✍️ Redator / Docs</button>
-                <button class="sk-template-btn" onclick="applySkillTemplate('integrator')">🔗 Integrador de APIs</button>
-                <button class="sk-template-btn" onclick="applySkillTemplate('researcher')">🔬 Pesquisador</button>
+
+              <textarea id="skchat-preview" class="skchat-preview" rows="18"
+                placeholder="O SKILL.md gerado aparece aqui para você revisar e editar antes de salvar..."></textarea>
+
+              <div id="skchat-preview-actions" style="display:none;">
+                <button class="btn primary" id="skchat-save-btn" style="width:100%;">💾 Salvar Skill no Disco</button>
+                <button class="btn ghost" id="skchat-improve-btn" style="width:100%;margin-top:6px;">✦ Pedir melhoria à IA</button>
+              </div>
+
+              <div class="skchat-quality" id="skchat-quality" style="display:none;">
+                <div class="skchat-quality-title">Análise de qualidade</div>
+                <div id="skchat-quality-items"></div>
               </div>
             </div>
 
           </div>
         </div>
 
-        <!-- TAB: Detalhes (dinâmica) -->
+        <!-- TAB: Detalhes<!-- TAB: Detalhes (dinâmica) -->
         <div class="sk-tab-content" id="sktab-detalhes">
           <div id="skill-detail-inner"></div>
         </div>

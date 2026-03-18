@@ -2349,29 +2349,29 @@ function openSkillCreate() {
   });
   document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
   document.getElementById('sktab-criar')?.classList.add('active');
-  initSkillToolsPicker();
+  const win = document.getElementById('skchat-window');
+  if (win && win.children.length === 0) skChatInit();
 }
 
-function initSkillToolsPicker() {
-  const picker = document.getElementById('sk-tools-picker');
-  if (!picker || picker.children.length > 0) return;
-  picker.innerHTML = AVAILABLE_TOOLS.map(t =>
-    `<span class="sk-tool-chip" data-tool="${t}" onclick="toggleToolChip(this)">${t}</span>`
-  ).join('');
-}
-
+function initSkillToolsPicker() {}
 function toggleToolChip(el) { el.classList.toggle('selected'); }
 
 function applySkillTemplate(key) {
-  const t = SKILL_TEMPLATES[key];
-  if (!t) return;
-  document.getElementById('sk-title').value = t.title;
-  document.getElementById('sk-slug').value = t.slug;
-  document.getElementById('sk-description').value = t.description;
-  document.getElementById('sk-content').value = t.content;
-  document.querySelectorAll('.sk-tool-chip').forEach(c => {
-    c.classList.toggle('selected', t.tools.includes(c.dataset.tool));
-  });
+  const labels = {
+    analyst: 'Quero uma skill que analisa dados e gera relatorios estruturados com insights acionaveis',
+    monitor: 'Quero uma skill que monitora metricas, detecta anomalias e aciona alertas com escalacao automatica',
+    writer: 'Quero uma skill que cria documentacao tecnica, READMEs e post-mortems seguindo templates padrao',
+    integrator: 'Quero uma skill que consome APIs externas, transforma e sincroniza dados entre sistemas',
+    researcher: 'Quero uma skill que pesquisa informacoes, consolida multiplas fontes e gera relatorio de inteligencia',
+  };
+  const input = document.getElementById('skchat-input');
+  if (input && labels[key]) {
+    openSkillCreate();
+    setTimeout(function() {
+      input.value = labels[key];
+      skChatSend();
+    }, 200);
+  }
 }
 
 // Auto-slug from title
@@ -2380,59 +2380,291 @@ document.getElementById('sk-title')?.addEventListener('input', (e) => {
   document.getElementById('sk-slug').value = slug;
 });
 
-document.getElementById('sk-save-btn')?.addEventListener('click', async () => {
-  const title = document.getElementById('sk-title')?.value.trim();
-  const slug  = document.getElementById('sk-slug')?.value.trim();
-  const desc  = document.getElementById('sk-description')?.value.trim();
-  const content = document.getElementById('sk-content')?.value.trim();
-  const refdoc  = document.getElementById('sk-refdoc')?.value.trim();
-  const tools = [...document.querySelectorAll('.sk-tool-chip.selected')].map(c => c.dataset.tool);
+// sk-save-btn e sk-ai-help-btn agora estão no sistema de chat (skchat-save-btn, skchat-improve-btn)
+document.getElementById('sk-save-btn')?.addEventListener('click', () => {});
+document.getElementById('sk-ai-help-btn')?.addEventListener('click', () => {});
 
-  if (!title || !slug) { toast('Preencha nome e slug.', 'warn'); return; }
+// ── SKILL CREATOR CHAT ──────────────────────────────────────
 
-  const fullContent = refdoc ? `${content}\n\n---\n## 📎 Documento de Referência\n\n${refdoc}` : content;
+let skChatHistory = [];
+let skChatState = 'idle';
+let skExtractedData = { slug: '', title: '', description: '', tools: [], content: '' };
+
+const SK_SYSTEM_PROMPT = [
+  'Voce e a skill-creator — especialista em criar skills de alta qualidade para agentes de IA.',
+  '',
+  'Seu processo:',
+  '1. CAPTURAR INTENÇÃO: Faca 2-3 perguntas sobre proposito, gatilho e output esperado',
+  '2. GERAR: Crie o SKILL.md completo com frontmatter YAML',
+  '3. ANALISAR: De feedback de qualidade',
+  '',
+  'Regras:',
+  '- Descriptions devem ser especificas — incluir exatamente quando acionar',
+  '- Sempre inclua: ## Quando Ativar, ## Protocolo (passos numerados), ## Formato de saida',
+  '- Tools: read_file, write_file, ls, glob, grep, update_user_profile, web_search, run_command, create_file',
+  '',
+  'Ao gerar o SKILL.md, use EXATAMENTE este delimitador:',
+  'INICIO_SKILL',
+  '---',
+  'name: slug-da-skill',
+  'description: descricao especifica com quando acionar',
+  'allowed-tools: tool1, tool2',
+  '---',
+  '',
+  '# Titulo da Skill',
+  '',
+  '## Quando Ativar',
+  '...',
+  '',
+  '## Protocolo',
+  '1. ...',
+  '',
+  '## Formato de saida',
+  '...',
+  'FIM_SKILL',
+  '',
+  'Apos gerar, liste no formato:',
+  'QUALIDADE:',
+  '✓ Ponto forte',
+  '⚠ Ponto de atencao'
+].join('\n');
+
+const SK_WELCOME_TEXT = 'Ola! Sou a skill-creator. Vou te ajudar a criar uma skill de alta qualidade.\n\nDescreva o que voce quer que a skill faca — pode ser algo vago. Vou fazer as perguntas certas para refinar.';
+
+const SK_WELCOME_CHIPS = [
+  'Analisar custos AWS e detectar anomalias',
+  'Monitorar alertas do Datadog e escalar incidentes',
+  'Gerar relatorios de infraestrutura por cliente',
+  'Sincronizar dados entre sistemas via API',
+];
+
+function skChatInit() {
+  skChatHistory = [];
+  skChatState = 'idle';
+  skExtractedData = { slug: '', title: '', description: '', tools: [], content: '' };
+
+  const win = document.getElementById('skchat-window');
+  if (!win) return;
+  win.innerHTML = '';
+  skChatRenderMsg('skill', SK_WELCOME_TEXT, SK_WELCOME_CHIPS);
+
+  const prev = document.getElementById('skchat-preview');
+  if (prev) prev.value = '';
+  ['prev-slug','prev-tools','prev-sections'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  const actions = document.getElementById('skchat-preview-actions');
+  if (actions) actions.style.display = 'none';
+  const quality = document.getElementById('skchat-quality');
+  if (quality) quality.style.display = 'none';
+}
+
+function skChatRenderMsg(role, text, chips) {
+  const win = document.getElementById('skchat-window');
+  if (!win) return;
+
+  const isSkill = role === 'skill';
+  const wrap = document.createElement('div');
+  wrap.className = 'skchat-msg' + (isSkill ? '' : ' user');
+
+  const av = document.createElement('div');
+  av.className = 'skchat-avatar ' + (isSkill ? 'skchat-av-skill' : 'skchat-av-user');
+  av.textContent = isSkill ? 'SC' : 'U';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'skchat-bubble';
+  bubble.innerHTML = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+
+  if (chips && chips.length) {
+    const chipsEl = document.createElement('div');
+    chipsEl.className = 'skchat-suggestion-chips';
+    chips.forEach(function(c) {
+      const chip = document.createElement('button');
+      chip.className = 'skchat-chip';
+      chip.textContent = c;
+      chip.onclick = function() {
+        const input = document.getElementById('skchat-input');
+        if (input) { input.value = c; skChatSend(); }
+      };
+      chipsEl.appendChild(chip);
+    });
+    bubble.appendChild(chipsEl);
+  }
+
+  wrap.appendChild(av);
+  wrap.appendChild(bubble);
+  win.appendChild(wrap);
+  win.scrollTop = win.scrollHeight;
+}
+
+function skChatTypingShow() {
+  const win = document.getElementById('skchat-window');
+  if (!win) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'skchat-msg';
+  wrap.id = 'skchat-typing-indicator';
+  const av = document.createElement('div');
+  av.className = 'skchat-avatar skchat-av-skill';
+  av.textContent = 'SC';
+  const typing = document.createElement('div');
+  typing.className = 'skchat-typing';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(av);
+  wrap.appendChild(typing);
+  win.appendChild(wrap);
+  win.scrollTop = win.scrollHeight;
+  return wrap;
+}
+
+async function skChatSend() {
+  const input = document.getElementById('skchat-input');
+  const text = (input && input.value.trim()) ? input.value.trim() : '';
+  if (!text || skChatState === 'generating') return;
+  if (input) input.value = '';
+
+  skChatHistory.push({ role: 'user', content: text });
+  skChatRenderMsg('user', text, null);
+
+  const typingEl = skChatTypingShow();
+  skChatState = 'generating';
 
   try {
-    await apiFetch('/api/skills', {
-      method: 'POST',
-      body: JSON.stringify({ slug, title, description: desc, content: fullContent, allowedTools: tools })
+    const messages = skChatHistory.map(function(m) {
+      return { role: m.role === 'user' ? 'user' : 'assistant', content: m.content };
     });
-    toast(`Skill "${title}" criada com sucesso!`, 'success');
-    // Limpar form
-    ['sk-title','sk-slug','sk-description','sk-content','sk-refdoc'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.value = '';
-    });
-    document.querySelectorAll('.sk-tool-chip').forEach(c => c.classList.remove('selected'));
-    // Voltar para biblioteca e recarregar
-    document.querySelectorAll('.sk-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab==='biblioteca'));
-    document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
-    document.getElementById('sktab-biblioteca')?.classList.add('active');
-    await loadSkills();
-  } catch (err) { showError(err); }
-});
 
-document.getElementById('sk-ai-help-btn')?.addEventListener('click', async () => {
-  const title = document.getElementById('sk-title')?.value.trim();
-  const desc  = document.getElementById('sk-description')?.value.trim();
-  if (!title && !desc) { toast('Preencha nome ou descrição primeiro.', 'warn'); return; }
-  toast('Gerando sugestões com IA...', 'info', null, 3000);
-  try {
-    const res = await apiFetch('/api/agent', {
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      body: JSON.stringify({ input: `Crie um template de skill para: "${title||desc}". Retorne em markdown com seções: ## Quando Ativar, ## Protocolo (passos numerados), ## Formato de saída. Seja específico e prático.` })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system: SK_SYSTEM_PROMPT,
+        messages: messages,
+      })
     });
-    const data = await res.json();
-    if (data.reply) {
-      const current = document.getElementById('sk-content')?.value || '';
-      if (document.getElementById('sk-content')) {
-        document.getElementById('sk-content').value = current ? current + '\n\n' + data.reply : data.reply;
-      }
-      toast('Sugestão da IA aplicada!', 'success');
+
+    const apiData = await apiRes.json();
+    if (typingEl) typingEl.remove();
+
+    const reply = (apiData.content && apiData.content[0] && apiData.content[0].text) ? apiData.content[0].text : 'Sem resposta.';
+    skChatHistory.push({ role: 'assistant', content: reply });
+    skChatRenderMsg('skill', reply, null);
+
+    // Tentar extrair SKILL.md entre INICIO_SKILL e FIM_SKILL
+    const skillStart = reply.indexOf('INICIO_SKILL');
+    const skillEnd = reply.indexOf('FIM_SKILL');
+    if (skillStart >= 0 && skillEnd > skillStart) {
+      const skillRaw = reply.substring(skillStart + 12, skillEnd).trim();
+
+      const nameMatch = skillRaw.match(/^name:\s*(.+)$/m);
+      const descMatch = skillRaw.match(/^description:\s*(.+)$/m);
+      const toolsMatch = skillRaw.match(/^allowed-tools:\s*(.+)$/m);
+
+      const slug = nameMatch ? nameMatch[1].trim() : '';
+      const desc = descMatch ? descMatch[1].trim() : '';
+      const tools = toolsMatch ? toolsMatch[1].split(',').map(function(t) { return t.trim(); }) : [];
+
+      skExtractedData = { slug: slug, title: slug, description: desc, tools: tools, content: skillRaw };
+
+      const prev = document.getElementById('skchat-preview');
+      if (prev) prev.value = skillRaw;
+
+      const sections = (skillRaw.match(/^## /gm) || []).length;
+      if (document.getElementById('prev-slug')) document.getElementById('prev-slug').textContent = slug || '—';
+      if (document.getElementById('prev-tools')) document.getElementById('prev-tools').textContent = tools.join(', ') || '—';
+      if (document.getElementById('prev-sections')) document.getElementById('prev-sections').textContent = sections + ' secoes';
+
+      const actions = document.getElementById('skchat-preview-actions');
+      if (actions) { actions.style.display = 'flex'; actions.style.flexDirection = 'column'; }
+
+      skAnalyzeQuality(skillRaw, slug, desc, tools);
     }
-  } catch (err) { showError(err); }
+
+    // Extrair qualidade
+    const qStart = reply.indexOf('QUALIDADE:');
+    if (qStart >= 0) {
+      const qBlock = reply.substring(qStart + 10, qStart + 400).split('\n').filter(function(l) { return l.trim().match(/^[✓⚠]/); });
+      const qEl = document.getElementById('skchat-quality');
+      const qItems = document.getElementById('skchat-quality-items');
+      if (qEl && qItems && qBlock.length > 0) {
+        qEl.style.display = 'block';
+        qItems.innerHTML = qBlock.map(function(item) {
+          const isOk = item.indexOf('✓') === 0;
+          const color = isOk ? '#10b981' : '#f59e0b';
+          return '<div class="skchat-quality-item"><span class="skchat-qi-dot" style="background:' + color + ';"></span><span>' + item.replace(/^[✓⚠]\s*/, '') + '</span></div>';
+        }).join('');
+      }
+    }
+
+    skChatState = 'preview';
+  } catch(err) {
+    if (typingEl) typingEl.remove();
+    skChatState = 'idle';
+    showError(err);
+  }
+}
+
+function skAnalyzeQuality(content, slug, desc, tools) {
+  const checks = [
+    { ok: slug.length > 3, msg_ok: 'Slug valido', msg_fail: 'Slug ausente ou muito curto', color_ok: '#10b981', color_fail: '#f59e0b' },
+    { ok: desc.length > 30, msg_ok: 'Descricao detalhada', msg_fail: 'Descricao muito curta', color_ok: '#10b981', color_fail: '#e11d48' },
+    { ok: content.indexOf('## Quando Ativar') >= 0, msg_ok: 'Secao "Quando Ativar" presente', msg_fail: 'Falta secao "Quando Ativar"', color_ok: '#10b981', color_fail: '#e11d48' },
+    { ok: content.indexOf('## Protocolo') >= 0 || content.indexOf('## Etapas') >= 0, msg_ok: 'Protocolo presente', msg_fail: 'Adicione um protocolo numerado', color_ok: '#10b981', color_fail: '#f59e0b' },
+    { ok: tools.length > 0, msg_ok: tools.length + ' ferramenta(s) declarada(s)', msg_fail: 'Nenhuma ferramenta declarada', color_ok: '#10b981', color_fail: '#f59e0b' },
+    { ok: content.length > 300, msg_ok: 'Conteudo substancial', msg_fail: 'Conteudo muito curto', color_ok: '#10b981', color_fail: '#f59e0b' },
+  ];
+  const qEl = document.getElementById('skchat-quality');
+  const qItems = document.getElementById('skchat-quality-items');
+  if (!qEl || !qItems) return;
+  qEl.style.display = 'block';
+  qItems.innerHTML = checks.map(function(c) {
+    const color = c.ok ? c.color_ok : c.color_fail;
+    const msg = c.ok ? c.msg_ok : c.msg_fail;
+    return '<div class="skchat-quality-item"><span class="skchat-qi-dot" style="background:' + color + ';"></span><span>' + msg + '</span></div>';
+  }).join('');
+}
+
+document.getElementById('skchat-send')?.addEventListener('click', skChatSend);
+document.getElementById('skchat-input')?.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); skChatSend(); }
+});
+document.getElementById('skchat-reset')?.addEventListener('click', function() { skChatInit(); });
+
+document.getElementById('skchat-save-btn')?.addEventListener('click', async function() {
+  const mdContent = (document.getElementById('skchat-preview') && document.getElementById('skchat-preview').value.trim()) ? document.getElementById('skchat-preview').value.trim() : '';
+  if (!mdContent) { toast('Nenhum SKILL.md para salvar.', 'warn'); return; }
+  const slug = skExtractedData.slug || ('nova-skill-' + Date.now());
+  const nameM = mdContent.match(/^name:\s*(.+)$/m);
+  const descM = mdContent.match(/^description:\s*(.+)$/m);
+  const toolsM = mdContent.match(/^allowed-tools:\s*(.+)$/m);
+  const finalSlug = nameM ? nameM[1].trim() : slug;
+  const finalDesc = descM ? descM[1].trim() : '';
+  const finalTools = toolsM ? toolsM[1].split(',').map(function(t) { return t.trim(); }) : [];
+  try {
+    await apiFetch('/api/skills', { method: 'POST', body: JSON.stringify({ slug: finalSlug, title: finalSlug, description: finalDesc, content: mdContent, allowedTools: finalTools }) });
+    toast('Skill "' + finalSlug + '" salva!', 'success');
+    setTimeout(async function() {
+      await loadSkills();
+      document.querySelectorAll('.sk-tab[data-tab]').forEach(function(t) { t.classList.toggle('active', t.dataset.tab === 'biblioteca'); });
+      document.querySelectorAll('[id^="sktab-"]').forEach(function(p) { p.classList.remove('active'); });
+      const bib = document.getElementById('sktab-biblioteca'); if (bib) bib.classList.add('active');
+      skChatInit();
+    }, 1200);
+  } catch(err) { showError(err); }
 });
 
-// openSkillDetail: mudar para aba detalhes
+document.getElementById('skchat-improve-btn')?.addEventListener('click', function() {
+  const input = document.getElementById('skchat-input');
+  if (input) {
+    input.value = 'Analise o SKILL.md gerado e sugira melhorias especificas para torná-lo mais eficaz, especialmente na descricao de gatilho e no protocolo de execucao.';
+    skChatSend();
+  }
+});
+
+// ── openSkillDetail: mudar para aba detalhes
 function openSkillDetail(slug) {
   const skill = cachedSkills.find(s => (s.slug||s.name) === slug);
   if (!skill) return;
