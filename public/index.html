@@ -326,7 +326,7 @@
         <div class="agents-header">
           <div>
             <h2>Agentes</h2>
-            <p class="settings-subtitle">O cérebro do sistema. Crie, configure e monitore seus agentes de IA.</p>
+            <p class="settings-subtitle">O cérebro do sistema — construa, documente e ative seus agentes de IA</p>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <select id="agent-filter-level" class="agents-filter-select">
@@ -341,147 +341,354 @@
               <option value="desenvolvimento">Em desenvolvimento</option>
               <option value="inativo">Inativo</option>
             </select>
-            <button class="btn primary" onclick="openAgentModal()">+ Novo Agente</button>
+            <button class="btn primary" onclick="openAgentWizard()">+ Criar Agente</button>
           </div>
         </div>
 
-        <!-- Stats row -->
-        <div class="agents-stats" id="agents-stats"></div>
+        <!-- Sub-abas -->
+        <div class="sk-tabs">
+          <button class="sk-tab active" data-agtab="board">🧠 Board</button>
+          <button class="sk-tab" data-agtab="wizard">✦ Criar Agente</button>
+          <button class="sk-tab" data-agtab="detail" id="agtab-detail" style="display:none;">📋 Detalhes</button>
+        </div>
 
-        <!-- Agent cards grid -->
-        <div class="agents-board" id="agents-board">
-          <div class="agents-column" id="agents-col-estrategico">
-            <div class="agents-col-header">
-              <span class="agents-col-dot" style="background:#8b5cf6;"></span>
-              <span>Estratégico</span>
-              <span class="agents-col-count" id="count-estrategico">0</span>
+        <!-- TAB: Board -->
+        <div class="sk-tab-content active" id="agtab-board">
+          <div class="agents-stats" id="agents-stats"></div>
+          <div class="agents-board">
+            <div class="agents-column">
+              <div class="agents-col-header">
+                <span class="agents-col-dot" style="background:#8b5cf6;"></span>
+                <span>Estratégico</span>
+                <span class="agents-col-count" id="count-estrategico">0</span>
+              </div>
+              <div class="agents-col-list" id="agents-estrategico"></div>
             </div>
-            <div class="agents-col-list" id="agents-estrategico"></div>
-          </div>
-          <div class="agents-column" id="agents-col-tatico">
-            <div class="agents-col-header">
-              <span class="agents-col-dot" style="background:#22d3ee;"></span>
-              <span>Tático</span>
-              <span class="agents-col-count" id="count-tatico">0</span>
+            <div class="agents-column">
+              <div class="agents-col-header">
+                <span class="agents-col-dot" style="background:#22d3ee;"></span>
+                <span>Tático</span>
+                <span class="agents-col-count" id="count-tatico">0</span>
+              </div>
+              <div class="agents-col-list" id="agents-tatico"></div>
             </div>
-            <div class="agents-col-list" id="agents-tatico"></div>
-          </div>
-          <div class="agents-column" id="agents-col-operacional">
-            <div class="agents-col-header">
-              <span class="agents-col-dot" style="background:#10b981;"></span>
-              <span>Operacional</span>
-              <span class="agents-col-count" id="count-operacional">0</span>
+            <div class="agents-column">
+              <div class="agents-col-header">
+                <span class="agents-col-dot" style="background:#10b981;"></span>
+                <span>Operacional</span>
+                <span class="agents-col-count" id="count-operacional">0</span>
+              </div>
+              <div class="agents-col-list" id="agents-operacional"></div>
             </div>
-            <div class="agents-col-list" id="agents-operacional"></div>
           </div>
         </div>
 
-        <!-- Agent detail panel (slideIn) -->
+        <!-- TAB: Criar Agente (Wizard) -->
+        <div class="sk-tab-content" id="agtab-wizard">
+          <div class="agent-wizard-layout">
+
+            <!-- Wizard form com steps -->
+            <div class="agent-wizard-form">
+              <input type="hidden" id="agent-edit-id" value="" />
+              <div class="wizard-steps" id="wizard-steps">
+                <div class="wizard-step active" data-step="1">1 Identidade</div>
+                <div class="wizard-step" data-step="2">2 Capacidades</div>
+                <div class="wizard-step" data-step="3">3 Contexto</div>
+                <div class="wizard-step" data-step="4">4 Revisão</div>
+              </div>
+
+              <!-- Step 1: Identidade -->
+              <div class="wizard-panel active" id="wstep-1">
+                <div class="sk-section-title">🏷️ Identidade do Agente</div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Nome do agente *</label>
+                    <input id="agent-name" type="text" placeholder="Ex: Analista de Custo AWS" />
+                  </div>
+                  <div class="field">
+                    <label>Nível hierárquico</label>
+                    <select id="agent-level">
+                      <option value="Estrategico">🔵 Estratégico — visão e decisões de alto nível</option>
+                      <option value="Tatico">🟣 Tático — planejamento e coordenação</option>
+                      <option value="Operacional">🟢 Operacional — execução de tarefas</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="field">
+                    <label>Status</label>
+                    <select id="agent-status">
+                      <option value="ativo">✅ Ativo</option>
+                      <option value="desenvolvimento">🔧 Em desenvolvimento</option>
+                      <option value="inativo">⭕ Inativo</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Áreas de atuação (separadas por vírgula)</label>
+                    <input id="agent-areas" type="text" placeholder="AWS, Monitoramento, Custo, Cloud" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Propósito e responsabilidades *</label>
+                  <textarea id="agent-description" rows="4" placeholder="Descreva: o que este agente faz, qual problema resolve, quando deve ser ativado e quais são seus limites de atuação..."></textarea>
+                </div>
+                <div class="field">
+                  <label>Tags</label>
+                  <input id="agent-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
+                  <div id="agent-tags-suggestions" class="tag-suggestions hidden"></div>
+                </div>
+                <button class="btn primary" onclick="wizardNext(2)">Próximo: Capacidades →</button>
+              </div>
+
+              <!-- Step 2: Capacidades -->
+              <div class="wizard-panel" id="wstep-2">
+                <div class="sk-section-title">⚡ Skills & Capacidades</div>
+                <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Selecione as skills que este agente pode usar. Clique para ativar/desativar.</p>
+                <div class="agent-skills-picker" id="agent-skills-picker"></div>
+                <input id="agent-skills" type="hidden" value="" />
+
+                <div class="sk-section-title" style="margin-top:20px;">🤝 Agentes relacionados</div>
+                <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Defina com quais outros agentes este se comunica ou delega tarefas.</p>
+                <input id="agent-relations" type="text" placeholder="slugs dos agentes, ex: analista-dados, monitor-aws" />
+
+                <div style="display:flex;gap:8px;margin-top:20px;">
+                  <button class="btn ghost" onclick="wizardNext(1)">← Voltar</button>
+                  <button class="btn primary" onclick="wizardNext(3)">Próximo: Contexto →</button>
+                </div>
+              </div>
+
+              <!-- Step 3: Contexto -->
+              <div class="wizard-panel" id="wstep-3">
+                <div class="sk-section-title">📚 Documento Base (Contexto Rico)</div>
+                <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+                  Este é o documento que torna o agente especialista. Cole aqui:
+                  políticas, playbooks, regras de negócio, organogramas, glossários, especificações técnicas.
+                </p>
+                <div class="agent-doc-templates" id="agent-doc-templates">
+                  <span style="font-size:12px;color:var(--muted);">Templates:</span>
+                  <button class="sk-template-btn" onclick="applyAgentDocTemplate('aws')">☁️ AWS Policies</button>
+                  <button class="sk-template-btn" onclick="applyAgentDocTemplate('incident')">🚨 Runbook de Incidentes</button>
+                  <button class="sk-template-btn" onclick="applyAgentDocTemplate('datadog')">📊 Datadog Guidelines</button>
+                  <button class="sk-template-btn" onclick="applyAgentDocTemplate('org')">🏢 Organograma</button>
+                  <button class="sk-template-btn" onclick="applyAgentDocTemplate('client')">👥 Catálogo de Clientes</button>
+                </div>
+                <textarea id="agent-base-doc" rows="12" style="margin-top:10px;" placeholder="Cole aqui o documento de referência deste agente...
+
+Exemplos do que incluir:
+- Políticas e regras da empresa
+- Playbooks e runbooks
+- Estrutura de clientes e contratos
+- Padrões técnicos (tagging AWS, naming conventions)
+- Fluxos de trabalho e escalação
+- Histórico de decisões importantes"></textarea>
+                <div class="field" style="margin-top:14px;">
+                  <label>Upload de arquivo de referência (txt, md)</label>
+                  <input type="file" id="agent-doc-upload" accept=".txt,.md,.pdf" style="font-size:13px;" />
+                </div>
+                <div style="display:flex;gap:8px;margin-top:20px;">
+                  <button class="btn ghost" onclick="wizardNext(2)">← Voltar</button>
+                  <button class="btn primary" onclick="wizardNext(4)">Revisar →</button>
+                </div>
+              </div>
+
+              <!-- Step 4: Revisão -->
+              <div class="wizard-panel" id="wstep-4">
+                <div class="sk-section-title">✅ Revisão final</div>
+                <div id="wizard-review" class="wizard-review-card"></div>
+                <div style="display:flex;gap:8px;margin-top:20px;">
+                  <button class="btn ghost" onclick="wizardNext(3)">← Voltar</button>
+                  <button class="btn primary" id="agent-save">💾 Criar Agente</button>
+                  <button class="btn ghost" id="sk-ai-help-btn-agent">✦ Melhorar com IA</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Painel de dicas do wizard -->
+            <div class="sk-recommendations">
+              <div class="sk-rec-header">🧬 Roteiro do Agente de Última Geração</div>
+              <div class="sk-rec-body" id="wizard-tips">
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">1️⃣</div>
+                  <div><strong>Identidade clara</strong><p>Nome descritivo, nível correto na hierarquia, propósito sem ambiguidade. O agente deve saber exatamente o que é e o que não é.</p></div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">2️⃣</div>
+                  <div><strong>Skills compostas</strong><p>Combine skills de domínio (ex: aws-cost) com skills de comunicação (brainstorming) e meta-skills (super-agent). Um bom agente sabe quando delegar.</p></div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">3️⃣</div>
+                  <div><strong>Documento base é diferencial</strong><p>Agentes com documento base respondem com 60-80% mais precisão em domínios específicos. Cole o máximo de contexto possível.</p></div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">4️⃣</div>
+                  <div><strong>Documente as limitações</strong><p>Na descrição, inclua o que o agente NÃO deve fazer. Limites claros evitam alucinações e comportamentos inesperados.</p></div>
+                </div>
+                <div class="sk-rec-item sk-rec-warn">
+                  <div class="sk-rec-icon">🔑</div>
+                  <div><strong>Documentos chave recomendados</strong>
+                    <p>Para o seu contexto (Cloud Analyst, AWS, Datadog, TSplus):</p>
+                    <ul style="margin:6px 0 0 16px;font-size:12px;color:var(--muted);">
+                      <li>Políticas de tagging e naming AWS</li>
+                      <li>Playbook de resposta a anomalias de custo</li>
+                      <li>Catálogo de clientes com configurações</li>
+                      <li>Runbooks do Datadog (alertas, dashboards)</li>
+                      <li>Estrutura de Active Directory e TSplus</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB: Detalhes -->
+        <div class="sk-tab-content" id="agtab-detail">
+          <div id="agent-detail-inner"></div>
+        </div>
+
+        <!-- Agent detail panel (slide-in) mantido para compatibilidade -->
         <div class="agent-detail hidden" id="agent-detail">
           <div class="agent-detail-header">
             <button class="skill-detail-back" onclick="closeAgentDetail()">← Fechar</button>
             <div id="agent-detail-name" class="agent-detail-name"></div>
             <div style="display:flex;gap:8px;">
-              <button class="btn ghost" id="agent-detail-chat-btn">💬 Ativar no Chat</button>
-              <button class="btn ghost agent-edit-btn" id="agent-detail-edit-btn">✎ Editar</button>
+              <button class="btn ghost" id="agent-detail-chat-btn">💬 Chat</button>
+              <button class="btn ghost" id="agent-detail-edit-btn">✎ Editar</button>
             </div>
           </div>
           <div class="agent-detail-body" id="agent-detail-body"></div>
-        </div>
-
-        <!-- Create/Edit modal -->
-        <div id="agent-modal" class="modal hidden">
-          <div class="modal-content" style="width:min(680px,95vw);max-height:90vh;overflow-y:auto;">
-            <h3 id="agent-modal-title">Novo Agente</h3>
-            <input type="hidden" id="agent-edit-id" value="" />
-            <div class="form-row">
-              <div class="field">
-                <label>Nome do agente *</label>
-                <input id="agent-name" type="text" placeholder="Ex: Analista de Dados AWS" />
-              </div>
-              <div class="field">
-                <label>Nível</label>
-                <select id="agent-level">
-                  <option value="Estrategico">🔵 Estratégico — visão, decisões</option>
-                  <option value="Tatico">🟣 Tático — planejamento, coordenação</option>
-                  <option value="Operacional">🟢 Operacional — execução, tarefas</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="field">
-                <label>Status</label>
-                <select id="agent-status">
-                  <option value="ativo">✅ Ativo</option>
-                  <option value="desenvolvimento">🔧 Em desenvolvimento</option>
-                  <option value="inativo">⭕ Inativo</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Áreas de atuação</label>
-                <input id="agent-areas" type="text" placeholder="AWS, Monitoramento, Custo..." />
-              </div>
-            </div>
-            <div class="field">
-              <label>Descrição do propósito</label>
-              <textarea id="agent-description" rows="3" placeholder="Descreva o propósito, responsabilidades e contexto deste agente..."></textarea>
-            </div>
-            <div class="field">
-              <label>Skills ativas <span style="font-size:11px;color:var(--muted);">(slugs das skills carregadas)</span></label>
-              <div class="agent-skills-picker" id="agent-skills-picker"></div>
-              <input id="agent-skills" type="hidden" value="" />
-            </div>
-            <div class="field">
-              <label>Tags</label>
-              <input id="agent-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
-              <div id="agent-tags-suggestions" class="tag-suggestions hidden"></div>
-            </div>
-            <div class="field">
-              <label>Documento base (contexto rico)</label>
-              <textarea id="agent-base-doc" rows="4" placeholder="Cole aqui o documento de referência deste agente — especificações, playbooks, regras de negócio, estrutura da empresa... Este conteúdo será injetado no contexto do agente."></textarea>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Sugestões: organograma, regras AWS, playbook de incidentes, catálogo de clientes</div>
-            </div>
-            <div class="modal-actions">
-              <button id="agent-save" class="btn primary">Criar Agente</button>
-              <button class="btn ghost" onclick="closeAgentModal()">Cancelar</button>
-            </div>
-          </div>
         </div>
 
       </section>
 
       <!-- ── SKILLS ── -->
       <section id="view-skills" class="view">
-        <div class="skills-header">
+
+        <!-- Skills Header -->
+        <div class="sk-header">
           <div>
             <h2>Skills</h2>
-            <p class="settings-subtitle">Capacidades do agente carregadas do sistema de arquivos <code>.agents/skills/</code></p>
+            <p class="settings-subtitle">Capacidades carregadas do sistema · <code>.agents/skills/</code></p>
           </div>
-          <div style="display:flex;gap:8px;">
-            <input id="skills-search" type="text" placeholder="Buscar skill..." style="width:220px;" />
-            <button class="btn ghost" id="skills-reload-btn">↻ Recarregar</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="skills-search" type="text" placeholder="Buscar..." style="width:180px;" />
+            <button class="btn ghost" id="skills-reload-btn">↻</button>
+            <button class="btn primary" onclick="openSkillCreate()">+ Nova Skill</button>
           </div>
         </div>
 
-        <div class="skills-stats-row" id="skills-stats-row"></div>
+        <!-- Sub-abas -->
+        <div class="sk-tabs">
+          <button class="sk-tab active" data-tab="biblioteca">📚 Biblioteca</button>
+          <button class="sk-tab" data-tab="criar">✦ Criar Skill</button>
+          <button class="sk-tab" data-tab="detalhes" id="sk-tab-detalhes" style="display:none;">📄 Detalhes</button>
+        </div>
 
-        <div class="skills-grid" id="skills-list"></div>
+        <!-- TAB: Biblioteca -->
+        <div class="sk-tab-content active" id="sktab-biblioteca">
+          <div class="skills-stats-row" id="skills-stats-row"></div>
+          <div class="skills-grid" id="skills-list"></div>
+        </div>
 
-        <!-- Skill detail panel -->
-        <div class="skill-detail" id="skill-detail" style="display:none;">
-          <div class="skill-detail-header">
-            <button class="skill-detail-back" onclick="closeSkillDetail()">← Voltar</button>
-            <div id="skill-detail-title" class="skill-detail-title"></div>
-            <div style="display:flex;gap:8px;">
-              <button class="btn primary" id="skill-assign-btn">Atribuir a agente</button>
+        <!-- TAB: Criar Skill -->
+        <div class="sk-tab-content" id="sktab-criar">
+          <div class="sk-create-layout">
+
+            <!-- Formulário -->
+            <div class="sk-create-form">
+              <div class="sk-section-title">📝 Identidade da Skill</div>
+              <div class="form-row">
+                <div class="field">
+                  <label>Nome da skill *</label>
+                  <input id="sk-title" type="text" placeholder="Ex: AWS Cost Analyst" />
+                </div>
+                <div class="field">
+                  <label>Slug (gerado automaticamente)</label>
+                  <input id="sk-slug" type="text" placeholder="aws-cost-analyst" style="font-family:'Fira Code',monospace;" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Descrição curta *</label>
+                <textarea id="sk-description" rows="2" placeholder="Descreva em 1-2 frases o que esta skill faz e quando deve ser ativada..."></textarea>
+              </div>
+
+              <div class="sk-section-title" style="margin-top:18px;">🔧 Ferramentas permitidas</div>
+              <div class="sk-tools-picker" id="sk-tools-picker"></div>
+
+              <div class="sk-section-title" style="margin-top:18px;">📄 Conteúdo da skill</div>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Escreva as instruções em Markdown. Use cabeçalhos ##, tabelas, exemplos. Quanto mais estruturado, melhor o agente vai seguir.</p>
+              <textarea id="sk-content" rows="14" placeholder="## Quando Ativar&#10;- Sempre que o usuário pedir análise de custo AWS&#10;&#10;## Protocolo&#10;1. Verificar região e serviços&#10;2. ..."></textarea>
+
+              <div class="sk-section-title" style="margin-top:18px;">📎 Documento de referência (opcional)</div>
+              <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Cole aqui um documento base — playbook, especificação técnica, runbook, glossário. Será incluído como contexto rico na skill.</p>
+              <textarea id="sk-refdoc" rows="6" placeholder="Cole aqui documentação de referência: políticas, padrões, exemplos reais, regras do cliente..."></textarea>
+
+              <div class="modal-actions" style="margin-top:20px;">
+                <button class="btn primary" id="sk-save-btn">💾 Criar Skill</button>
+                <button class="btn ghost" id="sk-ai-help-btn">✦ Sugerir com IA</button>
+              </div>
             </div>
-          </div>
-          <div class="skill-detail-body">
-            <div class="skill-detail-meta" id="skill-detail-meta"></div>
-            <div class="skill-detail-desc" id="skill-detail-desc"></div>
-            <div class="skill-detail-agents" id="skill-detail-agents"></div>
+
+            <!-- Painel de recomendações -->
+            <div class="sk-recommendations">
+              <div class="sk-rec-header">✦ Recomendações para uma skill poderosa</div>
+              <div id="sk-rec-content" class="sk-rec-body">
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">🎯</div>
+                  <div>
+                    <strong>Defina o gatilho com precisão</strong>
+                    <p>Especifique exatamente quando a skill deve ser ativada. Frases como "sempre que o usuário pedir X" são mais eficazes do que descrições genéricas.</p>
+                  </div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">📋</div>
+                  <div>
+                    <strong>Use um protocolo em etapas</strong>
+                    <p>Skills com passos numerados (1, 2, 3…) têm maior taxa de seguimento pelo agente. Inclua exemplos de input/output esperados.</p>
+                  </div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">🔧</div>
+                  <div>
+                    <strong>Declare as ferramentas necessárias</strong>
+                    <p>Se a skill precisa ler arquivos ou consultar dados, declare as ferramentas. O agente só usa o que estiver explicitamente permitido.</p>
+                  </div>
+                </div>
+                <div class="sk-rec-item sk-rec-tip">
+                  <div class="sk-rec-icon">📎</div>
+                  <div>
+                    <strong>Documento base aumenta precisão</strong>
+                    <p>Para skills de domínio (AWS, negócios, jurídico), cole um documento de referência. O agente usa como fonte de verdade.</p>
+                  </div>
+                </div>
+                <div class="sk-rec-item sk-rec-warn">
+                  <div class="sk-rec-icon">⚠️</div>
+                  <div>
+                    <strong>Evite skills genéricas demais</strong>
+                    <p>Uma skill que "faz tudo" não faz nada bem. Prefira skills focadas e composíveis — combine-as no agente.</p>
+                  </div>
+                </div>
+                <div id="sk-ai-recommendations" style="display:none;"></div>
+              </div>
+              <div class="sk-rec-templates">
+                <div class="sk-rec-header" style="margin-top:16px;">📐 Templates prontos</div>
+                <button class="sk-template-btn" onclick="applySkillTemplate('analyst')">📊 Analista de Dados</button>
+                <button class="sk-template-btn" onclick="applySkillTemplate('monitor')">🔍 Monitor / Alertas</button>
+                <button class="sk-template-btn" onclick="applySkillTemplate('writer')">✍️ Redator / Docs</button>
+                <button class="sk-template-btn" onclick="applySkillTemplate('integrator')">🔗 Integrador de APIs</button>
+                <button class="sk-template-btn" onclick="applySkillTemplate('researcher')">🔬 Pesquisador</button>
+              </div>
+            </div>
+
           </div>
         </div>
+
+        <!-- TAB: Detalhes (dinâmica) -->
+        <div class="sk-tab-content" id="sktab-detalhes">
+          <div id="skill-detail-inner"></div>
+        </div>
+
       </section>
 
       <!-- ── REUNIÕES ── -->

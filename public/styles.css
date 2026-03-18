@@ -1940,3 +1940,77 @@ body[data-theme="dark"] select {
   background: rgba(139,92,246,0.15); border-color: var(--accent);
   color: var(--accent); font-weight: 600;
 }
+
+/* ─── SKILLS SUB-TABS ────────────────────────────────── */
+.sk-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+.sk-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--border); padding-bottom:0; }
+.sk-tab {
+  padding:9px 16px; border:none; background:transparent;
+  color:var(--muted); font-size:13px; font-weight:500; cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+  font-family:'Outfit',sans-serif; transition:all 0.13s;
+}
+.sk-tab:hover { color:var(--text); }
+.sk-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.sk-tab-content { display:none; }
+.sk-tab-content.active { display:block; }
+
+/* ─── SKILL CREATE ───────────────────────────────────── */
+.sk-create-layout { display:grid; grid-template-columns:1fr 340px; gap:20px; align-items:start; }
+.sk-create-form { display:flex; flex-direction:column; gap:14px; }
+.sk-section-title {
+  font-size:11px; font-weight:600; color:var(--muted);
+  text-transform:uppercase; letter-spacing:.06em;
+  font-family:'Fira Code',monospace; margin-bottom:4px;
+}
+.sk-tools-picker { display:flex; flex-wrap:wrap; gap:6px; padding:10px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); min-height:44px; }
+.sk-tool-chip {
+  padding:4px 11px; border-radius:999px; font-size:11px;
+  font-family:'Fira Code',monospace; cursor:pointer;
+  border:1px solid var(--border); background:var(--surface); color:var(--muted); transition:all 0.13s;
+}
+.sk-tool-chip:hover { border-color:var(--accent-2); color:var(--accent-2); }
+.sk-tool-chip.selected { background:rgba(34,211,238,0.12); border-color:rgba(34,211,238,0.35); color:var(--accent-2); font-weight:600; }
+
+/* ─── RECOMMENDATIONS PANEL ──────────────────────────── */
+.sk-recommendations { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px; display:flex; flex-direction:column; gap:12px; }
+.sk-rec-header { font-size:13px; font-weight:600; color:var(--text); }
+.sk-rec-body { display:flex; flex-direction:column; gap:10px; }
+.sk-rec-item { display:flex; gap:12px; align-items:flex-start; padding:10px 12px; border-radius:var(--radius-md); }
+.sk-rec-tip { background:var(--surface); border:1px solid var(--border); }
+.sk-rec-warn { background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); }
+.sk-rec-icon { font-size:18px; flex-shrink:0; line-height:1; margin-top:1px; }
+.sk-rec-item strong { font-size:13px; color:var(--text); display:block; margin-bottom:4px; }
+.sk-rec-item p { font-size:12px; color:var(--muted); line-height:1.55; margin:0; }
+.sk-rec-templates { display:flex; flex-wrap:wrap; gap:6px; }
+.sk-template-btn {
+  font-size:11px; padding:5px 10px; border-radius:var(--radius-sm);
+  border:1px solid var(--border); background:var(--surface);
+  color:var(--text-2); cursor:pointer; font-family:'Outfit',sans-serif; transition:all 0.13s;
+}
+.sk-template-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(139,92,246,0.06); }
+
+/* ─── AGENT WIZARD ───────────────────────────────────── */
+.agent-wizard-layout { display:grid; grid-template-columns:1fr 320px; gap:20px; align-items:start; }
+.agent-wizard-form { display:flex; flex-direction:column; gap:16px; }
+.wizard-steps { display:flex; gap:0; margin-bottom:20px; border-radius:var(--radius-md); overflow:hidden; border:1px solid var(--border); }
+.wizard-step {
+  flex:1; padding:10px 8px; text-align:center; font-size:12px; font-weight:500;
+  background:var(--surface-2); color:var(--muted); border-right:1px solid var(--border);
+  transition:all 0.15s; cursor:default;
+}
+.wizard-step:last-child { border-right:none; }
+.wizard-step.active { background:rgba(139,92,246,0.12); color:var(--accent); }
+.wizard-step.done { background:rgba(16,185,129,0.1); color:var(--accent-3); }
+.wizard-panel { display:none; flex-direction:column; gap:14px; }
+.wizard-panel.active { display:flex; }
+.wizard-review-card {
+  background:var(--surface-2); border:1px solid var(--border);
+  border-radius:var(--radius-md); padding:16px;
+  font-size:13px; line-height:1.7; white-space:pre-wrap;
+}
+.agent-doc-templates { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:4px; align-items:center; }
+
+@media(max-width:1024px) {
+  .sk-create-layout, .agent-wizard-layout { grid-template-columns:1fr; }
+}

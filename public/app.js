@@ -2245,4 +2245,395 @@ async function initApp() {
   await loadArchive();
 }
 
+// ── SISTEMA DE ABAS (Skills e Agents) ────────────────────────
+
+function initSkillTabs() {
+  document.querySelectorAll('.sk-tab[data-tab]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      document.querySelectorAll('.sk-tab[data-tab]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
+      document.getElementById(`sktab-${target}`)?.classList.add('active');
+    });
+  });
+}
+
+function initAgentTabs() {
+  document.querySelectorAll('.sk-tab[data-agtab]').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.agtab;
+      document.querySelectorAll('.sk-tab[data-agtab]').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('[id^="agtab-"]').forEach(p => p.classList.remove('active'));
+      document.getElementById(`agtab-${target}`)?.classList.add('active');
+    });
+  });
+}
+
+// ── SKILLS CREATE ────────────────────────────────────────────
+
+const AVAILABLE_TOOLS = ['read_file','write_file','ls','glob','grep','update_user_profile','web_search','run_command','create_file'];
+
+const SKILL_TEMPLATES = {
+  analyst: { title:'Analista de Dados', slug:'analista-dados', description:'Analisa dados, gera insights e relatórios estruturados quando solicitado.', tools:['read_file','grep'], content:`## Quando Ativar\n- Pedidos de análise, relatórios, gráficos ou insights de dados\n\n## Protocolo\n1. Identificar fonte de dados\n2. Validar completude\n3. Aplicar análise solicitada\n4. Gerar relatório em markdown com tabelas\n\n## Formato de saída\nSempre inclua: resumo executivo, dados detalhados, recomendações` },
+  monitor: { title:'Monitor & Alertas', slug:'monitor-alertas', description:'Monitora métricas, detecta anomalias e aciona alertas de acordo com thresholds.', tools:['read_file','web_search'], content:`## Quando Ativar\n- Verificações de saúde, anomalias, alertas\n\n## Protocolo\n1. Coletar métricas atuais\n2. Comparar com baseline\n3. Calcular desvio padrão\n4. Acionar alerta se threshold > X%` },
+  writer: { title:'Redator & Documentador', slug:'redator-docs', description:'Cria e atualiza documentação técnica, resumos e comunicações.', tools:['read_file','write_file'], content:`## Quando Ativar\n- Criação de docs, READMEs, post-mortems, relatórios\n\n## Protocolo\n1. Entender audiência\n2. Estruturar seções\n3. Redigir em linguagem clara\n4. Revisar e formatar` },
+  integrator: { title:'Integrador de APIs', slug:'integrador-api', description:'Consome e integra APIs externas, transforma dados e sincroniza sistemas.', tools:['web_search','read_file','write_file'], content:`## Quando Ativar\n- Integrações, sincronizações, chamadas a APIs externas\n\n## Protocolo\n1. Validar endpoint e credenciais\n2. Realizar chamada\n3. Validar resposta (status, schema)\n4. Transformar e entregar dados` },
+  researcher: { title:'Pesquisador', slug:'pesquisador', description:'Pesquisa informações, consolida fontes e gera relatórios de inteligência.', tools:['web_search','read_file'], content:`## Quando Ativar\n- Pesquisas, benchmarks, análise de concorrência\n\n## Protocolo\n1. Definir escopo da pesquisa\n2. Buscar em múltiplas fontes\n3. Validar credibilidade\n4. Sintetizar em relatório` },
+};
+
+const AGENT_DOC_TEMPLATES = {
+  aws: `# AWS Cloud Policies
+
+## Tagging Obrigatório
+Todos os recursos AWS devem ter as tags:
+- Environment: prod|staging|dev
+- Owner: email do responsável
+- CostCenter: código do centro de custo
+- Project: nome do projeto
+
+## Regiões Aprovadas
+- us-east-1 (primária)
+- sa-east-1 (Brasil)
+
+## Thresholds de Custo
+- Alerta em 80% do budget mensal
+- Escalação em 95%`,
+  incident: `# Runbook de Resposta a Incidentes
+
+## Severidades
+- P1: Sistema crítico fora do ar — resposta em 15min
+- P2: Degradação severa — resposta em 1h
+- P3: Impacto parcial — resposta em 4h
+
+## Escalação
+1. On-call → Slack #incidents
+2. +30min sem resolução → Acionar tech lead
+3. +1h → Acionar CTO`,
+  datadog: `# Datadog Guidelines
+
+## Dashboards padrão
+- Infrastructure Overview: monitoramento de hosts
+- APM Services: latência e erros por serviço
+- Cost Analysis: custo diário por conta AWS
+
+## Alertas configurados
+- CPU > 85% por 10min → P2
+- Disco > 90% → P1
+- Error rate > 5% → P2`,
+  org: `# Estrutura da Organização
+
+## Times
+- Cloud & Infra: AWS, servidores, redes
+- Desenvolvimento: aplicações e integrações
+- Suporte: atendimento e incident response
+
+## Hierarquia de decisão
+- Configurações de prod: aprovação do tech lead
+- Custos acima de R$5k: aprovação do gestor`,
+  client: `# Catálogo de Clientes
+
+## MDR Saúde
+- Ambiente: AWS us-east-1
+- Stack: TOTVS Fluig + RDS PostgreSQL
+- SLA: 99.9% disponibilidade
+
+## Configurações por cliente
+Manter mapa atualizado com: região, serviços, contatos, budget mensal`,
+};
+
+function openSkillCreate() {
+  document.querySelectorAll('.sk-tab[data-tab]').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === 'criar');
+  });
+  document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('sktab-criar')?.classList.add('active');
+  initSkillToolsPicker();
+}
+
+function initSkillToolsPicker() {
+  const picker = document.getElementById('sk-tools-picker');
+  if (!picker || picker.children.length > 0) return;
+  picker.innerHTML = AVAILABLE_TOOLS.map(t =>
+    `<span class="sk-tool-chip" data-tool="${t}" onclick="toggleToolChip(this)">${t}</span>`
+  ).join('');
+}
+
+function toggleToolChip(el) { el.classList.toggle('selected'); }
+
+function applySkillTemplate(key) {
+  const t = SKILL_TEMPLATES[key];
+  if (!t) return;
+  document.getElementById('sk-title').value = t.title;
+  document.getElementById('sk-slug').value = t.slug;
+  document.getElementById('sk-description').value = t.description;
+  document.getElementById('sk-content').value = t.content;
+  document.querySelectorAll('.sk-tool-chip').forEach(c => {
+    c.classList.toggle('selected', t.tools.includes(c.dataset.tool));
+  });
+}
+
+// Auto-slug from title
+document.getElementById('sk-title')?.addEventListener('input', (e) => {
+  const slug = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  document.getElementById('sk-slug').value = slug;
+});
+
+document.getElementById('sk-save-btn')?.addEventListener('click', async () => {
+  const title = document.getElementById('sk-title')?.value.trim();
+  const slug  = document.getElementById('sk-slug')?.value.trim();
+  const desc  = document.getElementById('sk-description')?.value.trim();
+  const content = document.getElementById('sk-content')?.value.trim();
+  const refdoc  = document.getElementById('sk-refdoc')?.value.trim();
+  const tools = [...document.querySelectorAll('.sk-tool-chip.selected')].map(c => c.dataset.tool);
+
+  if (!title || !slug) { toast('Preencha nome e slug.', 'warn'); return; }
+
+  const fullContent = refdoc ? `${content}\n\n---\n## 📎 Documento de Referência\n\n${refdoc}` : content;
+
+  try {
+    await apiFetch('/api/skills', {
+      method: 'POST',
+      body: JSON.stringify({ slug, title, description: desc, content: fullContent, allowedTools: tools })
+    });
+    toast(`Skill "${title}" criada com sucesso!`, 'success');
+    // Limpar form
+    ['sk-title','sk-slug','sk-description','sk-content','sk-refdoc'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value = '';
+    });
+    document.querySelectorAll('.sk-tool-chip').forEach(c => c.classList.remove('selected'));
+    // Voltar para biblioteca e recarregar
+    document.querySelectorAll('.sk-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab==='biblioteca'));
+    document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
+    document.getElementById('sktab-biblioteca')?.classList.add('active');
+    await loadSkills();
+  } catch (err) { showError(err); }
+});
+
+document.getElementById('sk-ai-help-btn')?.addEventListener('click', async () => {
+  const title = document.getElementById('sk-title')?.value.trim();
+  const desc  = document.getElementById('sk-description')?.value.trim();
+  if (!title && !desc) { toast('Preencha nome ou descrição primeiro.', 'warn'); return; }
+  toast('Gerando sugestões com IA...', 'info', null, 3000);
+  try {
+    const res = await apiFetch('/api/agent', {
+      method: 'POST',
+      body: JSON.stringify({ input: `Crie um template de skill para: "${title||desc}". Retorne em markdown com seções: ## Quando Ativar, ## Protocolo (passos numerados), ## Formato de saída. Seja específico e prático.` })
+    });
+    const data = await res.json();
+    if (data.reply) {
+      const current = document.getElementById('sk-content')?.value || '';
+      if (document.getElementById('sk-content')) {
+        document.getElementById('sk-content').value = current ? current + '\n\n' + data.reply : data.reply;
+      }
+      toast('Sugestão da IA aplicada!', 'success');
+    }
+  } catch (err) { showError(err); }
+});
+
+// openSkillDetail: mudar para aba detalhes
+function openSkillDetail(slug) {
+  const skill = cachedSkills.find(s => (s.slug||s.name) === slug);
+  if (!skill) return;
+  const agentsUsing = (cachedAgents||[]).filter(a => (a.skills||[]).includes(slug));
+  const icons = { brainstorming:'🧠','notion-sync':'📋','notion-research':'🔍','canvas-design':'🎨','super-agent':'⚡','meeting-intelligence':'🎙','skill-creator':'🔧','so-expert':'💡','user-profiling':'👤' };
+  const icon = icons[slug] || '⚙️';
+  const tools = (skill.allowedTools||[]).map(t => `<span class="sk-tool-chip selected" style="cursor:default;">${t}</span>`).join('');
+
+  document.getElementById('skill-detail-inner').innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div class="skill-card-icon" style="width:48px;height:48px;font-size:24px;">${icon}</div>
+      <div>
+        <div style="font-size:20px;font-weight:600;color:var(--text);">${skill.title||skill.name}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:'Fira Code',monospace;">${slug} · ${skill.sectionCount||0} seções</div>
+      </div>
+      <button class="btn primary" style="margin-left:auto;" onclick="openAgentWizard()">Atribuir a agente</button>
+    </div>
+    <div class="agent-detail-section-title">Descrição</div>
+    <div class="agent-detail-doc" style="margin-bottom:16px;">${skill.description||'Sem descrição.'}</div>
+    ${tools ? `<div class="agent-detail-section-title" style="margin-bottom:8px;">Ferramentas permitidas</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">${tools}</div>` : ''}
+    <div class="agent-detail-section-title" style="margin-bottom:8px;">Agentes usando esta skill (${agentsUsing.length})</div>
+    ${agentsUsing.length > 0
+      ? agentsUsing.map(a => `<div class="skill-agent-row" onclick="openAgentDetailTab(${a.id})">
+          <span class="agent-status-pill status-${a.status||'ativo'}">${a.status||'ativo'}</span>
+          <span>${a.name}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);">${a.level}</span>
+        </div>`).join('')
+      : '<div class="empty-state">Nenhum agente usa esta skill. Clique em "Atribuir a agente".</div>'
+    }
+  `;
+
+  // Ativar aba de detalhes
+  const detailTab = document.getElementById('sk-tab-detalhes');
+  if (detailTab) detailTab.style.display = '';
+  document.querySelectorAll('.sk-tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab==='detalhes'));
+  document.querySelectorAll('[id^="sktab-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('sktab-detalhes')?.classList.add('active');
+}
+
+// ── AGENT WIZARD ──────────────────────────────────────────────
+
+let wizardCurrentStep = 1;
+
+function openAgentWizard(editId = null) {
+  wizardCurrentStep = 1;
+  document.querySelectorAll('.sk-tab[data-agtab]').forEach(t => t.classList.toggle('active', t.dataset.agtab==='wizard'));
+  document.querySelectorAll('[id^="agtab-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('agtab-wizard')?.classList.add('active');
+  wizardNext(1);
+  initSkillsPicker();
+  if (editId) fillWizardForEdit(editId);
+}
+
+// Compatibilidade com código antigo
+function openAgentModal(editId = null) { openAgentWizard(editId); }
+function closeAgentModal() { }
+
+function fillWizardForEdit(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  document.getElementById('agent-edit-id').value = String(id);
+  document.getElementById('agent-name').value = agent.name;
+  document.getElementById('agent-level').value = agent.level||'Estrategico';
+  document.getElementById('agent-status').value = agent.status||'ativo';
+  document.getElementById('agent-areas').value = (agent.areas||[]).join(', ');
+  document.getElementById('agent-description').value = agent.description||'';
+  document.getElementById('agent-tags').value = (agent.tags||[]).map(t=>t.name).join(', ');
+  document.getElementById('agent-base-doc').value = agent.base_doc||'';
+  const selectedSkills = new Set(agent.skills||[]);
+  document.querySelectorAll('.skill-toggle-chip').forEach(c => {
+    c.classList.toggle('selected', selectedSkills.has(c.dataset.slug));
+  });
+  const saveBtn = document.getElementById('agent-save');
+  if (saveBtn) saveBtn.textContent = '💾 Salvar Alterações';
+}
+
+function wizardNext(step) {
+  document.querySelectorAll('.wizard-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`wstep-${step}`)?.classList.add('active');
+  document.querySelectorAll('.wizard-step').forEach((s, i) => {
+    s.classList.remove('active','done');
+    if (i+1 < step) s.classList.add('done');
+    if (i+1 === step) s.classList.add('active');
+  });
+  wizardCurrentStep = step;
+  if (step === 4) buildWizardReview();
+}
+
+function buildWizardReview() {
+  const name  = document.getElementById('agent-name')?.value||'—';
+  const level = document.getElementById('agent-level')?.value||'—';
+  const status= document.getElementById('agent-status')?.value||'—';
+  const areas = document.getElementById('agent-areas')?.value||'—';
+  const desc  = document.getElementById('agent-description')?.value||'—';
+  const skills= [...document.querySelectorAll('.skill-toggle-chip.selected')].map(c=>c.dataset.slug);
+  const tags  = document.getElementById('agent-tags')?.value||'—';
+  const hasDoc= (document.getElementById('agent-base-doc')?.value||'').length > 10;
+
+  document.getElementById('wizard-review').innerHTML = `
+<strong>Nome:</strong> ${name}
+<strong>Nível:</strong> ${level} | <strong>Status:</strong> ${status}
+<strong>Áreas:</strong> ${areas}
+<strong>Propósito:</strong> ${desc.substring(0,200)}${desc.length>200?'…':''}
+<strong>Skills (${skills.length}):</strong> ${skills.join(', ')||'nenhuma'}
+<strong>Tags:</strong> ${tags}
+<strong>Documento base:</strong> ${hasDoc ? '✅ Configurado' : '⚠️ Não configurado (recomendado)'}
+  `.trim();
+}
+
+function initSkillsPicker() {
+  const picker = document.getElementById('agent-skills-picker');
+  if (!picker) return;
+  picker.innerHTML = cachedSkills.map(s => {
+    const slug = s.slug||s.name||'';
+    return `<span class="skill-toggle-chip" data-slug="${slug}" onclick="toggleSkillChip(this)" title="${s.description||''}">${slug}</span>`;
+  }).join('') || '<span style="color:var(--muted);font-size:12px;">Nenhuma skill carregada</span>';
+}
+
+function applyAgentDocTemplate(key) {
+  const doc = AGENT_DOC_TEMPLATES[key];
+  if (!doc) return;
+  const el = document.getElementById('agent-base-doc');
+  if (el) el.value = (el.value ? el.value + '\n\n---\n\n' : '') + doc;
+}
+
+// Upload de arquivo de referência
+document.getElementById('agent-doc-upload')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const el = document.getElementById('agent-base-doc');
+    if (el) el.value = (el.value ? el.value + '\n\n---\n\n' : '') + ev.target.result;
+    toast(`Arquivo "${file.name}" carregado no documento base.`, 'success');
+  };
+  reader.readAsText(file);
+});
+
+function openAgentDetailTab(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  const statusClass = {ativo:'status-ativo',desenvolvimento:'status-desenvolvimento',inativo:'status-inativo'}[agent.status]||'status-ativo';
+  const skills = (agent.skills||[]).map(s => {
+    const sk = cachedSkills.find(x=>(x.slug||x.name)===s);
+    return `<span class="agent-skill-chip" style="cursor:pointer;" onclick="openSkillDetail('${s}')" title="Ver skill">${sk?.title||s}</span>`;
+  }).join('');
+
+  document.getElementById('agent-detail-inner').innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:20px;font-weight:600;color:var(--text);">${agent.name}</div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <span class="agent-status-pill ${statusClass}">${agent.status||'ativo'}</span>
+          <span class="agent-status-pill" style="background:var(--surface-2);color:var(--muted);border:1px solid var(--border);">${agent.level}</span>
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn ghost" onclick="activateAgentChat(${agent.id})">💬 Chat</button>
+        <button class="btn ghost" onclick="openAgentWizard(${agent.id})">✎ Editar</button>
+        <button class="btn ghost" style="color:var(--danger);" onclick="deleteAgent(${agent.id})">Excluir</button>
+      </div>
+    </div>
+    ${agent.description?`<div class="agent-detail-section-title">Propósito</div><div class="agent-detail-doc" style="margin-bottom:16px;">${agent.description}</div>`:''}
+    ${(agent.skills||[]).length>0?`<div class="agent-detail-section-title" style="margin-bottom:8px;">Skills ativas (${(agent.skills||[]).length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">${skills}</div>`:''}
+    ${agent.base_doc?`<div class="agent-detail-section-title" style="margin-bottom:8px;">📄 Documento Base</div><div class="agent-detail-doc">${agent.base_doc.substring(0,800)}${agent.base_doc.length>800?'…':''}</div>`:'<div class="empty-state">Sem documento base.</div>'}
+    ${(agent.areas||[]).length>0?`<div class="agent-detail-section-title" style="margin:14px 0 8px;">Áreas</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${(agent.areas||[]).map(ar=>`<span class="tag-inline-pill" style="background:var(--surface-3);color:var(--muted);border:1px solid var(--border);">${ar}</span>`).join('')}</div>`:''}
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);font-family:'Fira Code',monospace;">Criado em ${new Date(agent.created_at).toLocaleString('pt-BR')}</div>
+  `;
+
+  const detailTab = document.getElementById('agtab-detail');
+  if (detailTab) detailTab.style.display = '';
+  document.querySelectorAll('.sk-tab[data-agtab]').forEach(t => t.classList.toggle('active', t.dataset.agtab==='detail'));
+  document.querySelectorAll('[id^="agtab-"]').forEach(p => p.classList.remove('active'));
+  document.getElementById('agtab-detail')?.classList.add('active');
+}
+
+// Sobrescrever openAgentDetail para usar a aba
+function openAgentDetail(id) { openAgentDetailTab(id); }
+
+document.getElementById('sk-ai-help-btn-agent')?.addEventListener('click', async () => {
+  buildWizardReview();
+  const name = document.getElementById('agent-name')?.value||'';
+  const desc = document.getElementById('agent-description')?.value||'';
+  if (!name) { toast('Preencha o nome do agente primeiro.', 'warn'); return; }
+  toast('Gerando melhorias com IA...', 'info', null, 3000);
+  try {
+    const res = await apiFetch('/api/agent', {
+      method: 'POST',
+      body: JSON.stringify({ input: `Analise este agente e sugira melhorias para torná-lo mais eficaz:\nNome: ${name}\nPropósito: ${desc}\n\nSugira: 1) Refinamentos no propósito, 2) Skills recomendadas, 3) Seções para o documento base, 4) Pontos de atenção. Seja específico e prático.` })
+    });
+    const data = await res.json();
+    if (data.reply) {
+      const recEl = document.getElementById('wizard-review');
+      if (recEl) recEl.innerHTML += '\n\n' + data.reply.replace(/\n/g,'\n');
+      toast('Análise da IA concluída!', 'success');
+    }
+  } catch (err) { showError(err); }
+});
+
+initSkillTabs();
+initAgentTabs();
+initSkillToolsPicker();
+
 initApp();

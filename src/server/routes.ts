@@ -69,16 +69,52 @@ async function listSkillsFromDisk() {
     const file = path.join(root, slug, 'SKILL.md');
     let title = slug;
     let description = '';
+    let allowedTools: string[] = [];
+    let content = '';
     try {
-      const content = await fs.readFile(file, 'utf-8');
-      const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
-      const heading = lines.find(l => l.startsWith('#'));
-      if (heading) title = heading.replace(/^#+\s*/, '').trim();
-      description = lines.find(l => !l.startsWith('#')) || '';
+      content = await fs.readFile(file, 'utf-8');
+      // Parse YAML frontmatter
+      const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (fmMatch) {
+        const fm = fmMatch[1];
+        const nameMatch = fm.match(/^name:\s*(.+)$/m);
+        const descMatch = fm.match(/^description:\s*(.+)$/m);
+        const toolsMatch = fm.match(/^allowed-tools:\s*(.+)$/m);
+        if (nameMatch) title = nameMatch[1].trim();
+        if (descMatch) description = descMatch[1].trim();
+        if (toolsMatch) allowedTools = toolsMatch[1].split(',').map(t => t.trim());
+      }
+      if (!description) {
+        const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+        const heading = lines.find(l => l.startsWith('#'));
+        if (heading) title = heading.replace(/^#+\s*/, '').trim();
+        description = lines.find(l => !l.startsWith('#') && l.length > 20) || '';
+      }
     } catch {}
-    skills.push({ slug, title, description });
+    // Count sections in SKILL.md
+    const sectionCount = (content.match(/^##\s/gm) || []).length;
+    skills.push({ slug, title, name: slug, description, allowedTools, sectionCount, hasContent: content.length > 100 });
   }
   return skills;
+}
+
+// Create new skill on disk
+async function createSkillOnDisk(slug: string, title: string, description: string, content: string, allowedTools: string[]) {
+  const root = config.paths.skills;
+  const skillDir = path.join(root, slug);
+  await fs.mkdir(skillDir, { recursive: true });
+  const toolsLine = allowedTools.length ? `allowed-tools: ${allowedTools.join(', ')}` : '';
+  const md = `---
+name: ${slug}
+description: ${description}
+${toolsLine}
+---
+
+# ${title}
+
+${content}
+`;
+  await fs.writeFile(path.join(skillDir, 'SKILL.md'), md, 'utf-8');
 }
 
 async function upsertTags(names: string[]) {
@@ -195,6 +231,14 @@ router.get('/settings', async (_req: Request, res: Response) => {
 router.get('/skills', async (_req: Request, res: Response) => {
   const skills = await listSkillsFromDisk();
   res.json({ ok: true, items: skills });
+});
+
+router.post('/skills', async (req: Request, res: Response) => {
+  const { slug, title, description, content = '', allowedTools = [] } = req.body || {};
+  if (!slug || !title) return res.status(400).json({ error: 'slug and title are required' });
+  const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
+  res.json({ ok: true, slug: safeSlug });
 });
 
 router.get('/tags', async (_req: Request, res: Response) => {
