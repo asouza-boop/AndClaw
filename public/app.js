@@ -1404,13 +1404,13 @@ function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
-  if (isNaN(r)||isNaN(g)||isNaN(b)) return \`rgba(139,92,246,${alpha})\`;
-  return \`rgba(${r},${g},${b},${alpha})\`;
+  if (isNaN(r)||isNaN(g)||isNaN(b)) return `rgba(139,92,246,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 async function deleteTag(id) {
   try {
-    await apiFetch(\`/api/tags/\${id}\`, { method: 'DELETE' });
+    await apiFetch(`/api/tags/${id}`, { method: 'DELETE' });
     await loadTags();
     showInline('Tag removida.');
   } catch (err) { showError(err); }
