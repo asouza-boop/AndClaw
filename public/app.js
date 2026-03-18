@@ -1072,13 +1072,15 @@ async function loadMeetings() {
     const items = data.items || [];
     list.innerHTML = items.length > 0
       ? items.slice(0, 50).map(m => `
-          <div class="list-item" style="gap:8px;">
+          <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
             <div style="display:flex;align-items:center;justify-content:space-between;">
               <div class="list-item-title">${m.title}</div>
               <span class="inbox-item-time">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
             </div>
-            ${m.transcript_text ? `<div class="list-item-sub">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
-            ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
+            ${m.transcript_text ? `<div class="list-item-sub" style="font-size:12px;">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
+            <div style="display:flex;gap:6px;">
+              ${m.transcript_text ? `<button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button>` : ''}
+            </div>
           </div>`).join('')
       : '<div class="empty-state">Nenhuma reunião registrada.</div>';
     // Atualizar log de atividade recente
@@ -1094,9 +1096,13 @@ async function loadMeetings() {
 async function analyzeMeeting(meetingId) {
   try {
     showInline('Analisando transcrição...');
-    await apiFetch('/api/meetings/analyze', { method: 'POST', body: JSON.stringify({ meetingId }) });
+    await apiFetch('/api/meetings/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ meetingId })
+    });
     showInline('Análise concluída — insight salvo em Conhecimento.');
     await loadMeetings();
+    await loadKnowledge();
   } catch (err) {
     showInline('Falha ao analisar reunião.');
   }
