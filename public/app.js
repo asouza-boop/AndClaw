@@ -19,12 +19,19 @@ function navigateTo(target) {
   // Trocar views
   document.querySelectorAll('.view').forEach(v => {
     v.classList.remove('active');
+    v.style.display = 'none';
   });
   const targetView = document.getElementById('view-' + target);
   if (targetView) {
     targetView.classList.add('active');
+    targetView.style.display = 'block';
   } else {
     console.warn('[nav] view não encontrada: view-' + target);
+    const fallback = document.getElementById('view-dashboard');
+    if (fallback) {
+      fallback.classList.add('active');
+      fallback.style.display = 'block';
+    }
   }
   // Atualizar título
   if (pageTitleEl && VIEW_TITLES[target]) {
