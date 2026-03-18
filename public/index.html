@@ -959,106 +959,335 @@ Exemplos do que incluir:
               </div>
 
               <!-- Grid de integrações -->
-              <div class="settings-card" style="margin-bottom: 16px;">
+              <div class="settings-card" style="margin-bottom:16px;">
                 <div class="settings-header">
-                  <div>
-                    <h3>Integrações</h3>
-                    <p>Conecte e gerencie serviços externos.</p>
-                  </div>
+                  <div><h3>Integrações</h3><p>Clique em qualquer card para configurar.</p></div>
                 </div>
                 <div class="int-grid">
-                  <div class="int-card">
+
+                  <!-- Google Calendar -->
+                  <div class="int-card" onclick="openIntModal('google')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-blue">📅</div>
-                        Google Calendar
-                      </div>
+                      <div class="int-card-name"><div class="int-icon int-icon-blue">📅</div>Google Calendar</div>
                       <span class="int-badge" id="badge-google">—</span>
                     </div>
                     <div class="int-card-desc">Sincroniza eventos e exporta tarefas. <span id="google-last-sync"></span></div>
-                    <div class="int-actions-row">
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
                       <button class="int-act-btn int-act-primary" id="google-connect-admin">Conectar</button>
                       <button class="int-act-btn" id="google-sync-now" style="display:none">Sync agora</button>
                       <button class="int-act-btn" id="google-disconnect-btn" style="display:none">Desconectar</button>
                     </div>
                   </div>
 
-                  <div class="int-card">
+                  <!-- GitVault -->
+                  <div class="int-card" onclick="openIntModal('gitvault')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-amber">💾</div>
-                        GitVault
-                      </div>
+                      <div class="int-card-name"><div class="int-icon int-icon-amber">💾</div>GitVault</div>
                       <span class="int-badge" id="badge-gitvault">—</span>
                     </div>
                     <div class="int-card-desc">Backup diário às 02h em Markdown. <span id="gitvault-repo-info"></span></div>
-                    <div class="int-actions-row">
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
                       <button class="int-act-btn" id="gitvault-export">Exportar agora</button>
                       <button class="int-act-btn" id="gitvault-config-btn">Configurar</button>
                     </div>
                   </div>
 
-                  <div class="int-card">
+                  <!-- Raindrop -->
+                  <div class="int-card" onclick="openIntModal('raindrop')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-purple">🔖</div>
-                        Raindrop
-                      </div>
+                      <div class="int-card-name"><div class="int-icon int-icon-purple">🔖</div>Raindrop</div>
                       <span class="int-badge" id="badge-raindrop">—</span>
                     </div>
-                    <div class="int-card-desc">Sincronize favoritos e links salvos direto no Inbox.</div>
-                    <div class="int-actions-row">
+                    <div class="int-card-desc">Sincronize favoritos e links salvos diretamente no Inbox.</div>
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
                       <button class="int-act-btn int-act-primary" id="raindrop-sync">Sincronizar</button>
-                      <button class="int-act-btn" id="raindrop-config-btn">Configurar token</button>
+                      <button class="int-act-btn" id="raindrop-config-btn" onclick="event.stopPropagation();openIntModal('raindrop')">Configurar</button>
                     </div>
                   </div>
 
-                  <div class="int-card">
+                  <!-- Push -->
+                  <div class="int-card" onclick="openIntModal('push')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-green">🔔</div>
-                        Push Notifications
-                      </div>
+                      <div class="int-card-name"><div class="int-icon int-icon-green">🔔</div>Push Notifications</div>
                       <span class="int-badge" id="badge-push">—</span>
                     </div>
-                    <div class="int-card-desc">Alertas de tarefas e lembretes neste dispositivo. <span id="push-subs-info"></span></div>
-                    <div class="int-actions-row">
-                      <button class="int-act-btn int-act-primary" id="push-enable-btn">Ativar neste dispositivo</button>
+                    <div class="int-card-desc">Receba alertas de tarefas e lembretes no seu dispositivo.</div>
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
+                      <button class="int-act-btn" id="push-enable-btn">Ativar neste dispositivo</button>
                       <button class="int-act-btn" id="push-test">Testar push</button>
                     </div>
                   </div>
 
-                  <div class="int-card">
+                  <!-- Telegram -->
+                  <div class="int-card" onclick="openIntModal('telegram')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-gray">🚀</div>
-                        Deploy
-                      </div>
-                      <span class="int-badge" id="badge-deploy">—</span>
+                      <div class="int-card-name"><div class="int-icon int-icon-blue">✈️</div>Telegram Bot</div>
+                      <span class="int-badge" id="badge-telegram">—</span>
                     </div>
-                    <div class="int-card-desc">Redeploy do backend sem acessar o Render. <span id="deploy-last-info"></span></div>
-                    <div class="int-actions-row">
-                      <button class="int-act-btn int-act-primary" id="cfg-deploy">Deploy agora</button>
-                      <button class="int-act-btn" id="db-check">Checar banco</button>
+                    <div class="int-card-desc">Controle o agente via Telegram. <span id="tg-bot-name-mini"></span></div>
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
+                      <button class="int-act-btn" id="tg-test-btn">Testar bot</button>
+                      <button class="int-act-btn" id="tg-history-btn">Ver histórico</button>
                     </div>
                   </div>
 
-                  <div class="int-card">
+                  <!-- LLM -->
+                  <div class="int-card" onclick="openIntModal('llm')">
                     <div class="int-card-header">
-                      <div class="int-card-name">
-                        <div class="int-icon int-icon-blue">🗄️</div>
-                        Banco de dados
-                      </div>
-                      <span class="int-badge" id="badge-db">—</span>
+                      <div class="int-card-name"><div class="int-icon int-icon-purple">✦</div>Inteligência Artificial</div>
+                      <span class="int-badge" id="badge-llm">—</span>
                     </div>
-                    <div class="int-card-desc">PostgreSQL. Tabelas e schema gerenciados automaticamente.</div>
-                    <div class="int-actions-row">
-                      <button class="int-act-btn" id="db-check-2">Verificar conexão</button>
-                      <button class="int-act-btn" id="db-backup-btn">Exportar dados</button>
+                    <div class="int-card-desc">Chain de fallback: Gemini → OpenRouter → DeepSeek.</div>
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
+                      <button class="int-act-btn int-act-primary" id="llm-test-btn">Testar conexão</button>
+                      <button class="int-act-btn" id="llm-tokens-btn">Ver tokens</button>
                     </div>
                   </div>
+
+                  <!-- Deploy -->
+                  <div class="int-card" onclick="openIntModal('deploy')">
+                    <div class="int-card-header">
+                      <div class="int-card-name"><div class="int-icon int-icon-green">🚀</div>Deploy</div>
+                      <span class="int-badge" id="badge-deploy">—</span>
+                    </div>
+                    <div class="int-card-desc">Redeploy do backend sem acessar o Render. <span id="deploy-last-info"></span></div>
+                    <div class="int-actions-row" onclick="event.stopPropagation()">
+                      <button class="int-act-btn int-act-primary" id="cfg-deploy">Deploy agora</button>
+                    </div>
+                  </div>
+
                 </div>
               </div>
+
+              <!-- Log de atividade recente -->
+              <div class="settings-card" style="margin-bottom:16px;">
+                <div class="settings-header">
+                  <div><h3>Log de atividade recente</h3><p>Últimas ações do sistema.</p></div>
+                  <button class="btn ghost" style="font-size:12px;" onclick="document.getElementById('open-log-btn')?.click()">Ver log completo ↗</button>
+                </div>
+                <div id="admin-activity-log" class="admin-act-log"></div>
+              </div>
+
+            </div>
+
+            <!-- ── MODAIS DE CONFIGURAÇÃO POR INTEGRAÇÃO ── -->
+
+            <!-- Modal Raindrop -->
+            <div id="int-modal-raindrop" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-purple">🔖</div>
+                    <div><div class="int-config-title">Raindrop</div><div class="int-config-sub">Sincronize seus bookmarks automaticamente</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('raindrop')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-raindrop"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Acesse <a href="https://app.raindrop.io/settings/integrations" target="_blank" class="int-guide-link">raindrop.io → Configurações → Integrações</a></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Clique em <strong>Criar novo aplicativo</strong> → preencha nome → clique <strong>Autorizar</strong></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div>Copie o <strong>Test token</strong> e cole abaixo</div></div>
+                  </div>
+                  <div class="field"><label>RAINDROP_TOKEN</label><input id="modal-raindrop-token" type="password" placeholder="Seu token de acesso Raindrop" /></div>
+                  <div class="field"><label>RAINDROP_COLLECTION_ID <span style="font-size:11px;color:var(--muted);">(0 = todos os links)</span></label><input id="modal-raindrop-collection" type="text" placeholder="0" /></div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('raindrop')">Salvar e ativar</button>
+                  <button class="btn ghost" onclick="closeIntModal('raindrop')">Cancelar</button>
+                  <button class="btn ghost" id="modal-raindrop-sync-btn" style="margin-left:auto;" onclick="event.stopPropagation();document.getElementById('raindrop-sync')?.click()">↻ Sincronizar agora</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal GitVault -->
+            <div id="int-modal-gitvault" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-amber">💾</div>
+                    <div><div class="int-config-title">GitVault</div><div class="int-config-sub">Backup automático diário no GitHub</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('gitvault')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-gitvault"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Crie um repositório privado no GitHub (ex: <code>seu-usuario/andclaw-vault</code>)</div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Gere um <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" class="int-guide-link">Personal Access Token</a> com escopo <code>repo</code></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div>Preencha os campos abaixo e salve</div></div>
+                  </div>
+                  <div class="field"><label>GITHUB_TOKEN</label><input id="modal-github-token" type="password" placeholder="ghp_..." /></div>
+                  <div class="form-row">
+                    <div class="field"><label>GITVAULT_REPO <span style="font-size:11px;color:var(--muted);">(owner/repo)</span></label><input id="modal-gitvault-repo" type="text" placeholder="seu-usuario/andclaw-vault" /></div>
+                    <div class="field"><label>GITVAULT_BASE_PATH <span style="font-size:11px;color:var(--muted);">(pasta base)</span></label><input id="modal-gitvault-base" type="text" placeholder="daily" /></div>
+                  </div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('gitvault')">Salvar e ativar</button>
+                  <button class="btn ghost" onclick="closeIntModal('gitvault')">Cancelar</button>
+                  <button class="btn ghost" style="margin-left:auto;" onclick="document.getElementById('gitvault-export')?.click();closeIntModal('gitvault')">Exportar agora ↗</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Google Calendar -->
+            <div id="int-modal-google" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-blue">📅</div>
+                    <div><div class="int-config-title">Google Calendar</div><div class="int-config-sub">Sincronização bidirecional de eventos</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('google')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-google"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Acesse <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="int-guide-link">Google Cloud Console → Credenciais</a></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Crie um <strong>OAuth 2.0 Client ID</strong> (tipo Web) e adicione a URI de redirecionamento: <code id="google-redirect-hint">https://andclaw.onrender.com/api/google/oauth/callback</code></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div>Preencha os campos abaixo, salve, e clique <strong>Conectar com Google</strong></div></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field"><label>GOOGLE_OAUTH_CLIENT_ID</label><input id="modal-google-client-id" type="password" placeholder="..." /></div>
+                    <div class="field"><label>GOOGLE_OAUTH_CLIENT_SECRET</label><input id="modal-google-client-secret" type="password" placeholder="..." /></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field"><label>GOOGLE_OAUTH_REDIRECT_URI</label><input id="modal-google-redirect" type="text" placeholder="https://andclaw.onrender.com/api/google/oauth/callback" /></div>
+                    <div class="field"><label>GOOGLE_EXPORT_CALENDAR_ID</label><input id="modal-google-calendar" type="text" placeholder="primary" /></div>
+                  </div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('google')">Salvar configurações</button>
+                  <button class="btn ghost" onclick="closeIntModal('google')">Cancelar</button>
+                  <button class="btn ghost int-act-primary" style="margin-left:auto;" id="modal-google-connect-btn" onclick="document.getElementById('google-connect-admin')?.click()">Conectar com Google ↗</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal LLM -->
+            <div id="int-modal-llm" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-purple">✦</div>
+                    <div><div class="int-config-title">Inteligência Artificial</div><div class="int-config-sub">Configure os providers LLM em ordem de prioridade</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('llm')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-llm"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">✦</span><div><strong>Gemini</strong> (recomendado) — gratuito com cota generosa. Obtenha em <a href="https://aistudio.google.com/apikey" target="_blank" class="int-guide-link">aistudio.google.com</a></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div><strong>OpenRouter</strong> — fallback pago. Chave em <a href="https://openrouter.ai/keys" target="_blank" class="int-guide-link">openrouter.ai</a></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div><strong>DeepSeek</strong> — fallback alternativo. Chave em <a href="https://platform.deepseek.com/api_keys" target="_blank" class="int-guide-link">platform.deepseek.com</a></div></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field"><label>GEMINI_API_KEY</label><input id="modal-gemini-key" type="password" placeholder="AIza..." /></div>
+                    <div class="field"><label>DEFAULT_LLM_PROVIDER</label><input id="modal-default-provider" type="text" placeholder="gemini" /></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field"><label>OPENROUTER_API_KEY</label><input id="modal-openrouter-key" type="password" placeholder="sk-or-..." /></div>
+                    <div class="field"><label>DEEPSEEK_API_KEY</label><input id="modal-deepseek-key" type="password" placeholder="sk-..." /></div>
+                  </div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('llm')">Salvar providers</button>
+                  <button class="btn ghost" onclick="closeIntModal('llm')">Cancelar</button>
+                  <button class="btn ghost" style="margin-left:auto;" onclick="document.getElementById('llm-test-btn')?.click()">Testar conexão</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Deploy -->
+            <div id="int-modal-deploy" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-green">🚀</div>
+                    <div><div class="int-config-title">Deploy Render</div><div class="int-config-sub">Redeploy sem sair do AndClaw</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('deploy')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-deploy"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Acesse <a href="https://dashboard.render.com" target="_blank" class="int-guide-link">dashboard.render.com</a> → seu serviço → <strong>Settings</strong> → <strong>Deploy Hook</strong></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Copie a URL do Deploy Hook e cole abaixo</div></div>
+                  </div>
+                  <div class="field"><label>RENDER_DEPLOY_HOOK_URL</label><input id="modal-render-hook" type="password" placeholder="https://api.render.com/deploy/srv-..." /></div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('deploy')">Salvar hook</button>
+                  <button class="btn ghost" onclick="closeIntModal('deploy')">Cancelar</button>
+                  <button class="btn ghost int-act-primary" style="margin-left:auto;" onclick="document.getElementById('cfg-deploy')?.click()">🚀 Deploy agora</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Push -->
+            <div id="int-modal-push" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-green">🔔</div>
+                    <div><div class="int-config-title">Push Notifications</div><div class="int-config-sub">Alertas nativos no seu dispositivo</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('push')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-push"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Gere chaves VAPID em <a href="https://vapidkeys.com" target="_blank" class="int-guide-link">vapidkeys.com</a></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Preencha as chaves abaixo e salve</div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div>Clique <strong>Ativar neste dispositivo</strong> para aceitar notificações no browser</div></div>
+                  </div>
+                  <div class="field"><label>VAPID_PUBLIC_KEY</label><input id="modal-vapid-public" type="password" placeholder="BNtd..." /></div>
+                  <div class="form-row">
+                    <div class="field"><label>VAPID_PRIVATE_KEY</label><input id="modal-vapid-private" type="password" placeholder="..." /></div>
+                    <div class="field"><label>VAPID_CONTACT_EMAIL</label><input id="modal-vapid-email" type="email" placeholder="mailto:voce@email.com" /></div>
+                  </div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('push')">Salvar chaves</button>
+                  <button class="btn ghost" onclick="closeIntModal('push')">Cancelar</button>
+                  <button class="btn ghost" style="margin-left:auto;" id="push-enable-btn" onclick="document.getElementById('push-enable-btn')?.click()">Ativar neste dispositivo</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Telegram -->
+            <div id="int-modal-telegram" class="int-config-modal hidden">
+              <div class="int-config-content">
+                <div class="int-config-header">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="int-icon int-icon-blue">✈️</div>
+                    <div><div class="int-config-title">Telegram Bot</div><div class="int-config-sub">Controle o AndClaw via Telegram</div></div>
+                  </div>
+                  <button class="log-btn-close" onclick="closeIntModal('telegram')">✕</button>
+                </div>
+                <div class="int-config-body">
+                  <div class="int-config-status" id="int-status-telegram"></div>
+                  <div class="int-config-guide">
+                    <div class="int-guide-step"><span class="int-guide-num">1</span><div>Abra o Telegram e procure por <strong>@BotFather</strong></div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">2</span><div>Envie <code>/newbot</code>, escolha um nome e username</div></div>
+                    <div class="int-guide-step"><span class="int-guide-num">3</span><div>Copie o token gerado e cole abaixo. O bot iniciará automaticamente.</div></div>
+                  </div>
+                  <div class="int-tg-row" id="modal-tg-info" style="display:none;margin-bottom:14px;">
+                    <div class="int-tg-avatar">🤖</div>
+                    <div class="int-tg-info"><div class="int-tg-name" id="modal-tg-name">—</div><div class="int-tg-sub" id="modal-tg-status">—</div></div>
+                    <span class="int-badge" id="modal-tg-badge">—</span>
+                  </div>
+                  <div class="field"><label>TELEGRAM_BOT_TOKEN <span style="font-size:11px;color:var(--muted);">(requer restart do backend)</span></label><input id="modal-telegram-token" type="password" placeholder="1234567890:AAF..." /></div>
+                  <div class="field"><label>Usuários autorizados <span style="font-size:11px;color:var(--muted);">(Telegram IDs separados por vírgula)</span></label><input id="modal-telegram-users" type="text" placeholder="123456789, 987654321" /></div>
+                </div>
+                <div class="int-config-footer">
+                  <button class="btn primary" onclick="saveIntConfig('telegram')">Salvar token</button>
+                  <button class="btn ghost" onclick="closeIntModal('telegram')">Cancelar</button>
+                  <button class="btn ghost" style="margin-left:auto;" onclick="document.getElementById('tg-test-btn')?.click()">Testar bot</button>
+                </div>
+              </div>
+            </div>
 
               <!-- Log de atividade -->
               <div class="settings-card" style="margin-bottom: 16px;">

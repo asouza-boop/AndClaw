@@ -1053,6 +1053,11 @@ async function loadMeetings() {
             ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
           </div>`).join('')
       : '<div class="empty-state">Nenhuma reunião registrada.</div>';
+    // Atualizar log de atividade recente
+    renderAdminActivityLog();
+    // Resetar cache de modais para pegar status atualizado
+    intModalCurrentHealth = null;
+    intModalCurrentSettings = null;
   } catch (err) {
     showError(err);
   }
@@ -2925,5 +2930,241 @@ document.getElementById('sk-ai-help-btn-agent')?.addEventListener('click', async
 initSkillTabs();
 initAgentTabs();
 initSkillToolsPicker();
+
+// ── MODAIS DE CONFIGURAÇÃO DAS INTEGRAÇÕES ──────────────────
+
+const INT_MODAL_CONFIG = {
+  raindrop: {
+    save: () => ({
+      RAINDROP_TOKEN: document.getElementById('modal-raindrop-token')?.value.trim() || undefined,
+      RAINDROP_COLLECTION_ID: document.getElementById('modal-raindrop-collection')?.value.trim() || '0',
+    }),
+    load: (settings) => {
+      if (settings.RAINDROP_TOKEN === 'configured') {
+        const el = document.getElementById('modal-raindrop-token');
+        if (el) el.placeholder = '••••• (já configurado — cole para atualizar)';
+      }
+      const col = document.getElementById('modal-raindrop-collection');
+      if (col && settings.RAINDROP_COLLECTION_ID) col.value = settings.RAINDROP_COLLECTION_ID;
+    },
+    status: (health) => health.raindrop ? ['connected', '✓ Token configurado e ativo'] : ['disconnected', '⚠ Token não configurado — preencha abaixo para ativar'],
+  },
+  gitvault: {
+    save: () => ({
+      GITHUB_TOKEN: document.getElementById('modal-github-token')?.value.trim() || undefined,
+      GITVAULT_REPO: document.getElementById('modal-gitvault-repo')?.value.trim() || undefined,
+      GITVAULT_BASE_PATH: document.getElementById('modal-gitvault-base')?.value.trim() || 'daily',
+    }),
+    load: (settings) => {
+      if (settings.GITHUB_TOKEN === 'configured') {
+        const el = document.getElementById('modal-github-token');
+        if (el) el.placeholder = '••••• (já configurado)';
+      }
+      if (settings.GITVAULT_REPO) {
+        const el = document.getElementById('modal-gitvault-repo');
+        if (el) el.value = settings.GITVAULT_REPO;
+      }
+      if (settings.GITVAULT_BASE_PATH) {
+        const el = document.getElementById('modal-gitvault-base');
+        if (el) el.value = settings.GITVAULT_BASE_PATH;
+      }
+    },
+    status: (health) => health.gitvault ? ['connected', '✓ GitVault configurado — backup ativo'] : ['disconnected', '⚠ GitHub Token ou repositório não configurado'],
+  },
+  google: {
+    save: () => ({
+      GOOGLE_OAUTH_CLIENT_ID: document.getElementById('modal-google-client-id')?.value.trim() || undefined,
+      GOOGLE_OAUTH_CLIENT_SECRET: document.getElementById('modal-google-client-secret')?.value.trim() || undefined,
+      GOOGLE_OAUTH_REDIRECT_URI: document.getElementById('modal-google-redirect')?.value.trim() || undefined,
+      GOOGLE_EXPORT_CALENDAR_ID: document.getElementById('modal-google-calendar')?.value.trim() || 'primary',
+    }),
+    load: (settings) => {
+      if (settings.GOOGLE_OAUTH_CLIENT_ID === 'configured') {
+        ['modal-google-client-id','modal-google-client-secret'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.placeholder = '••••• (já configurado)';
+        });
+      }
+      const redirect = document.getElementById('modal-google-redirect');
+      if (redirect && settings.GOOGLE_OAUTH_REDIRECT_URI === 'configured') redirect.placeholder = '(já configurado)';
+      const cal = document.getElementById('modal-google-calendar');
+      if (cal && settings.GOOGLE_EXPORT_CALENDAR_ID) cal.value = settings.GOOGLE_EXPORT_CALENDAR_ID;
+      // Mostrar dica de redirect URI
+      const hint = document.getElementById('google-redirect-hint');
+      if (hint) hint.textContent = window.location.origin.includes('vercel') ?
+        window.location.origin.replace('vercel.app', 'onrender.com') + '/api/google/oauth/callback' :
+        window.location.origin + '/api/google/oauth/callback';
+    },
+    status: (health) => health.google?.configured ? ['connected', '✓ OAuth configurado' + (health.google.connectedAccounts?.length > 0 ? ' — conta conectada' : ' — clique em Conectar com Google')] : ['disconnected', '⚠ OAuth não configurado — preencha as credenciais abaixo'],
+  },
+  llm: {
+    save: () => ({
+      GEMINI_API_KEY: document.getElementById('modal-gemini-key')?.value.trim() || undefined,
+      OPENROUTER_API_KEY: document.getElementById('modal-openrouter-key')?.value.trim() || undefined,
+      DEEPSEEK_API_KEY: document.getElementById('modal-deepseek-key')?.value.trim() || undefined,
+      DEFAULT_LLM_PROVIDER: document.getElementById('modal-default-provider')?.value.trim() || 'gemini',
+    }),
+    load: (settings) => {
+      ['gemini','openrouter','deepseek'].forEach(p => {
+        const key = p === 'gemini' ? 'GEMINI_API_KEY' : p === 'openrouter' ? 'OPENROUTER_API_KEY' : 'DEEPSEEK_API_KEY';
+        const inputId = p === 'gemini' ? 'modal-gemini-key' : p === 'openrouter' ? 'modal-openrouter-key' : 'modal-deepseek-key';
+        const el = document.getElementById(inputId);
+        if (el && settings[key] === 'configured') el.placeholder = '••••• (já configurado)';
+      });
+      const def = document.getElementById('modal-default-provider');
+      if (def && settings.DEFAULT_LLM_PROVIDER) def.value = settings.DEFAULT_LLM_PROVIDER;
+    },
+    status: (health) => health.llmConfigured ? ['connected', '✓ LLM ativo: ' + (health.llm?.gemini ? 'Gemini' : health.llm?.openrouter ? 'OpenRouter' : 'DeepSeek')] : ['disconnected', '⚠ Nenhum provider configurado — o agente não pode responder'],
+  },
+  deploy: {
+    save: () => ({
+      RENDER_DEPLOY_HOOK_URL: document.getElementById('modal-render-hook')?.value.trim() || undefined,
+    }),
+    load: (settings) => {
+      const el = document.getElementById('modal-render-hook');
+      if (el && settings.RENDER_DEPLOY_HOOK_URL === 'configured') el.placeholder = '(já configurado — cole para atualizar)';
+    },
+    status: (health) => health.deploy?.last ? ['connected', '✓ Deploy hook configurado · Último deploy: ' + new Date(health.deploy.last).toLocaleString('pt-BR')] : ['disconnected', '⚠ Deploy hook não configurado'],
+  },
+  push: {
+    save: () => ({
+      VAPID_PUBLIC_KEY: document.getElementById('modal-vapid-public')?.value.trim() || undefined,
+      VAPID_PRIVATE_KEY: document.getElementById('modal-vapid-private')?.value.trim() || undefined,
+      VAPID_CONTACT_EMAIL: document.getElementById('modal-vapid-email')?.value.trim() || undefined,
+    }),
+    load: (settings) => {
+      ['vapid-public','vapid-private','vapid-email'].forEach(id => {
+        const key = id === 'vapid-public' ? 'VAPID_PUBLIC_KEY' : id === 'vapid-private' ? 'VAPID_PRIVATE_KEY' : 'VAPID_CONTACT_EMAIL';
+        const el = document.getElementById('modal-' + id);
+        if (el && settings[key] === 'configured') el.placeholder = '(já configurado)';
+      });
+    },
+    status: (health) => health.push && health.pushSubscriptions > 0 ? ['connected', '✓ Push configurado · ' + health.pushSubscriptions + ' dispositivo(s) ativo(s)'] : health.push ? ['disconnected', 'Push configurado mas sem dispositivos ativos — clique em Ativar'] : ['disconnected', '⚠ Chaves VAPID não configuradas'],
+  },
+  telegram: {
+    save: () => ({}), // Telegram token não pode ser salvo via settings (requer restart do backend)
+    load: (settings) => {},
+    status: (health) => null,
+  },
+};
+
+let intModalCurrentHealth = null;
+let intModalCurrentSettings = null;
+
+async function openIntModal(key) {
+  const modal = document.getElementById('int-modal-' + key);
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+
+  // Carregar status e settings do backend
+  try {
+    if (!intModalCurrentHealth || !intModalCurrentSettings) {
+      const [healthRes, settingsRes] = await Promise.all([
+        apiFetch('/api/health/status'),
+        apiFetch('/api/settings'),
+      ]);
+      intModalCurrentHealth = await healthRes.json();
+      const settingsData = await settingsRes.json();
+      intModalCurrentSettings = settingsData.settings || {};
+    }
+
+    const cfg = INT_MODAL_CONFIG[key];
+    if (!cfg) return;
+
+    // Carregar valores atuais
+    cfg.load(intModalCurrentSettings);
+
+    // Mostrar status
+    if (cfg.status) {
+      const statusResult = cfg.status(intModalCurrentHealth);
+      if (statusResult) {
+        const [statusClass, statusMsg] = statusResult;
+        const statusEl = document.getElementById('int-status-' + key);
+        if (statusEl) {
+          statusEl.className = 'int-config-status ' + statusClass;
+          statusEl.textContent = statusMsg;
+        }
+      }
+    }
+
+    // Preencher info do Telegram se disponível
+    if (key === 'telegram' && intModalCurrentHealth) {
+      const infoEl = document.getElementById('modal-tg-info');
+      const nameEl = document.getElementById('modal-tg-name');
+      const statusEl = document.getElementById('modal-tg-status');
+      const badgeEl = document.getElementById('modal-tg-badge');
+      if (infoEl) infoEl.style.display = 'flex';
+      if (nameEl) nameEl.textContent = document.getElementById('tg-bot-name')?.textContent || 'AndClaw Bot';
+      if (statusEl) statusEl.textContent = document.getElementById('tg-bot-status')?.textContent || 'Verificando...';
+      if (badgeEl) badgeEl.textContent = document.getElementById('tg-badge')?.textContent || '—';
+    }
+  } catch (err) { showError(err); }
+}
+
+function closeIntModal(key) {
+  document.getElementById('int-modal-' + key)?.classList.add('hidden');
+  // Fechar ao clicar fora
+}
+
+// Fechar modal clicando no overlay
+document.querySelectorAll('.int-config-modal').forEach(modal => {
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+});
+
+async function saveIntConfig(key) {
+  const cfg = INT_MODAL_CONFIG[key];
+  if (!cfg) return;
+  const payload = cfg.save();
+
+  // Remover chaves undefined ou vazias
+  const clean = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined && v !== '') clean[k] = v;
+  }
+
+  if (Object.keys(clean).length === 0 && key !== 'telegram') {
+    toast('Nenhum campo preenchido.', 'warn');
+    return;
+  }
+
+  try {
+    await apiFetch('/api/settings', { method: 'POST', body: JSON.stringify(clean) });
+    toast('Configuração salva com sucesso!', 'success');
+    closeIntModal(key);
+    // Resetar cache para recarregar status atualizado
+    intModalCurrentHealth = null;
+    intModalCurrentSettings = null;
+    // Recarregar admin
+    await loadAdmin();
+  } catch (err) { showError(err); }
+}
+
+// ── LOG DE ATIVIDADE NO ADMIN ──────────────────────────────
+
+function renderAdminActivityLog() {
+  const container = document.getElementById('admin-activity-log');
+  if (!container) return;
+
+  const recentLogs = appLogs.slice(0, 8);
+  if (recentLogs.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:16px 0;">Nenhuma atividade registrada ainda.</div>';
+    return;
+  }
+
+  container.innerHTML = recentLogs.map(e => {
+    const tagClass = {
+      error: 'act-tag-error', success: 'act-tag-sync', info: 'act-tag-system', warn: 'act-tag-error'
+    }[e.type] || 'act-tag-system';
+    const tagLabel = e.title || (e.type === 'error' ? 'Erro' : e.type === 'success' ? 'OK' : 'Info');
+    return '<div class="admin-act-row">' +
+      '<span class="admin-act-time">' + e.time + '</span>' +
+      '<span class="admin-act-tag ' + tagClass + '">' + tagLabel + '</span>' +
+      '<span>' + e.msg.substring(0, 80) + (e.msg.length > 80 ? '…' : '') + '</span>' +
+      '</div>';
+  }).join('');
+}
 
 initApp();
