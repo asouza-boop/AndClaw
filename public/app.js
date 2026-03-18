@@ -2032,6 +2032,28 @@ document.getElementById('link-save').addEventListener('click', async () => {
   }
 });
 
+async function checkRaindropStatus() {
+  try {
+    const res = await apiFetch('/api/health/status');
+    const data = await res.json();
+    const dot = document.getElementById('raindrop-status-dot');
+    const text = document.getElementById('raindrop-status-text');
+    const hint = document.getElementById('raindrop-setup-hint');
+    if (data.raindrop) {
+      if (dot) { dot.style.background = '#10b981'; }
+      if (text) { text.textContent = 'Raindrop conectado'; text.style.color = 'var(--accent-3)'; }
+      if (hint) hint.style.display = 'none';
+    } else {
+      if (dot) { dot.style.background = '#f59e0b'; }
+      if (text) { text.textContent = 'Raindrop não configurado — clique para ver instruções'; text.style.color = 'var(--warn)'; text.style.cursor = 'pointer'; }
+      if (hint) {
+        if (text) text.onclick = () => { hint.style.display = hint.style.display === 'none' ? 'block' : 'none'; };
+        hint.style.display = 'block';
+      }
+    }
+  } catch { /* backend offline */ }
+}
+
 async function loadFavorites() {
   try {
     const res = await apiFetch('/api/favorites');
@@ -2080,12 +2102,28 @@ document.getElementById('favorite-save').addEventListener('click', async () => {
 });
 
 document.getElementById('favorite-sync').addEventListener('click', async () => {
+  const btn = document.getElementById('favorite-sync');
+  const origText = btn ? btn.textContent : '';
   try {
-    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
-    showInline('Raindrop sincronizado.');
+    // Verificar se a integração está configurada
+    const healthRes = await apiFetch('/api/health/status');
+    const health = await healthRes.json();
+    if (!health.raindrop) {
+      toast(
+        'RAINDROP_TOKEN não configurado no backend. Acesse Configurações → Integrações → Configurações avançadas para adicionar o token.',
+        'warn', 'Raindrop não configurado', 0
+      );
+      return;
+    }
+    if (btn) btn.textContent = 'Sincronizando...';
+    const res = await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
+    const data = await res.json();
+    toast('Raindrop sincronizado — ' + (data.count || 0) + ' item(s) importado(s).', 'success');
     await loadFavorites();
   } catch (err) {
     showError(err);
+  } finally {
+    if (btn) btn.textContent = origText;
   }
 });
 
@@ -2252,6 +2290,7 @@ async function initApp() {
   await loadSkills();
   await loadAgents();
   await loadFavorites();
+  await checkRaindropStatus();
   await loadTags();
   await loadLinks();
   await loadProjects();

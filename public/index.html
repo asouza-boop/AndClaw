@@ -681,7 +681,17 @@ Exemplos do que incluir:
 
       <!-- ── FAVORITOS ── -->
       <section id="view-favorites" class="view">
-        <h2>Favoritos</h2>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;">
+          <div>
+            <h2>Favoritos</h2>
+            <p class="settings-subtitle">Links salvos manualmente ou sincronizados do Raindrop</p>
+          </div>
+          <div id="raindrop-status-bar" style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 14px;font-size:12px;color:var(--muted);">
+            <span id="raindrop-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--border-md);flex-shrink:0;"></span>
+            <span id="raindrop-status-text">Verificando Raindrop...</span>
+          </div>
+        </div>
+
         <div class="panel">
           <div class="form-row">
             <div class="field">
@@ -690,19 +700,35 @@ Exemplos do que incluir:
             </div>
             <div class="field">
               <label>URL</label>
-              <input id="favorite-url" type="text" placeholder="https://..." />
+              <input id="favorite-url" type="url" placeholder="https://..." />
             </div>
           </div>
-          <div class="field">
+          <div class="field" style="position:relative;">
             <label>Tags</label>
             <input id="favorite-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
             <div id="favorite-tags-suggestions" class="tag-suggestions hidden"></div>
           </div>
           <div class="modal-actions">
-            <button id="favorite-sync" class="btn ghost">Sync Raindrop</button>
+            <button id="favorite-sync" class="btn ghost">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+              Sync Raindrop
+            </button>
             <button id="favorite-save" class="btn primary">Salvar Favorito</button>
           </div>
+
+          <!-- Aviso de configuração do Raindrop -->
+          <div id="raindrop-setup-hint" style="display:none;margin-top:12px;padding:12px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);">
+            <div style="font-size:13px;font-weight:500;color:var(--warn);margin-bottom:6px;">⚠ Raindrop não configurado</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+              Para sincronizar seus favoritos do Raindrop, adicione as variáveis de ambiente no Render:<br>
+              <code style="background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:11px;">RAINDROP_TOKEN</code> — 
+              obtenha em <a href="https://app.raindrop.io/settings/integrations" target="_blank" style="color:var(--accent-2);">raindrop.io → Configurações → Integrações → Criar aplicativo</a><br>
+              <code style="background:var(--surface-3);padding:1px 5px;border-radius:3px;font-size:11px;">RAINDROP_COLLECTION_ID</code> — 
+              ID da coleção a sincronizar (0 = todos os links)
+            </div>
+          </div>
         </div>
+
         <div class="list" id="favorites-list"></div>
       </section>
 
