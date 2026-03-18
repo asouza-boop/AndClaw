@@ -12,6 +12,23 @@
 </head>
 <body>
 
+<!-- Toast notifications -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Log modal -->
+<div id="log-modal" class="log-modal hidden">
+  <div class="log-modal-content">
+    <div class="log-modal-header">
+      <span>Log de atividade</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="log-clear-btn" class="log-btn-ghost">Limpar</button>
+        <button id="log-close-btn" class="log-btn-close">✕</button>
+      </div>
+    </div>
+    <div id="log-list" class="log-list"></div>
+  </div>
+</div>
+
 <div class="app-shell">
 
   <!-- ── SIDEBAR ── -->
@@ -94,13 +111,19 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="status-pill">Online</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div class="status-pill" id="status-pill-online">Online</div>
+        <button id="open-log-btn" class="log-toggle-btn" title="Ver logs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <span id="log-badge" class="log-badge hidden">0</span>
+        </button>
+      </div>
     </div>
   </aside>
 
   <!-- ── MAIN ── -->
   <main class="main">
-    <div id="banner" class="banner hidden"></div>
+    <div id="banner" class="banner hidden" style="display:none!important;"></div>
 
     <!-- Topbar -->
     <header class="topbar">

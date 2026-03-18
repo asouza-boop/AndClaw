@@ -46,32 +46,154 @@ const loginPassword = document.getElementById('login-password');
 const adminFeedback = document.getElementById('admin-feedback');
 const togglePassword = document.getElementById('toggle-password');
 
+// ── Sistema de notificações ──────────────────────────────
+const appLogs = [];
+let logErrorCount = 0;
+
+function toast(msg, type = 'info', title = null, duration = 5000) {
+  const container = document.getElementById('toast-container');
+  if (!container) { console.log(`[${type}] ${msg}`); return; }
+
+  // Registrar no log
+  logPush(msg, type, title);
+
+  const icons = { success: '✓', error: '✕', info: 'i', warn: '!' };
+  const titles = { success: 'Sucesso', error: 'Erro', info: 'Info', warn: 'Aviso' };
+
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.innerHTML = `
+    <div class="toast-icon">${icons[type] || 'i'}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title || titles[type] || type}</div>
+      <div class="toast-msg">${msg}</div>
+    </div>
+    <button class="toast-close" onclick="dismissToast(this.parentElement)">✕</button>
+    <div class="toast-progress" style="animation-duration:${duration}ms;"></div>
+  `;
+
+  t.addEventListener('click', (e) => {
+    if (e.target.classList.contains('toast-close')) return;
+    // Clique expande para ver msg completa se truncada
+    const msgEl = t.querySelector('.toast-msg');
+    msgEl.style.whiteSpace = msgEl.style.whiteSpace === 'nowrap' ? 'pre-wrap' : 'nowrap';
+  });
+
+  container.appendChild(t);
+
+  // Auto-dismiss
+  if (duration > 0) {
+    setTimeout(() => dismissToast(t), duration);
+  }
+
+  // Máximo 5 toasts visíveis
+  const toasts = container.querySelectorAll('.toast:not(.removing)');
+  if (toasts.length > 5) dismissToast(toasts[0]);
+}
+
+function dismissToast(el) {
+  if (!el || el.classList.contains('removing')) return;
+  el.classList.add('removing');
+  el.addEventListener('animationend', () => el.remove(), { once: true });
+  setTimeout(() => el.remove(), 300);
+}
+
+function logPush(msg, type = 'info', title = null) {
+  const entry = {
+    id: Date.now(),
+    time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    msg: String(msg),
+    type,
+    title,
+  };
+  appLogs.unshift(entry);
+  if (appLogs.length > 200) appLogs.pop();
+
+  if (type === 'error' || type === 'warn') {
+    logErrorCount++;
+    const badge = document.getElementById('log-badge');
+    if (badge) {
+      badge.textContent = logErrorCount > 99 ? '99+' : String(logErrorCount);
+      badge.classList.remove('hidden');
+    }
+  }
+
+  renderLogList();
+}
+
+function renderLogList() {
+  const list = document.getElementById('log-list');
+  if (!list) return;
+  if (appLogs.length === 0) {
+    list.innerHTML = '<div class="log-empty">Nenhuma atividade registrada.</div>';
+    return;
+  }
+  list.innerHTML = appLogs.map(e => {
+    const short = e.msg.length > 120 ? e.msg.slice(0, 120) + '…' : e.msg;
+    const hasFull = e.msg.length > 120;
+    return `<div class="log-entry" onclick="this.classList.toggle('expanded')">
+      <span class="log-entry-dot log-dot-${e.type}"></span>
+      <div class="log-entry-body">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+          ${e.title ? `<span style="font-weight:500;color:var(--text);font-size:12px;">${e.title}</span>` : ''}
+          <span class="log-entry-time">${e.time}</span>
+          ${hasFull ? '<span style="font-size:10px;color:var(--muted);font-family:var(--font-mono);">clique p/ expandir</span>' : ''}
+        </div>
+        <div class="log-entry-msg">${short}</div>
+        ${hasFull ? `<div class="log-entry-full">${e.msg}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Compatibilidade com código existente — redirecionar para toast
 function showBanner(text) {
-  banner.textContent = text;
-  banner.classList.remove('hidden');
+  toast(text, 'info', null, 6000);
 }
-
-function hideBanner() {
-  banner.classList.add('hidden');
-  banner.textContent = '';
-}
-
+function hideBanner() { /* toasts auto-dismiss */ }
 function showError(err) {
-  const msg = typeof err === 'string' ? err : (err && err.message) ? err.message : 'Erro inesperado';
-  showBanner(msg);
+  const msg = typeof err === 'string' ? err : (err?.message) || 'Erro inesperado';
+  toast(msg, 'error', 'Erro', 0); // 0 = não fecha automático em erros
 }
-
 function showInline(text) {
-  if (!adminFeedback) return;
-  adminFeedback.textContent = text;
-  adminFeedback.classList.remove('hidden');
+  // Detectar se é sucesso ou erro pela mensagem
+  const isError = /falha|erro|fail|error/i.test(text);
+  toast(text, isError ? 'error' : 'success', null, 4000);
 }
+function hideInline() { /* toasts auto-dismiss */ }
 
-function hideInline() {
-  if (!adminFeedback) return;
-  adminFeedback.textContent = '';
-  adminFeedback.classList.add('hidden');
-}
+// Controles do log modal
+document.getElementById('open-log-btn')?.addEventListener('click', () => {
+  const modal = document.getElementById('log-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    // Zerar badge ao abrir
+    logErrorCount = 0;
+    const badge = document.getElementById('log-badge');
+    if (badge) badge.classList.add('hidden');
+    renderLogList();
+  }
+});
+
+document.getElementById('log-close-btn')?.addEventListener('click', () => {
+  document.getElementById('log-modal')?.classList.add('hidden');
+});
+
+document.getElementById('log-clear-btn')?.addEventListener('click', () => {
+  appLogs.length = 0;
+  logErrorCount = 0;
+  const badge = document.getElementById('log-badge');
+  if (badge) badge.classList.add('hidden');
+  renderLogList();
+  toast('Log limpo.', 'info', null, 2000);
+});
+
+// Fechar log clicando fora
+document.getElementById('log-modal')?.addEventListener('click', (e) => {
+  if (e.target.id === 'log-modal') {
+    document.getElementById('log-modal').classList.add('hidden');
+  }
+});
 function getApiBase() {
   const stored = localStorage.getItem('andclaw_api_base');
   // Se o frontend está rodando no mesmo servidor do backend (onrender, oracle, etc.)
@@ -124,11 +246,19 @@ async function apiFetch(path, options = {}) {
   const res = await fetch(`${apiBase}${path}`, { ...options, headers });
   if (res.status === 401) {
     showLogin();
-    throw new Error('Nao autorizado. Faça login novamente.');
+    throw new Error('Não autorizado. Faça login novamente.');
   }
   if (res.status === 503) {
     showLogin();
-    throw new Error('Inicializacao necessaria. Use o botao Inicializar.');
+    throw new Error('Inicialização necessária. Use o botão Inicializar.');
+  }
+  if (!res.ok && res.status >= 400) {
+    let errMsg = `HTTP ${res.status}`;
+    try {
+      const errData = await res.clone().json();
+      errMsg = errData.error || errData.message || errMsg;
+    } catch {}
+    logPush(`${errMsg} — ${res.url || path}`, 'error', `Erro ${res.status}`);
   }
   if (res.ok) {
     const ct = res.headers.get('content-type') || '';
@@ -725,7 +855,9 @@ async function loadAdmin() {
     const statusLlm = document.getElementById('status-llm');
     if (statusLlm) statusLlm.textContent = `Gemini: ${llm.gemini ? 'OK' : 'OFF'} | OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'} | DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`;
 
-    if (!llmOk) showBanner('Modo offline: nenhuma LLM configurada. Configure em Configurações avançadas.');
+    if (!llmOk) {
+      toast('Nenhum provider LLM configurado. Acesse Configurações → Integrações → Configurações avançadas para adicionar sua GEMINI_API_KEY.', 'warn', 'LLM offline', 0);
+    }
 
     renderActivityLog(data);
   } catch (err) {
@@ -1774,6 +1906,7 @@ async function initApp() {
   const authed = await ensureAuth();
   if (!authed) return;
   hideBanner();
+  logPush('App inicializado com sucesso', 'success', 'Sistema');
   await registerServiceWorker();
   await flushQueue();
   await refreshCaptures();
