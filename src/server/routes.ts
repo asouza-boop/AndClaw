@@ -256,12 +256,12 @@ router.get('/agents', async (_req: Request, res: Response) => {
 });
 
 router.post('/agents', async (req: Request, res: Response) => {
-  const { name, level, status, areas = [], description, skills = [], tags = [] } = req.body || {};
+  const { name, level, status, areas = [], description, base_doc, skills = [], tags = [] } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const rows = await query<any>(
-    `INSERT INTO agents (name, level, status, areas, description)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [name, level || 'Estrategico', status || 'ativo', areas, description || null]
+    `INSERT INTO agents (name, level, status, areas, description, base_doc)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [name, level || 'Estrategico', status || 'ativo', areas, description || null, base_doc || null]
   );
   const agent = rows[0];
 
@@ -277,6 +277,29 @@ router.post('/agents', async (req: Request, res: Response) => {
   await setEntityTags('agent', String(agent.id), tags);
 
   res.json({ ok: true, item: agent });
+});
+
+router.patch('/agents/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, level, status, areas, description, base_doc } = req.body || {};
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (name)        { params.push(name);        updates.push(`name = $${params.length}`); }
+  if (level)       { params.push(level);       updates.push(`level = $${params.length}`); }
+  if (status)      { params.push(status);      updates.push(`status = $${params.length}`); }
+  if (areas)       { params.push(areas);       updates.push(`areas = $${params.length}`); }
+  if (description !== undefined) { params.push(description); updates.push(`description = $${params.length}`); }
+  if (base_doc !== undefined)    { params.push(base_doc);    updates.push(`base_doc = $${params.length}`); }
+  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
+  params.push(id);
+  const rows = await query<any>(`UPDATE agents SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.delete('/agents/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query(`DELETE FROM agents WHERE id = $1`, [id]);
+  res.json({ ok: true });
 });
 
 router.post('/agents/:id/tags', async (req: Request, res: Response) => {

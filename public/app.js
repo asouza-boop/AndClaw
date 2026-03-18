@@ -1424,80 +1424,397 @@ function parseList(value) {
   return value.split(',').map(v => v.trim()).filter(Boolean);
 }
 
+let cachedSkills = [];
+
 async function loadSkills() {
   try {
-    const res = await apiFetch('/api/skills');
-    const data = await res.json();
-    const list = document.getElementById('skills-list');
-    list.innerHTML = (data.items || []).map(item => `
-      <div class="card">
-        <strong>${item.title}</strong>
-        <div>${item.slug}</div>
-        <div>${item.description || ''}</div>
+    const [skillsRes, agentsRes] = await Promise.all([
+      apiFetch('/api/skills'),
+      apiFetch('/api/agents'),
+    ]);
+    const skillData = await skillsRes.json();
+    const agentData = await agentsRes.json();
+    cachedSkills = skillData.items || [];
+    const agents = agentData.items || [];
+
+    // Map skill→agents
+    const skillAgentMap = {};
+    agents.forEach(a => {
+      (a.skills || []).forEach(s => {
+        if (!skillAgentMap[s]) skillAgentMap[s] = [];
+        skillAgentMap[s].push(a);
+      });
+    });
+
+    renderSkillsView(cachedSkills, skillAgentMap);
+  } catch (err) { showError(err); }
+}
+
+function renderSkillsView(skills, skillAgentMap = {}) {
+  const list = document.getElementById('skills-list');
+  const statsRow = document.getElementById('skills-stats-row');
+  if (!list) return;
+
+  const search = document.getElementById('skills-search')?.value.toLowerCase() || '';
+  const filtered = search ? skills.filter(s =>
+    (s.title||s.name||'').toLowerCase().includes(search) ||
+    (s.slug||'').toLowerCase().includes(search) ||
+    (s.description||'').toLowerCase().includes(search)
+  ) : skills;
+
+  // Stats
+  const totalAgents = Object.values(skillAgentMap).flat().length;
+  if (statsRow) statsRow.innerHTML = [
+    { label: 'Skills carregadas', val: skills.length, color: 'var(--accent)' },
+    { label: 'Com agentes ativos', val: Object.keys(skillAgentMap).length, color: 'var(--accent-3)' },
+    { label: 'Associações total', val: totalAgents, color: 'var(--accent-2)' },
+    { label: 'Sem agentes', val: skills.filter(s=>!(skillAgentMap[s.slug||s.name]?.length)).length, color: 'var(--muted)' },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-label">${s.label}</div>
+    <div class="stat-value" style="color:${s.color};">${s.val}</div>
+  </div>`).join('');
+
+  // Skill icons map
+  const icons = { brainstorming:'🧠', 'notion-sync':'📋', 'notion-research':'🔍',
+    'canvas-design':'🎨', 'super-agent':'⚡', 'meeting-intelligence':'🎙',
+    'skill-creator':'🔧', 'so-expert':'💡', 'user-profiling':'👤' };
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhuma skill encontrada.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(skill => {
+    const slug = skill.slug || skill.name || '';
+    const title = skill.title || skill.name || slug;
+    const desc = skill.description || '';
+    const linkedAgents = skillAgentMap[slug] || [];
+    const icon = icons[slug] || '⚙️';
+    return `<div class="skill-card" onclick="openSkillDetail('${slug}')">
+      <div class="skill-card-top">
+        <div>
+          <div class="skill-card-name">${title}</div>
+          <div class="skill-card-slug">${slug}</div>
+        </div>
+        <div class="skill-card-icon">${icon}</div>
       </div>
-    `).join('');
-  } catch (err) {
-    showError(err);
+      <div class="skill-card-desc">${desc.substring(0,120)}${desc.length>120?'…':''}</div>
+      <div class="skill-card-footer">
+        <span class="skill-agents-count">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+          ${linkedAgents.length} agente${linkedAgents.length!==1?'s':''}
+        </span>
+        ${linkedAgents.length > 0 ? '<span class="skill-active-badge">Em uso</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openSkillDetail(slug) {
+  const skill = cachedSkills.find(s => (s.slug||s.name) === slug);
+  if (!skill) return;
+  const detail = document.getElementById('skill-detail');
+  const grid = document.getElementById('skills-list');
+  const statsRow = document.getElementById('skills-stats-row');
+  if (grid) grid.style.display = 'none';
+  if (statsRow) statsRow.style.display = 'none';
+  if (detail) {
+    detail.style.display = 'block';
+    document.getElementById('skill-detail-title').textContent = skill.title || skill.name || slug;
+    document.getElementById('skill-detail-meta').innerHTML = `
+      <div class="skill-meta-pill">🔧 ${slug}</div>
+      ${skill.version ? `<div class="skill-meta-pill">v${skill.version}</div>` : ''}
+      ${skill.author ? `<div class="skill-meta-pill">✍ ${skill.author}</div>` : ''}
+    `;
+    document.getElementById('skill-detail-desc').textContent = skill.description || 'Sem descrição disponível.';
+    // Agents usando esta skill
+    const agentsUsing = (cachedAgents || []).filter(a => (a.skills||[]).includes(slug));
+    const agentsEl = document.getElementById('skill-detail-agents');
+    agentsEl.innerHTML = agentsUsing.length > 0
+      ? `<div class="agent-detail-section-title" style="margin-bottom:8px;">Agentes usando esta skill</div>` +
+        agentsUsing.map(a => `<div class="skill-agent-row" onclick="openAgentDetail(${a.id})">
+          <span class="agent-status-pill status-${a.status||'ativo'}">${a.status||'ativo'}</span>
+          <span>${a.name}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);">${a.level}</span>
+        </div>`).join('')
+      : '<div class="empty-state">Nenhum agente usa esta skill ainda.</div>';
+
+    // Assign button
+    const assignBtn = document.getElementById('skill-assign-btn');
+    if (assignBtn) assignBtn.onclick = () => { openAgentModal(); closeSkillDetail(); };
   }
 }
+
+function closeSkillDetail() {
+  document.getElementById('skill-detail').style.display = 'none';
+  document.getElementById('skills-list').style.display = 'grid';
+  const statsRow = document.getElementById('skills-stats-row');
+  if (statsRow) statsRow.style.display = 'grid';
+}
+
+document.getElementById('skills-search')?.addEventListener('input', () => {
+  renderSkillsView(cachedSkills);
+});
+
+document.getElementById('skills-reload-btn')?.addEventListener('click', async () => {
+  await loadSkills();
+  toast('Skills recarregadas.', 'success', null, 2000);
+});
+
+let cachedAgents = [];
 
 async function loadAgents() {
   try {
     const res = await apiFetch('/api/agents');
     const data = await res.json();
-    const items = data.items || [];
-    const groups = {
-      estrategico: document.getElementById('agents-estrategico'),
-      tatico: document.getElementById('agents-tatico'),
-      operacional: document.getElementById('agents-operacional'),
-    };
-    Object.values(groups).forEach(el => { if (el) el.innerHTML = ''; });
+    cachedAgents = data.items || [];
+    renderAgentsView(cachedAgents);
+  } catch (err) { showError(err); }
+}
 
-    items.forEach(agent => {
-      const level = (agent.level || 'Estrategico').toLowerCase();
-      const target = groups[level] || groups.estrategico;
-      const tags = (agent.tags || []).map(t => `<span class="tag-pill">${t.name}</span>`).join('');
-      const areas = (agent.areas || []).map(a => `<span class="tag-pill">${a}</span>`).join('');
-      const skills = (agent.skills || []).map(s => `<span class="tag-pill">${s}</span>`).join('');
-      const card = document.createElement('div');
-      card.className = 'agent-card';
-      card.innerHTML = `
-        <strong>${agent.name}</strong>
-        <div>${agent.status || ''}</div>
-        <div><small>Areas</small></div>
-        <div class="tag-row">${areas}</div>
-        <div><small>Skills</small></div>
-        <div class="tag-row">${skills}</div>
-        <div><small>Tags</small></div>
-        <div class="tag-row">${tags}</div>
-      `;
-      target.appendChild(card);
-    });
-  } catch (err) {
-    showError(err);
+function renderAgentsView(agents) {
+  const filterLevel  = document.getElementById('agent-filter-level')?.value  || '';
+  const filterStatus = document.getElementById('agent-filter-status')?.value || '';
+  const filtered = agents.filter(a =>
+    (!filterLevel  || a.level  === filterLevel) &&
+    (!filterStatus || a.status === filterStatus)
+  );
+
+  const groups = { estrategico: [], tatico: [], operacional: [] };
+  filtered.forEach(a => {
+    const key = (a.level||'Estrategico').toLowerCase();
+    (groups[key] || groups.estrategico).push(a);
+  });
+
+  ['estrategico','tatico','operacional'].forEach(level => {
+    const el = document.getElementById(`agents-${level}`);
+    const count = document.getElementById(`count-${level}`);
+    if (count) count.textContent = groups[level].length;
+    if (!el) return;
+    el.innerHTML = groups[level].length > 0
+      ? groups[level].map(a => agentCardHTML(a)).join('')
+      : '<div class="empty-state" style="padding:20px 0;font-size:13px;">Nenhum agente</div>';
+  });
+
+  // Stats row
+  const statsEl = document.getElementById('agents-stats');
+  if (statsEl) {
+    const total   = agents.length;
+    const ativos  = agents.filter(a => a.status === 'ativo').length;
+    const withSkills = agents.filter(a => (a.skills||[]).length > 0).length;
+    const withDoc    = agents.filter(a => a.base_doc).length;
+    statsEl.innerHTML = [
+      { label: 'Total de agentes', val: total,      color: 'var(--text)' },
+      { label: 'Ativos',           val: ativos,     color: 'var(--accent-3)' },
+      { label: 'Com skills',       val: withSkills, color: 'var(--accent)' },
+      { label: 'Com documento base', val: withDoc,  color: 'var(--accent-2)' },
+    ].map(s => `<div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value" style="color:${s.color};">${s.val}</div>
+    </div>`).join('');
   }
 }
 
-document.getElementById('agent-save').addEventListener('click', async () => {
+function agentCardHTML(a) {
+  const statusClass = { ativo:'status-ativo', desenvolvimento:'status-desenvolvimento', inativo:'status-inativo' }[a.status] || 'status-ativo';
+  const skills = (a.skills||[]).slice(0,4).map(s => `<span class="agent-skill-chip">${s}</span>`).join('');
+  const moreSkills = (a.skills||[]).length > 4 ? `<span class="agent-skill-chip">+${(a.skills||[]).length-4}</span>` : '';
+  const tags = (a.tags||[]).map(t => {
+    const color = t.color||'#8b5cf6';
+    const bg = hexToRgba(color, 0.12);
+    return `<span class="tag-inline-pill" style="background:${bg};border:1px solid ${hexToRgba(color,0.3)};color:${color};">${t.name}</span>`;
+  }).join('');
+  const areas = (a.areas||[]).map(ar => `<span class="tag-inline-pill" style="background:var(--surface-3);color:var(--muted);border:1px solid var(--border);">${ar}</span>`).join('');
+  return `<div class="agent-card-new" onclick="openAgentDetail(${a.id})">
+    <div class="agent-card-top">
+      <div class="agent-card-name">${a.name}</div>
+      <span class="agent-status-pill ${statusClass}">${a.status||'ativo'}</span>
+    </div>
+    ${a.description ? `<div class="agent-card-desc">${a.description}</div>` : ''}
+    ${(a.skills||[]).length > 0 ? `<div class="agent-card-skills">${skills}${moreSkills}</div>` : ''}
+    ${(a.areas||[]).length > 0 || (a.tags||[]).length > 0 ? `<div class="tag-inline-pills">${areas}${tags}</div>` : ''}
+    <div class="agent-card-footer">
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();openAgentModal(${a.id})">✎ Editar</button>
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();activateAgentChat(${a.id})" style="color:var(--accent);">💬 Chat</button>
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();deleteAgent(${a.id})" style="color:var(--danger);margin-left:auto;">Excluir</button>
+    </div>
+  </div>`;
+}
+
+function openAgentDetail(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  const panel = document.getElementById('agent-detail');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  document.getElementById('agent-detail-name').textContent = agent.name;
+
+  const statusClass = { ativo:'status-ativo', desenvolvimento:'status-desenvolvimento', inativo:'status-inativo' }[agent.status] || 'status-ativo';
+  const skills = (agent.skills||[]).map(s => {
+    const skill = cachedSkills.find(sk => (sk.slug||sk.name) === s);
+    return `<span class="agent-skill-chip" style="cursor:pointer;" onclick="navigateTo('skills');setTimeout(()=>openSkillDetail('${s}'),100)">${skill?.title||s}</span>`;
+  }).join('');
+
+  document.getElementById('agent-detail-body').innerHTML = `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Status & Nível</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="agent-status-pill ${statusClass}">${agent.status||'ativo'}</span>
+        <span class="agent-status-pill" style="background:var(--surface-2);color:var(--muted);border:1px solid var(--border);">${agent.level}</span>
+        ${(agent.areas||[]).map(ar=>`<span class="skill-meta-pill">${ar}</span>`).join('')}
+      </div>
+    </div>
+    ${agent.description ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Propósito</div>
+      <div class="agent-detail-doc">${agent.description}</div>
+    </div>` : ''}
+    ${(agent.skills||[]).length > 0 ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Skills ativas (${(agent.skills||[]).length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${skills}</div>
+    </div>` : ''}
+    ${agent.base_doc ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">📄 Documento base</div>
+      <div class="agent-detail-doc">${agent.base_doc}</div>
+    </div>` : '<div class="empty-state">Sem documento base. Edite o agente para adicionar contexto rico.</div>'}
+    ${(agent.tags||[]).length > 0 ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Tags</div>
+      <div class="tag-inline-pills">
+        ${(agent.tags||[]).map(t=>{const c=t.color||'#8b5cf6';return `<span class="tag-inline-pill" style="background:${hexToRgba(c,0.12)};border:1px solid ${hexToRgba(c,0.3)};color:${c};">${t.name}</span>`;}).join('')}
+      </div>
+    </div>` : ''}
+    <div style="padding-top:8px;border-top:1px solid var(--border);">
+      <div class="agent-detail-section-title">Criado em</div>
+      <div style="font-size:12px;color:var(--muted);font-family:'Fira Code',monospace;">${new Date(agent.created_at).toLocaleString('pt-BR')}</div>
+    </div>
+  `;
+
+  document.getElementById('agent-detail-chat-btn').onclick = () => activateAgentChat(id);
+  document.getElementById('agent-detail-edit-btn').onclick = () => { closeAgentDetail(); openAgentModal(id); };
+}
+
+function closeAgentDetail() {
+  document.getElementById('agent-detail')?.classList.add('hidden');
+}
+
+function openAgentModal(editId = null) {
+  const modal = document.getElementById('agent-modal');
+  if (!modal) return;
+  const titleEl = document.getElementById('agent-modal-title');
+  const saveBtn = document.getElementById('agent-save');
+  const editIdEl = document.getElementById('agent-edit-id');
+
+  // Preencher skills picker com skills disponíveis
+  const picker = document.getElementById('agent-skills-picker');
+  let selectedSkills = new Set();
+
+  if (editId) {
+    const agent = cachedAgents.find(a => Number(a.id) === Number(editId));
+    if (agent) {
+      document.getElementById('agent-name').value = agent.name;
+      document.getElementById('agent-level').value = agent.level || 'Estrategico';
+      document.getElementById('agent-status').value = agent.status || 'ativo';
+      document.getElementById('agent-areas').value = (agent.areas||[]).join(', ');
+      document.getElementById('agent-description').value = agent.description || '';
+      document.getElementById('agent-base-doc').value = agent.base_doc || '';
+      document.getElementById('agent-tags').value = (agent.tags||[]).map(t=>t.name).join(', ');
+      selectedSkills = new Set(agent.skills||[]);
+      if (titleEl) titleEl.textContent = 'Editar Agente';
+      if (saveBtn) saveBtn.textContent = 'Salvar Alterações';
+      if (editIdEl) editIdEl.value = String(editId);
+    }
+  } else {
+    document.getElementById('agent-name').value = '';
+    document.getElementById('agent-level').value = 'Estrategico';
+    document.getElementById('agent-status').value = 'ativo';
+    document.getElementById('agent-areas').value = '';
+    document.getElementById('agent-description').value = '';
+    document.getElementById('agent-base-doc').value = '';
+    document.getElementById('agent-tags').value = '';
+    if (titleEl) titleEl.textContent = 'Novo Agente';
+    if (saveBtn) saveBtn.textContent = 'Criar Agente';
+    if (editIdEl) editIdEl.value = '';
+  }
+
+  if (picker) {
+    picker.innerHTML = cachedSkills.map(s => {
+      const slug = s.slug||s.name||'';
+      const isSelected = selectedSkills.has(slug);
+      return `<span class="skill-toggle-chip ${isSelected?'selected':''}" data-slug="${slug}"
+        onclick="toggleSkillChip(this)">${slug}</span>`;
+    }).join('') || '<span style="color:var(--muted);font-size:12px;">Nenhuma skill carregada</span>';
+  }
+
+  modal.classList.remove('hidden');
+  document.getElementById('agent-name').focus();
+}
+
+function closeAgentModal() {
+  document.getElementById('agent-modal')?.classList.add('hidden');
+}
+
+function toggleSkillChip(el) {
+  el.classList.toggle('selected');
+  const selected = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
+  document.getElementById('agent-skills').value = selected.join(',');
+}
+
+function activateAgentChat(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  navigateTo('chat');
+  const input = document.getElementById('chat-input-full');
+  if (input) {
+    input.placeholder = `Falando com ${agent.name}...`;
+    input.dataset.agentId = String(id);
+    toast(`Agente ${agent.name} ativado no chat.`, 'success', 'Chat', 3000);
+  }
+}
+
+async function deleteAgent(id) {
+  if (!confirm('Excluir este agente?')) return;
+  try {
+    await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+    closeAgentDetail();
+    await loadAgents();
+    toast('Agente excluído.', 'info', null, 3000);
+  } catch (err) { showError(err); }
+}
+
+// Filters
+document.getElementById('agent-filter-level')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+document.getElementById('agent-filter-status')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+
+document.getElementById('agent-save')?.addEventListener('click', async () => {
+  const editId = document.getElementById('agent-edit-id')?.value;
+  const selectedSkills = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
   const payload = {
     name: document.getElementById('agent-name').value.trim(),
-    level: document.getElementById('agent-level').value.trim(),
-    status: document.getElementById('agent-status').value.trim(),
+    level: document.getElementById('agent-level').value,
+    status: document.getElementById('agent-status').value,
     areas: parseList(document.getElementById('agent-areas').value),
-    skills: parseList(document.getElementById('agent-skills').value),
+    skills: selectedSkills,
     tags: parseList(document.getElementById('agent-tags').value),
     description: document.getElementById('agent-description').value.trim(),
+    base_doc: document.getElementById('agent-base-doc').value.trim() || null,
   };
-  if (!payload.name) return showBanner('Informe o nome do agente.');
+  if (!payload.name) { toast('Informe o nome do agente.', 'warn'); return; }
   try {
-    await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
-    document.getElementById('agent-name').value = '';
-    document.getElementById('agent-description').value = '';
-    showInline('Agente criado com sucesso.');
+    if (editId) {
+      await apiFetch(`/api/agents/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      await apiFetch(`/api/agents/${editId}/skills`, { method: 'POST', body: JSON.stringify({ skills: selectedSkills }) });
+      await apiFetch(`/api/agents/${editId}/tags`, { method: 'POST', body: JSON.stringify({ tags: payload.tags }) });
+      toast('Agente atualizado com sucesso.', 'success');
+    } else {
+      await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Agente criado com sucesso!', 'success');
+    }
+    closeAgentModal();
     await loadAgents();
-  } catch (err) {
-    showError(err);
-  }
+  } catch (err) { showError(err); }
 });
 
 let cachedTags = [];

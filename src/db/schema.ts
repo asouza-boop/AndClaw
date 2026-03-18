@@ -32,6 +32,8 @@ export async function ensureSchema(): Promise<void> {
       processed_at TIMESTAMPTZ
     );
   `);
+
+  await query(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS base_doc TEXT`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'note'`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
@@ -147,6 +149,7 @@ export async function ensureSchema(): Promise<void> {
       status TEXT DEFAULT 'ativo',
       areas TEXT[] DEFAULT '{}',
       description TEXT,
+      base_doc TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);

@@ -321,76 +321,167 @@
 
       <!-- ── AGENTES ── -->
       <section id="view-agents" class="view">
-        <h2>Agentes</h2>
-        <div class="panel">
-          <div class="form-row">
-            <div class="field">
-              <label>Nome do agente</label>
-              <input id="agent-name" type="text" placeholder="Ex: Analista de Dados" />
+
+        <!-- Header -->
+        <div class="agents-header">
+          <div>
+            <h2>Agentes</h2>
+            <p class="settings-subtitle">O cérebro do sistema. Crie, configure e monitore seus agentes de IA.</p>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="agent-filter-level" class="agents-filter-select">
+              <option value="">Todos os níveis</option>
+              <option value="Estrategico">Estratégico</option>
+              <option value="Tatico">Tático</option>
+              <option value="Operacional">Operacional</option>
+            </select>
+            <select id="agent-filter-status" class="agents-filter-select">
+              <option value="">Todos os status</option>
+              <option value="ativo">Ativo</option>
+              <option value="desenvolvimento">Em desenvolvimento</option>
+              <option value="inativo">Inativo</option>
+            </select>
+            <button class="btn primary" onclick="openAgentModal()">+ Novo Agente</button>
+          </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="agents-stats" id="agents-stats"></div>
+
+        <!-- Agent cards grid -->
+        <div class="agents-board" id="agents-board">
+          <div class="agents-column" id="agents-col-estrategico">
+            <div class="agents-col-header">
+              <span class="agents-col-dot" style="background:#8b5cf6;"></span>
+              <span>Estratégico</span>
+              <span class="agents-col-count" id="count-estrategico">0</span>
             </div>
-            <div class="field">
-              <label>Nível</label>
-              <select id="agent-level">
-                <option value="Estrategico">Estratégico</option>
-                <option value="Tatico">Tático</option>
-                <option value="Operacional">Operacional</option>
-              </select>
+            <div class="agents-col-list" id="agents-estrategico"></div>
+          </div>
+          <div class="agents-column" id="agents-col-tatico">
+            <div class="agents-col-header">
+              <span class="agents-col-dot" style="background:#22d3ee;"></span>
+              <span>Tático</span>
+              <span class="agents-col-count" id="count-tatico">0</span>
+            </div>
+            <div class="agents-col-list" id="agents-tatico"></div>
+          </div>
+          <div class="agents-column" id="agents-col-operacional">
+            <div class="agents-col-header">
+              <span class="agents-col-dot" style="background:#10b981;"></span>
+              <span>Operacional</span>
+              <span class="agents-col-count" id="count-operacional">0</span>
+            </div>
+            <div class="agents-col-list" id="agents-operacional"></div>
+          </div>
+        </div>
+
+        <!-- Agent detail panel (slideIn) -->
+        <div class="agent-detail hidden" id="agent-detail">
+          <div class="agent-detail-header">
+            <button class="skill-detail-back" onclick="closeAgentDetail()">← Fechar</button>
+            <div id="agent-detail-name" class="agent-detail-name"></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn ghost" id="agent-detail-chat-btn">💬 Ativar no Chat</button>
+              <button class="btn ghost agent-edit-btn" id="agent-detail-edit-btn">✎ Editar</button>
             </div>
           </div>
-          <div class="form-row">
-            <div class="field">
-              <label>Status</label>
-              <select id="agent-status">
-                <option value="ativo">Ativo</option>
-                <option value="desenvolvimento">Em desenvolvimento</option>
-                <option value="inativo">Inativo</option>
-              </select>
+          <div class="agent-detail-body" id="agent-detail-body"></div>
+        </div>
+
+        <!-- Create/Edit modal -->
+        <div id="agent-modal" class="modal hidden">
+          <div class="modal-content" style="width:min(680px,95vw);max-height:90vh;overflow-y:auto;">
+            <h3 id="agent-modal-title">Novo Agente</h3>
+            <input type="hidden" id="agent-edit-id" value="" />
+            <div class="form-row">
+              <div class="field">
+                <label>Nome do agente *</label>
+                <input id="agent-name" type="text" placeholder="Ex: Analista de Dados AWS" />
+              </div>
+              <div class="field">
+                <label>Nível</label>
+                <select id="agent-level">
+                  <option value="Estrategico">🔵 Estratégico — visão, decisões</option>
+                  <option value="Tatico">🟣 Tático — planejamento, coordenação</option>
+                  <option value="Operacional">🟢 Operacional — execução, tarefas</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label>Status</label>
+                <select id="agent-status">
+                  <option value="ativo">✅ Ativo</option>
+                  <option value="desenvolvimento">🔧 Em desenvolvimento</option>
+                  <option value="inativo">⭕ Inativo</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Áreas de atuação</label>
+                <input id="agent-areas" type="text" placeholder="AWS, Monitoramento, Custo..." />
+              </div>
             </div>
             <div class="field">
-              <label>Áreas</label>
-              <input id="agent-areas" type="text" placeholder="separadas por vírgula" />
+              <label>Descrição do propósito</label>
+              <textarea id="agent-description" rows="3" placeholder="Descreva o propósito, responsabilidades e contexto deste agente..."></textarea>
             </div>
-          </div>
-          <div class="form-row">
             <div class="field">
-              <label>Skills (slugs)</label>
-              <input id="agent-skills" type="text" placeholder="brainstorming, notion-sync..." />
+              <label>Skills ativas <span style="font-size:11px;color:var(--muted);">(slugs das skills carregadas)</span></label>
+              <div class="agent-skills-picker" id="agent-skills-picker"></div>
+              <input id="agent-skills" type="hidden" value="" />
             </div>
             <div class="field">
               <label>Tags</label>
               <input id="agent-tags" type="text" placeholder="separadas por vírgula" autocomplete="off" />
               <div id="agent-tags-suggestions" class="tag-suggestions hidden"></div>
             </div>
-          </div>
-          <div class="field">
-            <label>Descrição</label>
-            <textarea id="agent-description" placeholder="Descreva o propósito deste agente..."></textarea>
-          </div>
-          <div class="modal-actions">
-            <button id="agent-save" class="btn primary">Criar Agente</button>
+            <div class="field">
+              <label>Documento base (contexto rico)</label>
+              <textarea id="agent-base-doc" rows="4" placeholder="Cole aqui o documento de referência deste agente — especificações, playbooks, regras de negócio, estrutura da empresa... Este conteúdo será injetado no contexto do agente."></textarea>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Sugestões: organograma, regras AWS, playbook de incidentes, catálogo de clientes</div>
+            </div>
+            <div class="modal-actions">
+              <button id="agent-save" class="btn primary">Criar Agente</button>
+              <button class="btn ghost" onclick="closeAgentModal()">Cancelar</button>
+            </div>
           </div>
         </div>
 
-        <div class="grid">
-          <div class="card">
-            <div class="card-header"><h3>Estratégico</h3></div>
-            <div class="agent-grid" id="agents-estrategico"></div>
-          </div>
-          <div class="card">
-            <div class="card-header"><h3>Tático</h3></div>
-            <div class="agent-grid" id="agents-tatico"></div>
-          </div>
-          <div class="card wide">
-            <div class="card-header"><h3>Operacional</h3></div>
-            <div class="agent-grid" id="agents-operacional"></div>
-          </div>
-        </div>
       </section>
 
       <!-- ── SKILLS ── -->
       <section id="view-skills" class="view">
-        <h2>Skills</h2>
-        <div class="list" id="skills-list"></div>
+        <div class="skills-header">
+          <div>
+            <h2>Skills</h2>
+            <p class="settings-subtitle">Capacidades do agente carregadas do sistema de arquivos <code>.agents/skills/</code></p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input id="skills-search" type="text" placeholder="Buscar skill..." style="width:220px;" />
+            <button class="btn ghost" id="skills-reload-btn">↻ Recarregar</button>
+          </div>
+        </div>
+
+        <div class="skills-stats-row" id="skills-stats-row"></div>
+
+        <div class="skills-grid" id="skills-list"></div>
+
+        <!-- Skill detail panel -->
+        <div class="skill-detail" id="skill-detail" style="display:none;">
+          <div class="skill-detail-header">
+            <button class="skill-detail-back" onclick="closeSkillDetail()">← Voltar</button>
+            <div id="skill-detail-title" class="skill-detail-title"></div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn primary" id="skill-assign-btn">Atribuir a agente</button>
+            </div>
+          </div>
+          <div class="skill-detail-body">
+            <div class="skill-detail-meta" id="skill-detail-meta"></div>
+            <div class="skill-detail-desc" id="skill-detail-desc"></div>
+            <div class="skill-detail-agents" id="skill-detail-agents"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ── REUNIÕES ── -->
