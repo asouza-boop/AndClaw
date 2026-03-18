@@ -54,6 +54,13 @@ function toast(msg, type = 'info', title = null, duration = 5000) {
   const container = document.getElementById('toast-container');
   if (!container) { console.log(`[${type}] ${msg}`); return; }
 
+  // Deduplicar: não mostrar o mesmo erro repetido em menos de 3s
+  const existing = container.querySelectorAll('.toast');
+  for (const t of existing) {
+    const tMsg = t.querySelector('.toast-msg')?.textContent || '';
+    if (tMsg.trim() === String(msg).trim()) return; // já existe igual
+  }
+
   // Registrar no log
   logPush(msg, type, title);
 
@@ -152,7 +159,14 @@ function showBanner(text) {
 }
 function hideBanner() { /* toasts auto-dismiss */ }
 function showError(err) {
-  const msg = typeof err === 'string' ? err : (err?.message) || 'Erro inesperado';
+  let msg = typeof err === 'string' ? err : (err?.message) || 'Erro inesperado';
+  // Mensagem amigável para cold start do Render
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+    msg = 'Backend offline ou inicializando. Aguarde 30s e tente novamente.';
+  }
+  if (msg.includes('Backend retornou') || msg.includes('Render inicializando')) {
+    msg = 'Backend inicializando (cold start). Aguarde alguns segundos e reenvie.';
+  }
   toast(msg, 'error', 'Erro', 0); // 0 = não fecha automático em erros
 }
 function showInline(text) {
@@ -2543,10 +2557,15 @@ async function skChatSend() {
       })
     });
 
-    const apiData = await apiRes.json();
     if (typingEl) typingEl.remove();
 
-    const reply = apiData.reply || 'Sem resposta.';
+    // Verificar content-type antes de parsear JSON
+    const ct = apiRes.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) {
+      throw new Error('Render inicializando (HTTP ' + apiRes.status + '). Aguarde 30s e tente novamente.');
+    }
+    const apiData = await apiRes.json();
+    const reply = apiData.reply || apiData.error || 'Sem resposta.';
     skChatHistory.push({ role: 'assistant', content: reply });
     skChatRenderMsg('skill', reply, null);
 
@@ -2601,6 +2620,9 @@ async function skChatSend() {
     if (typingEl) typingEl.remove();
     skChatState = 'idle';
     showError(err);
+    // Mostrar mensagem de retry no chat
+    const errMsg = (err && err.message) ? err.message : 'Erro ao conectar com o backend.';
+    skChatRenderMsg('skill', errMsg + '\n\nTente reenviar sua mensagem em alguns segundos.', null);
   }
 }
 
