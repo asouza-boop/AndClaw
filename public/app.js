@@ -2154,6 +2154,413 @@ function renderAdminActivityLog() {
   }).join('');
 }
 
+
+async function loadDashboard() {
+  try {
+    const [tasksRes, meetingsRes, capturesRes] = await Promise.all([
+      apiFetch('/api/tasks'),
+      apiFetch('/api/meetings'),
+      apiFetch('/api/captures'),
+    ]);
+    const tasks    = (await tasksRes.json()).items    || [];
+    const meetings = (await meetingsRes.json()).items || [];
+    const captures = (await capturesRes.json()).items || [];
+
+    const openTasks    = tasks.filter(t => t.status !== 'done');
+    const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'alta');
+    const newCaptures  = captures.filter(c => c.status === 'new');
+
+    const el = id => document.getElementById(id);
+    if (el('stat-tasks'))    el('stat-tasks').textContent    = openTasks.length;
+    if (el('stat-priority')) el('stat-priority').textContent = highPriority.length;
+    if (el('stat-meetings')) el('stat-meetings').textContent = meetings.length;
+    if (el('stat-inbox'))    el('stat-inbox').textContent    = newCaptures.length;
+
+    const today = new Date().toDateString();
+    const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
+    if (el('today-list')) {
+      el('today-list').innerHTML = todayTasks.length > 0
+        ? todayTasks.slice(0, 5).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.priority || 'normal'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas para hoje</div>';
+    }
+    if (el('priority-list')) {
+      el('priority-list').innerHTML = openTasks.length > 0
+        ? openTasks.slice(0, 3).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.status || 'open'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas</div>';
+    }
+    if (el('meetings-list')) {
+      el('meetings-list').innerHTML = meetings.length > 0
+        ? meetings.slice(0, 3).map(m => `<div class="list-item"><div class="list-item-title">${m.title}</div><div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div></div>`).join('')
+        : '<div class="empty-state">Sem reuniões</div>';
+    }
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadAgenda() {
+  try {
+    const res = await apiFetch('/api/calendar/combined');
+    const data = await res.json();
+    const list = document.getElementById('agenda-grid');
+    list.innerHTML = (data.items || [])
+      .sort((a, b) => new Date(a.start) - new Date(b.start))
+      .slice(0, 12)
+      .map(item => {
+        const label = item.type === 'task' ? 'Tarefa' : 'Evento';
+        const date = item.start ? new Date(item.start).toLocaleString() : '';
+        return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
+      })
+      .join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadChatHistory() {
+  if (!navigator.onLine) return;
+  try {
+    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=50');
+    const data = await res.json();
+    const items = data.items || [];
+    const renderMsgs = (windowEl) => {
+      if (!windowEl) return;
+      if (items.length === 0) {
+        windowEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">Nenhuma mensagem ainda. Diga olá ao agente!</div>';
+        return;
+      }
+      windowEl.innerHTML = items.map(msg => {
+        const isUser = msg.role === 'user';
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="chat-msg ${isUser ? 'user' : 'agent'}">
+          <div class="chat-avatar ${isUser ? 'user-av' : 'agent-av'}">${isUser ? 'U' : 'A'}</div>
+          <div>
+            <div class="chat-bubble">${msg.content}</div>
+            ${time ? `<div class="chat-time">${time}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      windowEl.scrollTop = windowEl.scrollHeight;
+    };
+    renderMsgs(chatWindow);
+    renderMsgs(chatWindowFull);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadMeetings() {
+  try {
+    const res = await apiFetch('/api/meetings');
+    const data = await res.json();
+    const list = document.getElementById('meetings-full-list');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.slice(0, 50).map(m => `
+          <div class="list-item" style="gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="list-item-title">${m.title}</div>
+              <span class="inbox-item-time">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+            ${m.transcript_text ? `<div class="list-item-sub">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
+            ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state">Nenhuma reunião registrada.</div>';
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadAdmin() {
+  try {
+    const res = await apiFetch('/api/status');
+    const data = await res.json();
+
+    const setHealth = (id, ok, label) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const dot = ok
+        ? '<span class="int-dot-green"></span>'
+        : '<span class="int-dot-red"></span>';
+      el.innerHTML = `${dot} ${label}`;
+    };
+
+    setHealth('health-backend', true, 'Online');
+    setHealth('health-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
+
+    const llm = data.llm || {};
+    const activeLlm = llm.gemini ? 'Gemini' : llm.openrouter ? 'OpenRouter' : llm.deepseek ? 'DeepSeek' : 'Nenhum';
+    const llmOk = llm.gemini || llm.openrouter || llm.deepseek;
+    setHealth('health-llm', llmOk, activeLlm);
+
+    const deployEl = document.getElementById('health-deploy');
+    if (deployEl) {
+      deployEl.textContent = data.deploy?.last
+        ? new Date(data.deploy.last).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : 'Nunca';
+    }
+
+    const connected = (data.google?.connectedAccounts || []).length;
+    setBadgeInt('badge-google', connected > 0, connected > 0 ? `${connected} conta(s)` : 'Não conectado');
+    const googleSyncEl = document.getElementById('google-last-sync');
+    if (googleSyncEl && connected > 0) googleSyncEl.textContent = 'Última sync há poucos minutos.';
+
+    const googleSyncBtn = document.getElementById('google-sync-now');
+    const googleDiscoBtn = document.getElementById('google-disconnect-btn');
+    const googleConnBtn = document.getElementById('google-connect-admin');
+    if (connected > 0) {
+      if (googleSyncBtn) googleSyncBtn.style.display = '';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = '';
+      if (googleConnBtn) googleConnBtn.style.display = 'none';
+    } else {
+      if (googleSyncBtn) googleSyncBtn.style.display = 'none';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = 'none';
+      if (googleConnBtn) googleConnBtn.style.display = '';
+    }
+
+    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado');
+    const repoInfo = document.getElementById('gitvault-repo-info');
+    if (repoInfo) repoInfo.textContent = data.gitvault ? 'Backup diário às 02h.' : '';
+
+    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado');
+
+    const subs = data.pushSubscriptions || 0;
+    setBadgeInt('badge-push', subs > 0, subs > 0 ? `${subs} dispositivo(s)` : '0 subscrições', subs === 0 ? 'warn' : 'ok');
+    const pushSubsEl = document.getElementById('push-subs-info');
+    if (pushSubsEl) pushSubsEl.textContent = subs > 0 ? `${subs} dispositivo(s) inscrito(s).` : '';
+
+    setBadgeInt('badge-deploy', Boolean(data.deploy?.last), data.deploy?.last ? 'Render' : 'Nunca deployado');
+    const deployInfoEl = document.getElementById('deploy-last-info');
+    if (deployInfoEl && data.deploy?.last) {
+      deployInfoEl.textContent = `Último: ${new Date(data.deploy.last).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    setBadgeInt('badge-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
+
+    const chain = document.getElementById('llm-chain-display');
+    if (chain) {
+      const providers = [
+        { name: 'Gemini Flash', active: llm.gemini },
+        { name: 'Gemini Lite', active: llm.gemini },
+        { name: 'OpenRouter', active: llm.openrouter },
+        { name: 'DeepSeek', active: llm.deepseek },
+      ];
+      chain.innerHTML = providers.map((p, i) => `
+        <div class="int-llm-node ${p.active ? 'int-llm-active' : 'int-llm-inactive'}">
+          <span class="int-llm-dot"></span>${p.name}
+        </div>
+        ${i < providers.length - 1 ? '<span class="int-llm-arrow">→</span>' : ''}
+      `).join('');
+    }
+
+    const tgBadge = document.getElementById('tg-badge');
+    if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
+    const tgStatus = document.getElementById('tg-bot-status');
+    if (tgStatus) tgStatus.textContent = 'Online · polling ativo';
+    const tgUsers = document.getElementById('tg-stat-users');
+    if (tgUsers) tgUsers.textContent = '1';
+    const tgSkills = document.getElementById('tg-stat-skills');
+    if (tgSkills) tgSkills.textContent = '—';
+
+    const statusDb = document.getElementById('status-db');
+    if (statusDb) statusDb.innerHTML = data.db?.ok ? '<span class="status-badge ok">OK</span>' : '<span class="status-badge bad">Falha</span>';
+    const statusGoogle = document.getElementById('status-google');
+    if (statusGoogle) statusGoogle.innerHTML = connected ? `<span class="status-badge ok">Conectado (${connected})</span>` : '<span class="status-badge bad">Não conectado</span>';
+    const statusGitvault = document.getElementById('status-gitvault');
+    if (statusGitvault) statusGitvault.innerHTML = data.gitvault ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusPush = document.getElementById('status-push');
+    if (statusPush) statusPush.innerHTML = subs > 0 ? `<span class="status-badge ok">Subs: ${subs}</span>` : '<span class="status-badge warn">0 subscrições</span>';
+    const statusRaindrop = document.getElementById('status-raindrop');
+    if (statusRaindrop) statusRaindrop.innerHTML = data.raindrop ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusDeploy = document.getElementById('status-deploy');
+    if (statusDeploy) statusDeploy.textContent = data.deploy?.last ? new Date(data.deploy.last).toLocaleString() : 'Nenhum';
+    const statusLlm = document.getElementById('status-llm');
+    if (statusLlm) statusLlm.textContent = `Gemini: ${llm.gemini ? 'OK' : 'OFF'} | OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'} | DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`;
+
+    if (!llmOk) {
+      toast('Nenhum provider LLM configurado. Acesse Configurações → Integrações → Configurações avançadas para adicionar sua GEMINI_API_KEY.', 'warn', 'LLM offline', 0);
+    }
+
+    renderActivityLog(data);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadSettingsStatus() {
+  try {
+    const res = await apiFetch('/api/settings');
+    const data = await res.json();
+    const s = data.settings || {};
+
+    const setBadge = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const ok = value && value !== '';
+      el.textContent = ok ? 'configurado' : 'pendente';
+      el.classList.toggle('ok', ok);
+      el.classList.toggle('bad', !ok);
+    };
+
+    setBadge('cfg-status-gemini', s.GEMINI_API_KEY);
+    setBadge('cfg-status-openrouter', s.OPENROUTER_API_KEY);
+    setBadge('cfg-status-deepseek', s.DEEPSEEK_API_KEY);
+    setBadge('cfg-status-default-provider', s.DEFAULT_LLM_PROVIDER);
+    setBadge('cfg-status-github-token', s.GITHUB_TOKEN);
+    setBadge('cfg-status-gitvault-repo', s.GITVAULT_REPO);
+    setBadge('cfg-status-gitvault-base', s.GITVAULT_BASE_PATH);
+    setBadge('cfg-status-google-client-id', s.GOOGLE_OAUTH_CLIENT_ID);
+    setBadge('cfg-status-google-client-secret', s.GOOGLE_OAUTH_CLIENT_SECRET);
+    setBadge('cfg-status-google-redirect', s.GOOGLE_OAUTH_REDIRECT_URI);
+    setBadge('cfg-status-google-calendar', s.GOOGLE_EXPORT_CALENDAR_ID);
+    setBadge('cfg-status-vapid-public', s.VAPID_PUBLIC_KEY);
+    setBadge('cfg-status-vapid-private', s.VAPID_PRIVATE_KEY);
+    setBadge('cfg-status-vapid-email', s.VAPID_CONTACT_EMAIL);
+    setBadge('cfg-status-render-hook', s.RENDER_DEPLOY_HOOK_URL);
+    setBadge('cfg-status-raindrop-token', s.RAINDROP_TOKEN);
+    setBadge('cfg-status-raindrop-collection', s.RAINDROP_COLLECTION_ID);
+  } catch {
+    // ignore
+  }
+}
+
+async function loadProfile() {
+  try {
+    const res = await apiFetch('/api/profile');
+    const data = await res.json();
+    const profile = data.profile || {};
+    document.getElementById('profile-name').value = profile.fullName || '';
+    document.getElementById('profile-email').value = profile.email || '';
+    document.getElementById('profile-company').value = profile.company || '';
+    document.getElementById('profile-role').value = profile.role || '';
+    document.getElementById('profile-photo').value = profile.photoUrl || '';
+    if (profileAvatar) {
+      if (profile.photoUrl) {
+        profileAvatar.style.backgroundImage = `url(${profile.photoUrl})`;
+        profileAvatar.style.backgroundSize = 'cover';
+        profileAvatar.style.backgroundPosition = 'center';
+        profileAvatar.textContent = '';
+      } else {
+        const initial = (profile.fullName || 'A').trim()[0] || 'A';
+        profileAvatar.style.backgroundImage = '';
+        profileAvatar.textContent = initial.toUpperCase();
+      }
+    }
+  } catch {}
+}
+
+async function loadPreferences() {
+  try {
+    const res = await apiFetch('/api/preferences');
+    const data = await res.json();
+    const prefs = data.preferences || {};
+    const theme = prefs.theme || localStorage.getItem('andclaw_theme') || 'auto';
+    applyTheme(theme);
+    document.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('active', card.dataset.theme === theme);
+    });
+    document.getElementById('pref-language').value = prefs.language || 'pt-BR';
+    document.getElementById('pref-date-format').value = prefs.dateFormat || 'DD/MM/YYYY';
+    document.getElementById('notify-email').checked = prefs.notifyEmail === 'true';
+    document.getElementById('notify-push').checked = prefs.notifyPush === 'true';
+    document.getElementById('notify-weekly').checked = prefs.notifyWeekly === 'true';
+    document.getElementById('notify-analysis').checked = prefs.notifyAnalysis === 'true';
+  } catch {}
+}
+
+profileSave && profileSave.addEventListener('click', async () => {
+  const payload = {
+    fullName: document.getElementById('profile-name').value.trim(),
+    email: document.getElementById('profile-email').value.trim(),
+    company: document.getElementById('profile-company').value.trim(),
+    role: document.getElementById('profile-role').value.trim(),
+    photoUrl: document.getElementById('profile-photo').value.trim(),
+  };
+  try {
+    await apiFetch('/api/profile', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Perfil atualizado.');
+    await loadProfile();
+  } catch {
+    showInline('Falha ao salvar perfil.');
+  }
+});
+
+notificationsSave && notificationsSave.addEventListener('click', async () => {
+  const payload = {
+    notifyEmail: String(document.getElementById('notify-email').checked),
+    notifyPush: String(document.getElementById('notify-push').checked),
+    notifyWeekly: String(document.getElementById('notify-weekly').checked),
+    notifyAnalysis: String(document.getElementById('notify-analysis').checked),
+  };
+  try {
+    if (payload.notifyPush === 'true') {
+      await subscribePush();
+    }
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Preferências salvas.');
+  } catch {
+    showInline('Falha ao salvar preferências.');
+  }
+});
+
+appearanceSave && appearanceSave.addEventListener('click', async () => {
+  const selected = document.querySelector('.theme-card.active')?.dataset.theme || 'auto';
+  const payload = {
+    theme: selected,
+    language: document.getElementById('pref-language').value.trim(),
+    dateFormat: document.getElementById('pref-date-format').value.trim(),
+  };
+  try {
+    applyTheme(selected);
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Aparência salva.');
+  } catch {
+    showInline('Falha ao salvar aparência.');
+  }
+});
+
+document.querySelectorAll('.theme-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    applyTheme(card.dataset.theme);
+  });
+});
+
+async function loadSkills() {
+  try {
+    const [skillsRes, agentsRes] = await Promise.all([
+      apiFetch('/api/skills'),
+      apiFetch('/api/agents'),
+    ]);
+    const skillData = await skillsRes.json();
+    const agentData = await agentsRes.json();
+    cachedSkills = skillData.items || [];
+    const agents = agentData.items || [];
+
+    // Map skill→agents
+    const skillAgentMap = {};
+    agents.forEach(a => {
+      (a.skills || []).forEach(s => {
+        if (!skillAgentMap[s]) skillAgentMap[s] = [];
+        skillAgentMap[s].push(a);
+      });
+    });
+
+    renderSkillsView(cachedSkills, skillAgentMap);
+  } catch (err) { showError(err); }
+}
+
+async function loadAgents() {
+  try {
+    const res = await apiFetch('/api/agents');
+    const data = await res.json();
+    cachedAgents = data.items || [];
+    renderAgentsView(cachedAgents);
+  } catch (err) { showError(err); }
+}
+
 async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
