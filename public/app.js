@@ -847,6 +847,17 @@ async function loadAdmin() {
 
     const tgBadge = document.getElementById('tg-badge');
     if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
+
+    // Atualizar badges do grid de integrações
+    const setGridBadge = (id, text, style) => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = text; if (style) el.className = 'int-badge ' + style; }
+    };
+    setGridBadge('badge-llm', data.llmConfigured ? (data.llm?.gemini ? 'Gemini' : data.llm?.openrouter ? 'OpenRouter' : 'DeepSeek') : 'Não configurado', data.llmConfigured ? 'int-ok' : '');
+    setGridBadge('badge-telegram', data.telegram?.active ? 'Ativo' : 'Offline', data.telegram?.active ? 'int-ok' : '');
+    setGridBadge('badge-deploy', data.deploy?.last ? 'Configurado' : 'Não config.', data.deploy?.last ? 'int-ok' : '');
+    const tgNameMini = document.getElementById('tg-bot-name-mini');
+    if (tgNameMini) tgNameMini.textContent = data.telegram?.username ? '@' + data.telegram.username : '';
     const tgStatus = document.getElementById('tg-bot-status');
     if (tgStatus) tgStatus.textContent = 'Online · polling ativo';
     const tgUsers = document.getElementById('tg-stat-users');

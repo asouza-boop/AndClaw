@@ -907,55 +907,15 @@ Exemplos do que incluir:
                 <div id="status-llm" style="display:none"></div>
               </div>
 
-              <!-- Telegram Bot -->
-              <div class="settings-card" style="margin-bottom: 16px;">
-                <div class="settings-header">
-                  <div>
-                    <h3>Telegram Bot</h3>
-                    <p>Controle o agente e monitore o uso via Telegram.</p>
-                  </div>
-                </div>
-                <div class="int-tg-row">
-                  <div class="int-tg-avatar">🤖</div>
-                  <div class="int-tg-info">
-                    <div class="int-tg-name" id="tg-bot-name">AndClaw Bot</div>
-                    <div class="int-tg-sub" id="tg-bot-status">Verificando status...</div>
-                  </div>
-                  <span class="int-badge" id="tg-badge">—</span>
-                </div>
-                <div class="int-stats-row">
-                  <div class="int-stat-card">
-                    <div class="int-stat-val" id="tg-stat-users">—</div>
-                    <div class="int-stat-lbl">Usuários autorizados</div>
-                  </div>
-                  <div class="int-stat-card">
-                    <div class="int-stat-val" id="tg-stat-msgs">—</div>
-                    <div class="int-stat-lbl">Msgs processadas hoje</div>
-                  </div>
-                  <div class="int-stat-card">
-                    <div class="int-stat-val" id="tg-stat-skills">—</div>
-                    <div class="int-stat-lbl">Skills carregadas</div>
-                  </div>
-                </div>
-                <div class="int-actions-row" style="margin-top:14px;">
-                  <button class="int-act-btn" id="tg-test-btn">Testar bot</button>
-                  <button class="int-act-btn" id="tg-history-btn">Ver histórico</button>
-                </div>
-              </div>
-
-              <!-- LLM Chain -->
-              <div class="settings-card" style="margin-bottom: 16px;">
-                <div class="settings-header">
-                  <div>
-                    <h3>Inteligência artificial</h3>
-                    <p>Chain de fallback — tenta os providers em ordem até um responder.</p>
-                  </div>
-                </div>
-                <div class="int-llm-chain" id="llm-chain-display"></div>
-                <div class="int-actions-row" style="margin-top:12px;">
-                  <button class="int-act-btn int-act-primary" id="llm-test-btn">Testar conexão</button>
-                  <button class="int-act-btn" id="llm-tokens-btn">Ver uso de tokens</button>
-                </div>
+              <!-- Info em tempo real: Telegram + LLM (usado pelo loadAdmin via IDs) -->
+              <div style="display:none">
+                <span id="tg-bot-name"></span>
+                <span id="tg-bot-status"></span>
+                <span id="tg-badge"></span>
+                <span id="tg-stat-users"></span>
+                <span id="tg-stat-msgs"></span>
+                <span id="tg-stat-skills"></span>
+                <div id="llm-chain-display"></div>
               </div>
 
               <!-- Grid de integrações -->
