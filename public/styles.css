@@ -1051,12 +1051,20 @@ body[data-theme="dark"] .inbox-item:hover { border-color: rgba(255,255,255,0.13)
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  transition: border-color 0.13s;
+  gap: 10px;
+  transition: border-color 0.15s, transform 0.13s, box-shadow 0.13s;
+  cursor: pointer;
+  user-select: none;
 }
+.int-card:hover {
+  border-color: rgba(139,92,246,0.35);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139,92,246,0.1);
+}
+.int-card:active { transform: translateY(0); }
 
 .int-card:hover { border-color: rgba(255,255,255,0.14); }
 
@@ -1295,13 +1303,14 @@ body[data-theme="dark"] select {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .tag-color-palette {
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 6px;
-  flex-wrap: wrap;
-  max-width: 200px;
 }
 
 .tag-color-swatch {
@@ -2490,4 +2499,3 @@ body[data-theme="dark"] select {
 .act-tag-system  { background: var(--surface-3); color: var(--muted); border: 1px solid var(--border); }
 
 .int-card { cursor: pointer; }
-.int-card:hover { border-color: rgba(139,92,246,0.35) !important; transform: translateY(-1px); }

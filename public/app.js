@@ -810,11 +810,11 @@ async function loadAdmin() {
       if (googleConnBtn) googleConnBtn.style.display = '';
     }
 
-    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado');
+    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado', data.gitvault ? null : 'warn');
     const repoInfo = document.getElementById('gitvault-repo-info');
     if (repoInfo) repoInfo.textContent = data.gitvault ? 'Backup diário às 02h.' : '';
 
-    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado');
+    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado', data.raindrop ? null : 'warn');
 
     const subs = data.pushSubscriptions || 0;
     setBadgeInt('badge-push', subs > 0, subs > 0 ? `${subs} dispositivo(s)` : '0 subscrições', subs === 0 ? 'warn' : 'ok');
@@ -848,14 +848,10 @@ async function loadAdmin() {
     const tgBadge = document.getElementById('tg-badge');
     if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
 
-    // Atualizar badges do grid de integrações
-    const setGridBadge = (id, text, style) => {
-      const el = document.getElementById(id);
-      if (el) { el.textContent = text; if (style) el.className = 'int-badge ' + style; }
-    };
-    setGridBadge('badge-llm', data.llmConfigured ? (data.llm?.gemini ? 'Gemini' : data.llm?.openrouter ? 'OpenRouter' : 'DeepSeek') : 'Não configurado', data.llmConfigured ? 'int-ok' : '');
-    setGridBadge('badge-telegram', data.telegram?.active ? 'Ativo' : 'Offline', data.telegram?.active ? 'int-ok' : '');
-    setGridBadge('badge-deploy', data.deploy?.last ? 'Configurado' : 'Não config.', data.deploy?.last ? 'int-ok' : '');
+    // Atualizar badges dos cards do grid (via setBadgeInt para consistência)
+    const llmProvider = data.llm?.gemini ? 'Gemini' : data.llm?.openrouter ? 'OpenRouter' : data.llm?.deepseek ? 'DeepSeek' : null;
+    setBadgeInt('badge-llm', data.llmConfigured, llmProvider || 'Não configurado');
+    setBadgeInt('badge-telegram', Boolean(data.telegram?.active), data.telegram?.active ? 'Ativo' : 'Offline', data.telegram?.active ? null : 'warn');
     const tgNameMini = document.getElementById('tg-bot-name-mini');
     if (tgNameMini) tgNameMini.textContent = data.telegram?.username ? '@' + data.telegram.username : '';
     const tgStatus = document.getElementById('tg-bot-status');
