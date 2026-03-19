@@ -2499,3 +2499,262 @@ body[data-theme="dark"] select {
 .act-tag-system  { background: var(--surface-3); color: var(--muted); border: 1px solid var(--border); }
 
 .int-card { cursor: pointer; }
+
+/* ─── INBOX MASTER LAYOUT ────────────────────────────── */
+.inbox-master-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+.inbox-main-col { display: flex; flex-direction: column; gap: 10px; }
+
+/* Type tabs */
+.inbox-type-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.inbox-type-tab {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.13s;
+}
+.inbox-type-tab:hover { color: var(--text); border-color: var(--border-md); }
+.inbox-type-tab.active {
+  background: rgba(139,92,246,0.12);
+  border-color: rgba(139,92,246,0.35);
+  color: var(--accent);
+}
+
+/* Capture panel */
+.inbox-capture-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+.inbox-capture-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  resize: none;
+  outline: none;
+  line-height: 1.6;
+  padding: 0;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+.inbox-capture-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.inbox-capture-tags { display: flex; gap: 4px; }
+.inbox-meta-btn {
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  transition: all 0.13s;
+}
+.inbox-meta-btn:hover { color: var(--text); border-color: var(--border-md); }
+
+/* Progress mini */
+.inbox-progress-mini {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: 'Fira Code', monospace;
+  text-align: right;
+  margin: -4px 0 2px;
+}
+
+/* ─── TASKS COLUMN ───────────────────────────────────── */
+.inbox-tasks-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: sticky;
+  top: 20px;
+}
+
+.tasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tasks-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tasks-filter-select {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 11px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Quick add task */
+.task-quick-add {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.13s;
+}
+.task-quick-add:focus-within { border-color: rgba(139,92,246,0.35); }
+#task-quick-input {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  outline: none;
+  width: 100%;
+}
+.task-quick-meta { display: flex; gap: 6px; }
+
+/* Stats */
+.tasks-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.tasks-stat {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  text-align: center;
+}
+.tasks-stat-val { display: block; font-size: 20px; font-weight: 600; color: var(--text); }
+.tasks-stat-lbl { font-size: 10px; color: var(--muted); font-family: 'Fira Code', monospace; }
+.tasks-stat-done .tasks-stat-val { color: var(--accent-3); }
+
+/* Tasks list */
+.tasks-list-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100vh - 380px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.13s;
+  cursor: default;
+}
+.task-item:hover { border-color: var(--border-md); }
+.task-item.task-done { opacity: 0.5; }
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-md);
+  flex-shrink: 0;
+  margin-top: 1px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s;
+}
+.task-check:hover { border-color: var(--accent-3); }
+.task-check.checked {
+  background: rgba(16,185,129,0.15);
+  border-color: rgba(16,185,129,0.5);
+}
+.task-check.checked::after {
+  content: '';
+  width: 6px;
+  height: 4px;
+  border-left: 1.5px solid var(--accent-3);
+  border-bottom: 1.5px solid var(--accent-3);
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.task-body { flex: 1; min-width: 0; }
+.task-title {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  word-break: break-word;
+}
+.task-done .task-title { text-decoration: line-through; color: var(--muted); }
+.task-meta { display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+.task-priority {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-family: 'Fira Code', monospace;
+}
+.task-pri-high   { background: rgba(225,29,72,0.1); color: var(--danger); border: 1px solid rgba(225,29,72,0.2); }
+.task-pri-normal { background: rgba(34,211,238,0.08); color: var(--accent-2); border: 1px solid rgba(34,211,238,0.15); }
+.task-pri-low    { background: var(--surface-3); color: var(--muted); border: 1px solid var(--border); }
+.task-due {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: 'Fira Code', monospace;
+}
+.task-due.overdue { color: var(--danger); }
+.task-delete-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.13s;
+}
+.task-item:hover .task-delete-btn { opacity: 1; }
+.task-delete-btn:hover { color: var(--danger); background: rgba(225,29,72,0.08); }
+
+@media (max-width: 1100px) {
+  .inbox-master-layout { grid-template-columns: 1fr; }
+  .inbox-tasks-col { position: static; }
+  .tasks-list-inline { max-height: 300px; }
+}

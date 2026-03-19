@@ -758,8 +758,38 @@ router.post('/tasks', async (req: Request, res: Response) => {
 });
 
 router.get('/tasks', async (_req: Request, res: Response) => {
-  const rows = await query(`SELECT * FROM tasks ORDER BY created_at DESC LIMIT 200`);
+  const { status, priority } = req.query as { status?: string; priority?: string };
+  let sql = 'SELECT * FROM tasks';
+  const params: any[] = [];
+  const conditions: string[] = [];
+  if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
+  if (priority) { params.push(priority); conditions.push(`priority = $${params.length}`); }
+  if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+  sql += ' ORDER BY created_at DESC LIMIT 500';
+  const rows = await query(sql, params);
   res.json({ ok: true, items: rows });
+});
+
+router.patch('/tasks/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { title, status, priority, due_date } = req.body || {};
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (title !== undefined)    { params.push(title);    updates.push(`title = $${params.length}`); }
+  if (status !== undefined)   { params.push(status);   updates.push(`status = $${params.length}`); }
+  if (priority !== undefined) { params.push(priority); updates.push(`priority = $${params.length}`); }
+  if (due_date !== undefined) { params.push(due_date || null); updates.push(`due_date = $${params.length}`); }
+  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
+  params.push(id);
+  const rows = await query<any>(`UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+  res.json({ ok: true, item: rows[0] });
+  exportTasksToGoogle().catch(() => {});
+});
+
+router.delete('/tasks/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query('DELETE FROM tasks WHERE id = $1', [id]);
+  res.json({ ok: true });
 });
 
 router.post('/meetings', async (req: Request, res: Response) => {

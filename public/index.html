@@ -227,70 +227,135 @@
 
       <!-- ── INBOX ── -->
       <section id="view-inbox" class="view">
-        <div class="inbox-toolbar">
-          <div class="inbox-toolbar-left">
-            <span class="inbox-title">Inbox</span>
-            <span class="count-badge" id="inbox-total-badge">0 itens</span>
-            <button class="filter-pill active" data-filter="all">Todos</button>
-            <button class="filter-pill" data-filter="task">Tarefas</button>
-            <button class="filter-pill" data-filter="note">Notas</button>
-            <button class="filter-pill" data-filter="idea">Ideias</button>
-            <button class="filter-pill" data-filter="link">Links</button>
-          </div>
-          <div class="inbox-toolbar-right">
-            <button class="inbox-sort-btn" id="inbox-sort-btn">
-              <span id="inbox-sort-label">Mais recente</span>
-            </button>
-            <button class="inbox-sort-btn" id="inbox-select-all-btn">Selecionar todos</button>
-          </div>
-        </div>
 
-        <div class="inbox-ai-bar" id="inbox-ai-bar" style="display:none">
-          <span class="inbox-ai-icon">✦</span>
-          <span id="inbox-ai-msg">Itens sem categoria detectados.</span>
-          <button class="inbox-ai-action" id="inbox-ai-btn">Processar com IA</button>
-        </div>
+        <div class="inbox-master-layout">
 
-        <div class="inbox-progress-row">
-          <span class="inbox-progress-label">Processados hoje</span>
-          <div class="inbox-progress-track">
-            <div class="inbox-progress-fill" id="inbox-progress-fill" style="width:0%"></div>
-          </div>
-          <span class="inbox-progress-count" id="inbox-progress-count">0 / 0</span>
-        </div>
+          <!-- ─ COLUNA ESQUERDA: Captura + Lista ─ -->
+          <div class="inbox-main-col">
 
-        <div class="inbox-capture-box">
-          <div class="inbox-type-row" id="inbox-type-row">
-            <button class="inbox-type-btn active" data-type="note">Nota</button>
-            <button class="inbox-type-btn" data-type="task">Tarefa</button>
-            <button class="inbox-type-btn" data-type="idea">Ideia</button>
-            <button class="inbox-type-btn" data-type="link">Link</button>
-          </div>
-          <textarea id="capture-input" class="inbox-capture-textarea" rows="2"
-            placeholder="Escreva um input rápido, ideia ou nota..."></textarea>
-          <div class="inbox-capture-footer">
-            <div class="inbox-meta-row">
-              <button class="inbox-meta-btn" id="inbox-meta-tag">+ Tag</button>
-              <button class="inbox-meta-btn" id="inbox-meta-project">+ Projeto</button>
-              <button class="inbox-meta-btn" id="inbox-meta-date">+ Data</button>
+            <!-- Toolbar -->
+            <div class="inbox-toolbar">
+              <div class="inbox-toolbar-left">
+                <span class="inbox-title">Inbox</span>
+                <span class="count-badge" id="inbox-total-badge">0 itens</span>
+                <button class="filter-pill active" data-filter="all">Todos</button>
+                <button class="filter-pill" data-filter="task">Tarefas</button>
+                <button class="filter-pill" data-filter="note">Notas</button>
+                <button class="filter-pill" data-filter="idea">Ideias</button>
+                <button class="filter-pill" data-filter="link">Links</button>
+              </div>
+              <div class="inbox-toolbar-right">
+                <button class="inbox-sort-btn" id="inbox-sort-btn">Mais recente</button>
+                <button class="inbox-sort-btn" id="inbox-select-all-btn">Selecionar todos</button>
+              </div>
             </div>
-            <button id="capture-send" class="btn primary">Salvar</button>
+
+            <!-- Banner IA -->
+            <div class="inbox-ai-bar hidden" id="inbox-ai-bar">
+              <span class="inbox-ai-icon">✦</span>
+              <span id="inbox-ai-text">4 itens sem categoria — o agente pode processar e classificar automaticamente.</span>
+              <button class="btn primary" id="inbox-ai-process-btn" style="font-size:12px;padding:5px 12px;">Processar com IA</button>
+            </div>
+
+            <!-- Barra de progresso -->
+            <div class="inbox-progress-bar hidden" id="inbox-progress-bar">
+              <div class="inbox-progress-track"><div class="inbox-progress-fill" id="inbox-progress-fill"></div></div>
+              <span id="inbox-progress-label">Processando...</span>
+            </div>
+
+            <!-- Bulk actions -->
+            <div class="inbox-bulk-bar hidden" id="inbox-bulk-bar">
+              <span id="inbox-sel-count">0 selecionados</span>
+              <button class="inbox-bulk-btn" id="bulk-convert-btn">✓ Converter em tarefa</button>
+              <button class="inbox-bulk-btn" id="bulk-archive-btn">Arquivar</button>
+              <button class="inbox-bulk-btn inbox-bulk-danger" id="bulk-delete-btn">Excluir</button>
+              <button class="inbox-bulk-btn" id="bulk-cancel-btn">Cancelar</button>
+            </div>
+
+            <!-- Captura rápida -->
+            <div class="inbox-capture-panel">
+              <div class="inbox-type-tabs">
+                <button class="inbox-type-tab active" data-type="note">📝 Nota</button>
+                <button class="inbox-type-tab" data-type="task">✓ Tarefa</button>
+                <button class="inbox-type-tab" data-type="idea">💡 Ideia</button>
+                <button class="inbox-type-tab" data-type="link">🔗 Link</button>
+              </div>
+              <textarea id="capture-input" class="inbox-capture-input" rows="3"
+                placeholder="Escreva um input rápido, ideia ou nota... (Enter para salvar, Shift+Enter para nova linha)"></textarea>
+              <div class="inbox-capture-footer">
+                <div class="inbox-capture-tags">
+                  <button class="inbox-meta-btn" id="inbox-meta-tag">+ Tag</button>
+                  <button class="inbox-meta-btn" id="inbox-meta-proj">+ Projeto</button>
+                </div>
+                <button class="btn primary" id="capture-send">Salvar</button>
+              </div>
+            </div>
+
+            <!-- Separador processados -->
+            <div class="inbox-section-label" id="inbox-processed-label">Processados hoje</div>
+            <div class="inbox-progress-mini">
+              <span id="inbox-processed-count">0</span> / <span id="inbox-total-count">0</span>
+            </div>
+
+            <!-- Lista de itens -->
+            <div id="inbox-list"></div>
+
           </div>
+
+          <!-- ─ COLUNA DIREITA: Tarefas ─ -->
+          <div class="inbox-tasks-col">
+            <div class="tasks-header">
+              <span class="tasks-title">Tarefas</span>
+              <div style="display:flex;gap:6px;">
+                <select id="tasks-filter-status" class="tasks-filter-select">
+                  <option value="">Todas</option>
+                  <option value="open">Abertas</option>
+                  <option value="in_progress">Em progresso</option>
+                  <option value="done">Concluídas</option>
+                </select>
+                <select id="tasks-filter-priority" class="tasks-filter-select">
+                  <option value="">Prioridade</option>
+                  <option value="high">Alta</option>
+                  <option value="normal">Normal</option>
+                  <option value="low">Baixa</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Adicionar tarefa rápida -->
+            <div class="task-quick-add">
+              <input id="task-quick-input" type="text" placeholder="+ Nova tarefa..." />
+              <div class="task-quick-meta">
+                <select id="task-quick-priority" class="tasks-filter-select" style="flex:1;">
+                  <option value="normal">Normal</option>
+                  <option value="high">Alta</option>
+                  <option value="low">Baixa</option>
+                </select>
+                <input id="task-quick-date" type="date" class="tasks-filter-select" style="flex:1;" />
+              </div>
+            </div>
+
+            <!-- Stats rápidas -->
+            <div class="tasks-stats-row">
+              <div class="tasks-stat">
+                <span class="tasks-stat-val" id="stat-tasks-open">—</span>
+                <span class="tasks-stat-lbl">abertas</span>
+              </div>
+              <div class="tasks-stat">
+                <span class="tasks-stat-val" id="stat-tasks-today">—</span>
+                <span class="tasks-stat-lbl">hoje</span>
+              </div>
+              <div class="tasks-stat tasks-stat-done">
+                <span class="tasks-stat-val" id="stat-tasks-done">—</span>
+                <span class="tasks-stat-lbl">concluídas</span>
+              </div>
+            </div>
+
+            <!-- Lista de tarefas -->
+            <div id="tasks-list-inline" class="tasks-list-inline"></div>
+          </div>
+
         </div>
-
-        <div class="inbox-bulk-bar" id="inbox-bulk-bar" style="display:none">
-          <span id="inbox-selected-count">0 selecionados</span>
-          <button class="inbox-bulk-action" id="bulk-convert-btn">Converter em tarefas</button>
-          <button class="inbox-bulk-action" id="bulk-archive-btn">Arquivar</button>
-          <button class="inbox-bulk-action inbox-bulk-danger" id="bulk-delete-btn">Excluir</button>
-          <button class="inbox-bulk-action" id="bulk-cancel-btn" style="margin-left:auto">Cancelar</button>
-        </div>
-
-        <div class="inbox-section-label" id="inbox-label-pending">Não processados</div>
-        <div class="list" id="captures-list"></div>
-
-        <div class="inbox-section-label" id="inbox-label-done" style="display:none">Processados</div>
-        <div class="list" id="captures-done-list"></div>
       </section>
 
       <!-- ── CHAT ── -->
