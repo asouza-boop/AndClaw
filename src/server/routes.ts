@@ -236,8 +236,13 @@ router.get('/skills', async (_req: Request, res: Response) => {
 });
 
 router.post('/skills', async (req: Request, res: Response) => {
-  const { slug, title, description, content = '', allowedTools = [] } = req.body || {};
-  if (!slug || !title) return res.status(400).json({ error: 'slug and title are required', required_fields: ['slug', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
+  const body = req.body || {};
+  // Accept 'name' as alias for 'slug' (REST convention compatibility)
+  const slug = body.slug || body.name;
+  // Accept 'title' fallback to slug/name
+  const title = body.title || body.name || slug;
+  const { description, content = '', allowedTools = [] } = body;
+  if (!slug || !title) return res.status(400).json({ error: 'slug/name and title are required', required_fields: ['slug (or name)', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
   const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
   res.status(201).json({ ok: true, slug: safeSlug });
@@ -298,7 +303,9 @@ router.get('/agents', async (_req: Request, res: Response) => {
     skills: skillMap.get(String(agent.id)) || [],
     tags: tagMap.get(String(agent.id)) || [],
   }));
-  res.json({ ok: true, items });
+  const format = (req as any).query?.format;
+  if (format === 'array') return res.json(items);
+  res.json({ ok: true, items, agents: items });
 });
 
 router.post('/agents', async (req: Request, res: Response) => {
@@ -672,8 +679,11 @@ router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
 });
 
 router.post('/captures', async (req: Request, res: Response) => {
-  const { content, source = 'pwa', type = 'note', tags = [], project_id, due_date } = req.body || {};
-  if (!content) return res.status(400).json({ error: 'content is required' });
+  const body = req.body || {};
+  // Accept 'title' as alias for 'content' (REST convention compatibility)
+  const content = body.content || body.title;
+  const { source = 'pwa', type = 'note', tags = [], project_id, due_date } = body;
+  if (!content) return res.status(400).json({ error: 'content is required', note: 'Also accepts title as alias for content' });
   const rows = await query(
     `INSERT INTO captures (content, source, type, tags, project_id, due_date)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -690,7 +700,9 @@ router.get('/captures', async (req: Request, res: Response) => {
   if (status) { params.push(status); sql += ` AND status = $${params.length}`; }
   sql += ` ORDER BY created_at DESC LIMIT 200`;
   const rows = await query(sql, params);
-  res.json({ ok: true, items: rows });
+  const fmt = (req as any).query?.format;
+  if (fmt === 'array') return res.json(rows);
+  res.json({ ok: true, items: rows, captures: rows });
 });
 
 router.patch('/captures/:id', async (req: Request, res: Response) => {
