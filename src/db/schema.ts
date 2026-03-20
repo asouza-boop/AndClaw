@@ -33,12 +33,6 @@ export async function ensureSchema(): Promise<void> {
     );
   `);
 
-  await query(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS base_doc TEXT`);
-  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'note'`);
-  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
-  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
-  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
-
   await query(`
     CREATE TABLE IF NOT EXISTS user_profile (
       key TEXT PRIMARY KEY,
@@ -210,4 +204,11 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS role TEXT`);
 
   await query(`CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)`);
+
+  // Migrations / Fixes
+  await query(`ALTER TABLE agents ADD COLUMN IF NOT EXISTS base_doc TEXT`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'note'`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
 }
