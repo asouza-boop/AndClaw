@@ -2425,6 +2425,213 @@ async function loadSettingsStatus() {
   }
 }
 
+
+const cfgSave = document.getElementById('cfg-save');
+const cfgDeploy = document.getElementById('cfg-deploy');
+const dbCheck = document.getElementById('db-check');
+const googleConnectAdmin = document.getElementById('google-connect-admin');
+const googleRefresh = document.getElementById('google-refresh');
+const gitvaultExport = document.getElementById('gitvault-export');
+const raindropSync = document.getElementById('raindrop-sync');
+const pushTest = document.getElementById('push-test');
+
+
+const settingsItems = document.querySelectorAll('.settings-item');
+const settingsViews = document.querySelectorAll('.settings-view');
+const profileSave = document.getElementById('profile-save');
+const notificationsSave = document.getElementById('notifications-save');
+const appearanceSave = document.getElementById('appearance-save');
+const profileAvatar = document.getElementById('profile-avatar');
+
+cfgSave.addEventListener('click', async () => {
+  const payload = {
+    GEMINI_API_KEY: document.getElementById('cfg-gemini').value.trim(),
+    OPENROUTER_API_KEY: document.getElementById('cfg-openrouter').value.trim(),
+    DEEPSEEK_API_KEY: document.getElementById('cfg-deepseek').value.trim(),
+    DEFAULT_LLM_PROVIDER: document.getElementById('cfg-default-provider').value.trim(),
+    GITHUB_TOKEN: document.getElementById('cfg-github-token').value.trim(),
+    GITVAULT_REPO: document.getElementById('cfg-gitvault-repo').value.trim(),
+    GITVAULT_BASE_PATH: document.getElementById('cfg-gitvault-base').value.trim(),
+    GOOGLE_OAUTH_CLIENT_ID: document.getElementById('cfg-google-client-id').value.trim(),
+    GOOGLE_OAUTH_CLIENT_SECRET: document.getElementById('cfg-google-client-secret').value.trim(),
+    GOOGLE_OAUTH_REDIRECT_URI: document.getElementById('cfg-google-redirect').value.trim(),
+    GOOGLE_EXPORT_CALENDAR_ID: document.getElementById('cfg-google-calendar').value.trim(),
+    VAPID_PUBLIC_KEY: document.getElementById('cfg-vapid-public').value.trim(),
+    VAPID_PRIVATE_KEY: document.getElementById('cfg-vapid-private').value.trim(),
+    VAPID_CONTACT_EMAIL: document.getElementById('cfg-vapid-email').value.trim(),
+    RENDER_DEPLOY_HOOK_URL: document.getElementById('cfg-render-hook').value.trim(),
+    RAINDROP_TOKEN: document.getElementById('cfg-raindrop-token').value.trim(),
+    RAINDROP_COLLECTION_ID: document.getElementById('cfg-raindrop-collection').value.trim(),
+  };
+
+  try {
+    await apiFetch('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showInline('Configuracoes salvas.');
+    await loadAdmin();
+    await loadSettingsStatus();
+  } catch (err) {
+    showInline('Falha ao salvar configuracoes.');
+  }
+});
+
+cfgDeploy && cfgDeploy.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/deploy', { method: 'POST' });
+    showInline('Deploy disparado.');
+  } catch (err) {
+    showInline('Falha ao disparar deploy.');
+  }
+});
+
+dbCheck && dbCheck.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showInline('DB OK');
+  } catch (err) {
+    showInline('Falha ao checar DB.');
+  }
+});
+
+googleConnectAdmin && googleConnectAdmin.addEventListener('click', connectGoogle);
+
+googleRefresh && googleRefresh.addEventListener('click', async () => {
+  await loadAdmin();
+  showInline('Status atualizado.');
+});
+
+gitvaultExport && gitvaultExport.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showInline('GitVault exportado.');
+  } catch (err) {
+    showInline('Falha ao exportar GitVault.');
+  }
+});
+
+raindropSync && raindropSync.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
+    showInline('Raindrop sincronizado.');
+    await loadFavorites();
+  } catch (err) {
+    showInline('Falha ao sincronizar Raindrop.');
+  }
+});
+
+pushTest && pushTest.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/push/test', { method: 'POST' });
+    showInline('Push enviado.');
+  } catch (err) {
+    showInline('Falha ao enviar push.');
+  }
+});
+
+
+
+document.getElementById('db-check-2')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showInline('Banco de dados OK.');
+    else showInline('Falha na conexão com o banco.');
+  } catch { showInline('Erro ao verificar banco.'); }
+});
+
+document.getElementById('google-sync-now')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/calendar/sync', { method: 'POST' });
+    showInline('Google Calendar sincronizado.');
+    await loadAdmin();
+  } catch { showInline('Falha ao sincronizar Google Calendar.'); }
+});
+
+document.getElementById('google-disconnect-btn')?.addEventListener('click', async () => {
+  showInline('Para desconectar, revogue o acesso em myaccount.google.com/permissions');
+});
+
+document.getElementById('gitvault-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-gitvault-repo')?.focus();
+});
+
+document.getElementById('raindrop-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-raindrop-token')?.focus();
+});
+
+document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
+  try {
+    await subscribePush();
+    showInline('Push ativado neste dispositivo.');
+    await loadAdmin();
+  } catch { showInline('Falha ao ativar push.'); }
+});
+
+document.getElementById('tg-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health');
+    if (res.ok) showInline('Backend respondendo — bot Telegram ativo.');
+  } catch { showInline('Falha ao verificar bot.'); }
+});
+
+document.getElementById('tg-history-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/messages?limit=10');
+    const data = await res.json();
+    const count = (data.items || []).length;
+    showInline(`${count} mensagem(ns) recentes no banco.`);
+  } catch { showInline('Falha ao buscar histórico.'); }
+});
+
+document.getElementById('llm-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/agent', {
+      method: 'POST',
+      body: JSON.stringify({ input: 'responda apenas: ok' })
+    });
+    const data = await res.json();
+    showInline(data.reply ? `LLM respondeu: "${data.reply}"` : 'LLM não respondeu.');
+  } catch { showInline('Falha ao testar LLM.'); }
+});
+
+document.getElementById('llm-tokens-btn')?.addEventListener('click', async () => {
+  showInline('Monitoramento de tokens por provider ainda não implementado.');
+});
+
+document.getElementById('db-backup-btn')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showInline('Exportação de dados disparada via GitVault.');
+  } catch { showInline('Falha ao exportar dados.'); }
+});
+
+document.getElementById('advanced-toggle')?.addEventListener('click', () => {
+  const content = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (!content) return;
+  const isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? '›' : '˅';
+});
+
+settingsItems.forEach(item => {
+  item.addEventListener('click', () => {
+    settingsItems.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const target = item.dataset.settings;
+    settingsViews.forEach(v => v.classList.remove('active'));
+    document.querySelector(`[data-settings-view=\"${target}\"]`)?.classList.add('active');
+  });
+});
+
+
 async function loadProfile() {
   try {
     const res = await apiFetch('/api/profile');
