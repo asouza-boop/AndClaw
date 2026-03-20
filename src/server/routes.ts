@@ -245,7 +245,7 @@ router.post('/skills', async (req: Request, res: Response) => {
   if (!slug || !title) return res.status(400).json({ error: 'slug/name and title are required', required_fields: ['slug (or name)', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
   const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
-  res.status(201).json({ ok: true, slug: safeSlug });
+  res.status(201).json({ ok: true, slug: safeSlug, name: safeSlug, title, id: safeSlug });
 });
 
 router.get('/tags', async (_req: Request, res: Response) => {
@@ -329,7 +329,14 @@ router.post('/agents', async (req: Request, res: Response) => {
 
   await setEntityTags('agent', String(agent.id), tags);
 
-  res.status(201).json({ ok: true, item: agent, id: agent?.id });
+  res.status(201).json({
+    ok: true,
+    item: agent,
+    id: agent?.id,
+    name: agent?.name,
+    level: agent?.level,
+    status: agent?.status,
+  });
 });
 
 router.patch('/agents/:id', async (req: Request, res: Response) => {
@@ -689,7 +696,16 @@ router.post('/captures', async (req: Request, res: Response) => {
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [content, source, type, tags, project_id || null, due_date || null]
   );
-  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
+  const row = rows[0];
+  res.status(201).json({
+    ok: true,
+    item: row,
+    id: row?.id,
+    title: body.title || row?.content,  // echo back for REST clients
+    content: row?.content,
+    type: row?.type,
+    status: row?.status,
+  });
 });
 
 router.get('/captures', async (req: Request, res: Response) => {
