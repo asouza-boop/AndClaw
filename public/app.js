@@ -1,3 +1,302 @@
+// ── BLOCOS RESTAURADOS ──────────────────────────────
+
+const chatWindow = document.getElementById('chat-window');
+
+const chatWindowFull = document.getElementById('chat-window-full');
+
+function setBadgeInt(id, ok, label, forceState) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = label;
+  const state = forceState || (ok ? 'ok' : 'off');
+  el.className = `int-badge int-${state}`;
+}
+
+async function sendChatMessage(inputEl, windowEl) {
+  const content = inputEl.value.trim();
+  if (!content) return;
+  inputEl.value = '';
+
+  const userTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  windowEl.innerHTML += `<div class="chat-msg user">
+    <div class="chat-avatar user-av">U</div>
+    <div><div class="chat-bubble">${content}</div><div class="chat-time">${userTime}</div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
+
+  const typingId = 'typing-' + Date.now();
+  windowEl.innerHTML += `<div id="${typingId}" class="chat-msg agent">
+    <div class="chat-avatar agent-av">A</div>
+    <div><div class="chat-bubble" style="padding:10px 16px;">
+      <span style="display:flex;gap:5px;align-items:center;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.2s;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.4s;"></span>
+      </span>
+    </div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
+
+  if (navigator.onLine) {
+    try {
+      const res = await apiFetch('/api/agent', {
+        method: 'POST',
+        body: JSON.stringify({ input: content })
+      });
+      const data = await res.json();
+      document.getElementById(typingId)?.remove();
+      if (data.reply) {
+        const agentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        windowEl.innerHTML += `<div class="chat-msg agent">
+          <div class="chat-avatar agent-av">A</div>
+          <div><div class="chat-bubble">${data.reply}</div><div class="chat-time">${agentTime}</div></div>
+        </div>`;
+        windowEl.scrollTop = windowEl.scrollHeight;
+      }
+    } catch (err) {
+      document.getElementById(typingId)?.remove();
+      showError(err);
+    }
+  } else {
+    document.getElementById(typingId)?.remove();
+    enqueueLocal('messages', { content, client_message_id: crypto.randomUUID(), role: 'user', conversationId: 'pwa-user' });
+  }
+}
+
+chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow));
+chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chatWindowFull));
+
+async function subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const res = await apiFetch('/api/push/vapid');
+  const { publicKey } = await res.json();
+  if (!publicKey) return;
+
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
+  });
+
+  await apiFetch('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ subscription: sub })
+  });
+}
+
+function renderActivityLog(data) {
+  const log = document.getElementById('activity-log');
+  if (!log) return;
+  const entries = [];
+  const now = new Date();
+  const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (data.db?.ok) entries.push({ time: fmt(now), tag: 'ok', label: 'DB', msg: 'Banco de dados respondendo normalmente' });
+  if (data.deploy?.last) entries.push({ time: fmt(data.deploy.last), tag: 'info', label: 'Deploy', msg: `Último deploy em ${new Date(data.deploy.last).toLocaleDateString('pt-BR')}` });
+  if (data.google?.connectedAccounts?.length) entries.push({ time: fmt(now), tag: 'ok', label: 'Google', msg: `${data.google.connectedAccounts.length} conta(s) conectada(s) ao Calendar` });
+  if (data.gitvault) entries.push({ time: '02:00', tag: 'ok', label: 'GitVault', msg: 'Backup diário agendado' });
+  if (!data.llm?.gemini && !data.llm?.openrouter && !data.llm?.deepseek) {
+    entries.push({ time: fmt(now), tag: 'warn', label: 'LLM', msg: 'Nenhum provider LLM configurado — agente offline' });
+  }
+
+  if (entries.length === 0) {
+    log.innerHTML = '<div class="int-log-empty">Nenhuma atividade registrada.</div>';
+    return;
+  }
+
+  log.innerHTML = entries.map(e => `
+    <div class="int-log-line">
+      <span class="int-log-time">${e.time}</span>
+      <span class="int-log-tag int-lt-${e.tag}">${e.label}</span>
+      <span class="int-log-msg">${e.msg}</span>
+    </div>
+  `).join('');
+}
+
+function renderAgentsView(agents) {
+  const filterLevel  = document.getElementById('agent-filter-level')?.value  || '';
+  const filterStatus = document.getElementById('agent-filter-status')?.value || '';
+  const filtered = agents.filter(a =>
+    (!filterLevel  || a.level  === filterLevel) &&
+    (!filterStatus || a.status === filterStatus)
+  );
+
+  const groups = { estrategico: [], tatico: [], operacional: [] };
+  filtered.forEach(a => {
+    const key = (a.level||'Estrategico').toLowerCase();
+    (groups[key] || groups.estrategico).push(a);
+  });
+
+  ['estrategico','tatico','operacional'].forEach(level => {
+    const el = document.getElementById(`agents-${level}`);
+    const count = document.getElementById(`count-${level}`);
+    if (count) count.textContent = groups[level].length;
+    if (!el) return;
+    el.innerHTML = groups[level].length > 0
+      ? groups[level].map(a => agentCardHTML(a)).join('')
+      : '<div class="empty-state" style="padding:20px 0;font-size:13px;">Nenhum agente</div>';
+  });
+
+  // Stats row
+  const statsEl = document.getElementById('agents-stats');
+  if (statsEl) {
+    const total   = agents.length;
+    const ativos  = agents.filter(a => a.status === 'ativo').length;
+    const withSkills = agents.filter(a => (a.skills||[]).length > 0).length;
+    const withDoc    = agents.filter(a => a.base_doc).length;
+    statsEl.innerHTML = [
+      { label: 'Total de agentes', val: total,      color: 'var(--text)' },
+      { label: 'Ativos',           val: ativos,     color: 'var(--accent-3)' },
+      { label: 'Com skills',       val: withSkills, color: 'var(--accent)' },
+      { label: 'Com documento base', val: withDoc,  color: 'var(--accent-2)' },
+    ].map(s => `<div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value" style="color:${s.color};">${s.val}</div>
+    </div>`).join('');
+  }
+}
+
+function renderSkillsView(skills, skillAgentMap = {}) {
+  const list = document.getElementById('skills-list');
+  const statsRow = document.getElementById('skills-stats-row');
+  if (!list) return;
+
+  const search = document.getElementById('skills-search')?.value.toLowerCase() || '';
+  const filtered = search ? skills.filter(s =>
+    (s.title||s.name||'').toLowerCase().includes(search) ||
+    (s.slug||'').toLowerCase().includes(search) ||
+    (s.description||'').toLowerCase().includes(search)
+  ) : skills;
+
+  // Stats
+  const totalAgents = Object.values(skillAgentMap).flat().length;
+  if (statsRow) statsRow.innerHTML = [
+    { label: 'Skills carregadas', val: skills.length, color: 'var(--accent)' },
+    { label: 'Com agentes ativos', val: Object.keys(skillAgentMap).length, color: 'var(--accent-3)' },
+    { label: 'Associações total', val: totalAgents, color: 'var(--accent-2)' },
+    { label: 'Sem agentes', val: skills.filter(s=>!(skillAgentMap[s.slug||s.name]?.length)).length, color: 'var(--muted)' },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-label">${s.label}</div>
+    <div class="stat-value" style="color:${s.color};">${s.val}</div>
+  </div>`).join('');
+
+  // Skill icons map
+  const icons = { brainstorming:'🧠', 'notion-sync':'📋', 'notion-research':'🔍',
+    'canvas-design':'🎨', 'super-agent':'⚡', 'meeting-intelligence':'🎙',
+    'skill-creator':'🔧', 'so-expert':'💡', 'user-profiling':'👤' };
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhuma skill encontrada.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(skill => {
+    const slug = skill.slug || skill.name || '';
+    const title = skill.title || skill.name || slug;
+    const desc = skill.description || '';
+    const linkedAgents = skillAgentMap[slug] || [];
+    const icon = icons[slug] || '⚙️';
+    return `<div class="skill-card" onclick="openSkillDetail('${slug}')">
+      <div class="skill-card-top">
+        <div>
+          <div class="skill-card-name">${title}</div>
+          <div class="skill-card-slug">${slug}</div>
+        </div>
+        <div class="skill-card-icon">${icon}</div>
+      </div>
+      <div class="skill-card-desc">${desc.substring(0,120)}${desc.length>120?'…':''}</div>
+      <div class="skill-card-footer">
+        <span class="skill-agents-count">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+          ${linkedAgents.length} agente${linkedAgents.length!==1?'s':''}
+        </span>
+        ${linkedAgents.length > 0 ? '<span class="skill-active-badge">Em uso</span>' : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let cachedAgents = [];
+
+let cachedSkills = [];
+
+function activateAgentChat(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  navigateTo('chat');
+  const input = document.getElementById('chat-input-full');
+  if (input) {
+    input.placeholder = `Falando com ${agent.name}...`;
+    input.dataset.agentId = String(id);
+    toast(`Agente ${agent.name} ativado no chat.`, 'success', 'Chat', 3000);
+  }
+}
+
+async function analyzeMeeting(meetingId) {
+  try {
+    showInline('Analisando transcrição...');
+    await apiFetch('/api/meetings/analyze', { method: 'POST', body: JSON.stringify({ meetingId }) });
+    showInline('Análise concluída — insight salvo em Conhecimento.');
+    await loadMeetings();
+  } catch (err) {
+    showInline('Falha ao analisar reunião.');
+  }
+}
+
+async function deleteAgent(id) {
+  if (!confirm('Excluir este agente?')) return;
+  try {
+    await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+    closeAgentDetail();
+    await loadAgents();
+    toast('Agente excluído.', 'info', null, 3000);
+  } catch (err) { showError(err); }
+}
+
+// Filters
+document.getElementById('agent-filter-level')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+document.getElementById('agent-filter-status')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+
+document.getElementById('agent-save')?.addEventListener('click', async () => {
+  const editId = document.getElementById('agent-edit-id')?.value;
+  const selectedSkills = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
+  const payload = {
+    name: document.getElementById('agent-name').value.trim(),
+    level: document.getElementById('agent-level').value,
+    status: document.getElementById('agent-status').value,
+    areas: parseList(document.getElementById('agent-areas').value),
+    skills: selectedSkills,
+    tags: parseList(document.getElementById('agent-tags').value),
+    description: document.getElementById('agent-description').value.trim(),
+    base_doc: document.getElementById('agent-base-doc').value.trim() || null,
+  };
+  if (!payload.name) { toast('Informe o nome do agente.', 'warn'); return; }
+  try {
+    if (editId) {
+      await apiFetch(`/api/agents/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      await apiFetch(`/api/agents/${editId}/skills`, { method: 'POST', body: JSON.stringify({ skills: selectedSkills }) });
+      await apiFetch(`/api/agents/${editId}/tags`, { method: 'POST', body: JSON.stringify({ tags: payload.tags }) });
+      toast('Agente atualizado com sucesso.', 'success');
+    } else {
+      await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Agente criado com sucesso!', 'success');
+    }
+    closeAgentModal();
+    await loadAgents();
+  } catch (err) { showError(err); }
+});
+
+let inboxFilter = 'all';
+
+let inboxSort = 'recent';
+
+function toggleSkillChip(el) {
+  el.classList.toggle('selected');
+  const selected = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
+  document.getElementById('agent-skills').value = selected.join(',');
+}
+
+
 // Funções de suporte ausentes restauradas
 function closeAgentDetail() {
   const detail = document.getElementById('agent-detail-panel');
