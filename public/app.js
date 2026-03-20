@@ -1,3 +1,11 @@
+// Funções de suporte ausentes restauradas
+function closeAgentDetail() {
+  const detail = document.getElementById('agent-detail-panel');
+  if (detail) detail.classList.add('hidden');
+  const board = document.getElementById('agents-board');
+  if (board) board.classList.remove('hidden');
+}
+
 const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "https://andclaw.onrender.com";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
@@ -2494,6 +2502,15 @@ dbCheck && dbCheck.addEventListener('click', async () => {
     showInline('Falha ao checar DB.');
   }
 });
+
+async function connectGoogle() {
+  try {
+    const res = await apiFetch('/api/google/auth/url');
+    const data = await res.json();
+    if (data.url) window.location.href = data.url;
+  } catch (err) { showError(err); }
+}
+
 
 googleConnectAdmin && googleConnectAdmin.addEventListener('click', connectGoogle);
 
