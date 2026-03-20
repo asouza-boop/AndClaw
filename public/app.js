@@ -483,6 +483,10 @@ function inboxTimeAgo(dateStr) {
   return `há ${Math.floor(h / 24)}d`;
 }
 
+// ── Estado do Inbox ──────────────────────────────────────────
+let inboxCurrentFilter = 'all';
+
+
 function inboxRender(items) {
   inboxAllItems = items;
   const list = document.getElementById('inbox-list');
@@ -3146,6 +3150,112 @@ function renderAdminActivityLog() {
       '</div>';
   }).join('');
 }
+
+
+// ── LISTENERS DO INBOX ──────────────────────────────────────
+// Type tab switching
+document.querySelectorAll('.inbox-type-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.inbox-type-tab').forEach(function(t) { t.classList.remove('active'); });
+    tab.classList.add('active');
+    inboxCurrentType = tab.dataset.type || 'note';
+  });
+});
+
+// Filter pills
+document.querySelectorAll('.filter-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
+    pill.classList.add('active');
+    inboxCurrentFilter = pill.dataset.filter || 'all';
+    inboxRender(inboxAllItems);
+  });
+});
+
+// Bulk actions
+document.getElementById('inbox-select-all-btn')?.addEventListener('click', function() {
+  if (inboxSelected.size === inboxAllItems.length) { inboxSelected.clear(); }
+  else { inboxAllItems.forEach(function(i) { inboxSelected.add(Number(i.id)); }); }
+  const bar = document.getElementById('inbox-bulk-bar');
+  const cnt = document.getElementById('inbox-sel-count');
+  if (bar) bar.classList.toggle('hidden', inboxSelected.size === 0);
+  if (cnt) cnt.textContent = inboxSelected.size + ' selecionado' + (inboxSelected.size !== 1 ? 's' : '');
+  inboxRender(inboxAllItems);
+});
+
+document.getElementById('bulk-cancel-btn')?.addEventListener('click', function() {
+  inboxSelected.clear();
+  const bar = document.getElementById('inbox-bulk-bar');
+  if (bar) bar.classList.add('hidden');
+  inboxRender(inboxAllItems);
+});
+
+document.getElementById('bulk-delete-btn')?.addEventListener('click', async function() {
+  if (!inboxSelected.size) return;
+  try {
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'delete' }) });
+    inboxSelected.clear();
+    const bar = document.getElementById('inbox-bulk-bar');
+    if (bar) bar.classList.add('hidden');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+});
+
+document.getElementById('bulk-archive-btn')?.addEventListener('click', async function() {
+  if (!inboxSelected.size) return;
+  try {
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'archive' }) });
+    toast('Itens arquivados.', 'info', null, 2500);
+    inboxSelected.clear();
+    const bar = document.getElementById('inbox-bulk-bar');
+    if (bar) bar.classList.add('hidden');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+});
+
+document.getElementById('bulk-convert-btn')?.addEventListener('click', async function() {
+  if (!inboxSelected.size) return;
+  try {
+    for (const id of inboxSelected) {
+      const capture = inboxAllItems.find(function(i) { return Number(i.id) === id; });
+      if (capture) await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: capture.content, status: 'open', priority: 'normal' }) });
+    }
+    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'convert_task' }) });
+    toast(inboxSelected.size + ' item(s) convertido(s) em tarefa!', 'success');
+    inboxSelected.clear();
+    const bar = document.getElementById('inbox-bulk-bar');
+    if (bar) bar.classList.add('hidden');
+    await refreshCaptures();
+    await loadTasksInline();
+  } catch (err) { showError(err); }
+});
+
+// AI processing
+document.getElementById('inbox-ai-process-btn')?.addEventListener('click', async function() {
+  const pending = inboxAllItems.filter(function(i) { return i.status === 'new'; });
+  if (!pending.length) return;
+  const bar = document.getElementById('inbox-progress-bar');
+  const fill = document.getElementById('inbox-progress-fill');
+  const label = document.getElementById('inbox-progress-label');
+  if (bar) bar.classList.remove('hidden');
+  for (let i = 0; i < pending.length; i++) {
+    const item = pending[i];
+    if (fill) fill.style.width = ((i / pending.length) * 100) + '%';
+    if (label) label.textContent = 'Processando ' + (i + 1) + ' de ' + pending.length + '...';
+    try {
+      const res = await apiFetch('/api/agent', { method: 'POST', body: JSON.stringify({ input: 'Classifique em uma palavra (task, note, idea ou link): ' + item.content }) });
+      const d = await res.json();
+      const tipo = (d.reply || '').toLowerCase().replace(/[^a-z]/g, '');
+      if (['task','note','idea','link'].includes(tipo)) {
+        await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [Number(item.id)], action: 'set_type', type: tipo }) });
+      }
+    } catch {}
+  }
+  if (fill) fill.style.width = '100%';
+  if (label) label.textContent = 'Concluido!';
+  setTimeout(function() { if (bar) bar.classList.add('hidden'); }, 1500);
+  await refreshCaptures();
+});
 
 // ── TASKS INLINE ──────────────────────────────────────
 
