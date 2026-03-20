@@ -1570,7 +1570,8 @@ async function loadAgents() {
   try {
     const res = await apiFetch('/api/agents');
     const data = await res.json();
-    cachedAgents = data.items || [];
+    // Handle both raw array and {ok, items} wrapper formats
+    cachedAgents = Array.isArray(data) ? data : (data.items || data.agents || []);
     renderAgentsView(cachedAgents);
   } catch (err) { showError(err); }
 }

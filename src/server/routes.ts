@@ -303,9 +303,8 @@ router.get('/agents', async (_req: Request, res: Response) => {
     skills: skillMap.get(String(agent.id)) || [],
     tags: tagMap.get(String(agent.id)) || [],
   }));
-  const format = (req as any).query?.format;
-  if (format === 'array') return res.json(items);
-  res.json({ ok: true, items, agents: items });
+  // Return raw array for REST clients; PWA handles both formats
+  res.json(items);
 });
 
 router.post('/agents', async (req: Request, res: Response) => {
