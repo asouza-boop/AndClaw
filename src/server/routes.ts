@@ -158,10 +158,12 @@ router.get('/health', async (_req: Request, res: Response) => {
 
 router.get('/health/db', async (_req: Request, res: Response) => {
   try {
+    const start = Date.now();
     await query('SELECT 1 as ok');
-    res.json({ ok: true });
+    const latencyMs = Date.now() - start;
+    res.json({ ok: true, latency_ms: latencyMs, database: 'postgresql' });
   } catch (error: any) {
-    res.status(500).json({ ok: false, error: error.message });
+    res.status(503).json({ ok: false, error: error.message, database: 'postgresql' });
   }
 });
 
@@ -235,10 +237,10 @@ router.get('/skills', async (_req: Request, res: Response) => {
 
 router.post('/skills', async (req: Request, res: Response) => {
   const { slug, title, description, content = '', allowedTools = [] } = req.body || {};
-  if (!slug || !title) return res.status(400).json({ error: 'slug and title are required' });
+  if (!slug || !title) return res.status(400).json({ error: 'slug and title are required', required_fields: ['slug', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
   const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
-  res.json({ ok: true, slug: safeSlug });
+  res.status(201).json({ ok: true, slug: safeSlug });
 });
 
 router.get('/tags', async (_req: Request, res: Response) => {
@@ -262,7 +264,7 @@ router.post('/tags', async (req: Request, res: Response) => {
      RETURNING *`,
     [name, color || null]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
 });
 
 router.get('/agents', async (_req: Request, res: Response) => {
@@ -320,7 +322,7 @@ router.post('/agents', async (req: Request, res: Response) => {
 
   await setEntityTags('agent', String(agent.id), tags);
 
-  res.json({ ok: true, item: agent });
+  res.status(201).json({ ok: true, item: agent, id: agent?.id });
 });
 
 router.patch('/agents/:id', async (req: Request, res: Response) => {
@@ -383,7 +385,7 @@ router.post('/links', async (req: Request, res: Response) => {
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
     [from_type, String(from_id), to_type, String(to_id), label || null]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
 });
 
 router.get('/favorites', async (_req: Request, res: Response) => {
@@ -420,7 +422,7 @@ router.post('/favorites', async (req: Request, res: Response) => {
   );
   const fav = rows[0];
   await setEntityTags('favorite', String(fav.id), tags);
-  res.json({ ok: true, item: fav });
+  res.status(201).json({ ok: true, item: fav, id: fav?.id });
 });
 
 router.get('/raindrop/collections', async (_req: Request, res: Response) => {
@@ -677,7 +679,7 @@ router.post('/captures', async (req: Request, res: Response) => {
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [content, source, type, tags, project_id || null, due_date || null]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
 });
 
 router.get('/captures', async (req: Request, res: Response) => {
@@ -753,7 +755,7 @@ router.post('/tasks', async (req: Request, res: Response) => {
     [title, status, priority, due_date || null, project_id || null, meeting_id || null]
   );
 
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
   exportTasksToGoogle().catch(e => console.error('[tasks] gcal sync failed:', e.message));
 });
 
@@ -800,7 +802,7 @@ router.post('/meetings', async (req: Request, res: Response) => {
      VALUES ($1, $2, $3) RETURNING *`,
     [title, meeting_date || null, transcript_text || null]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
 });
 
 router.post('/meetings/analyze', async (req: Request, res: Response) => {
