@@ -1,310 +1,3 @@
-// ── BLOCOS RESTAURADOS ──────────────────────────────
-
-const chatWindow = document.getElementById('chat-window');
-
-const chatWindowFull = document.getElementById('chat-window-full');
-
-function setBadgeInt(id, ok, label, forceState) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = label;
-  const state = forceState || (ok ? 'ok' : 'off');
-  el.className = `int-badge int-${state}`;
-}
-
-async function sendChatMessage(inputEl, windowEl) {
-  const content = inputEl.value.trim();
-  if (!content) return;
-  inputEl.value = '';
-
-  const userTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  windowEl.innerHTML += `<div class="chat-msg user">
-    <div class="chat-avatar user-av">U</div>
-    <div><div class="chat-bubble">${content}</div><div class="chat-time">${userTime}</div></div>
-  </div>`;
-  windowEl.scrollTop = windowEl.scrollHeight;
-
-  const typingId = 'typing-' + Date.now();
-  windowEl.innerHTML += `<div id="${typingId}" class="chat-msg agent">
-    <div class="chat-avatar agent-av">A</div>
-    <div><div class="chat-bubble" style="padding:10px 16px;">
-      <span style="display:flex;gap:5px;align-items:center;">
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;"></span>
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.2s;"></span>
-        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.4s;"></span>
-      </span>
-    </div></div>
-  </div>`;
-  windowEl.scrollTop = windowEl.scrollHeight;
-
-  if (navigator.onLine) {
-    try {
-      const res = await apiFetch('/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({ input: content })
-      });
-      const data = await res.json();
-      document.getElementById(typingId)?.remove();
-      if (data.reply) {
-        const agentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        windowEl.innerHTML += `<div class="chat-msg agent">
-          <div class="chat-avatar agent-av">A</div>
-          <div><div class="chat-bubble">${data.reply}</div><div class="chat-time">${agentTime}</div></div>
-        </div>`;
-        windowEl.scrollTop = windowEl.scrollHeight;
-      }
-    } catch (err) {
-      document.getElementById(typingId)?.remove();
-      showError(err);
-    }
-  } else {
-    document.getElementById(typingId)?.remove();
-    enqueueLocal('messages', { content, client_message_id: crypto.randomUUID(), role: 'user', conversationId: 'pwa-user' });
-  }
-}
-
-chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow));
-chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chatWindowFull));
-
-async function subscribePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  const reg = await navigator.serviceWorker.ready;
-  const res = await apiFetch('/api/push/vapid');
-  const { publicKey } = await res.json();
-  if (!publicKey) return;
-
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey)
-  });
-
-  await apiFetch('/api/push/subscribe', {
-    method: 'POST',
-    body: JSON.stringify({ subscription: sub })
-  });
-}
-
-function renderActivityLog(data) {
-  const log = document.getElementById('activity-log');
-  if (!log) return;
-  const entries = [];
-  const now = new Date();
-  const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-  if (data.db?.ok) entries.push({ time: fmt(now), tag: 'ok', label: 'DB', msg: 'Banco de dados respondendo normalmente' });
-  if (data.deploy?.last) entries.push({ time: fmt(data.deploy.last), tag: 'info', label: 'Deploy', msg: `Último deploy em ${new Date(data.deploy.last).toLocaleDateString('pt-BR')}` });
-  if (data.google?.connectedAccounts?.length) entries.push({ time: fmt(now), tag: 'ok', label: 'Google', msg: `${data.google.connectedAccounts.length} conta(s) conectada(s) ao Calendar` });
-  if (data.gitvault) entries.push({ time: '02:00', tag: 'ok', label: 'GitVault', msg: 'Backup diário agendado' });
-  if (!data.llm?.gemini && !data.llm?.openrouter && !data.llm?.deepseek) {
-    entries.push({ time: fmt(now), tag: 'warn', label: 'LLM', msg: 'Nenhum provider LLM configurado — agente offline' });
-  }
-
-  if (entries.length === 0) {
-    log.innerHTML = '<div class="int-log-empty">Nenhuma atividade registrada.</div>';
-    return;
-  }
-
-  log.innerHTML = entries.map(e => `
-    <div class="int-log-line">
-      <span class="int-log-time">${e.time}</span>
-      <span class="int-log-tag int-lt-${e.tag}">${e.label}</span>
-      <span class="int-log-msg">${e.msg}</span>
-    </div>
-  `).join('');
-}
-
-function renderAgentsView(agents) {
-  const filterLevel  = document.getElementById('agent-filter-level')?.value  || '';
-  const filterStatus = document.getElementById('agent-filter-status')?.value || '';
-  const filtered = agents.filter(a =>
-    (!filterLevel  || a.level  === filterLevel) &&
-    (!filterStatus || a.status === filterStatus)
-  );
-
-  const groups = { estrategico: [], tatico: [], operacional: [] };
-  filtered.forEach(a => {
-    const key = (a.level||'Estrategico').toLowerCase();
-    (groups[key] || groups.estrategico).push(a);
-  });
-
-  ['estrategico','tatico','operacional'].forEach(level => {
-    const el = document.getElementById(`agents-${level}`);
-    const count = document.getElementById(`count-${level}`);
-    if (count) count.textContent = groups[level].length;
-    if (!el) return;
-    el.innerHTML = groups[level].length > 0
-      ? groups[level].map(a => agentCardHTML(a)).join('')
-      : '<div class="empty-state" style="padding:20px 0;font-size:13px;">Nenhum agente</div>';
-  });
-
-  // Stats row
-  const statsEl = document.getElementById('agents-stats');
-  if (statsEl) {
-    const total   = agents.length;
-    const ativos  = agents.filter(a => a.status === 'ativo').length;
-    const withSkills = agents.filter(a => (a.skills||[]).length > 0).length;
-    const withDoc    = agents.filter(a => a.base_doc).length;
-    statsEl.innerHTML = [
-      { label: 'Total de agentes', val: total,      color: 'var(--text)' },
-      { label: 'Ativos',           val: ativos,     color: 'var(--accent-3)' },
-      { label: 'Com skills',       val: withSkills, color: 'var(--accent)' },
-      { label: 'Com documento base', val: withDoc,  color: 'var(--accent-2)' },
-    ].map(s => `<div class="stat-card">
-      <div class="stat-label">${s.label}</div>
-      <div class="stat-value" style="color:${s.color};">${s.val}</div>
-    </div>`).join('');
-  }
-}
-
-function renderSkillsView(skills, skillAgentMap = {}) {
-  const list = document.getElementById('skills-list');
-  const statsRow = document.getElementById('skills-stats-row');
-  if (!list) return;
-
-  const search = document.getElementById('skills-search')?.value.toLowerCase() || '';
-  const filtered = search ? skills.filter(s =>
-    (s.title||s.name||'').toLowerCase().includes(search) ||
-    (s.slug||'').toLowerCase().includes(search) ||
-    (s.description||'').toLowerCase().includes(search)
-  ) : skills;
-
-  // Stats
-  const totalAgents = Object.values(skillAgentMap).flat().length;
-  if (statsRow) statsRow.innerHTML = [
-    { label: 'Skills carregadas', val: skills.length, color: 'var(--accent)' },
-    { label: 'Com agentes ativos', val: Object.keys(skillAgentMap).length, color: 'var(--accent-3)' },
-    { label: 'Associações total', val: totalAgents, color: 'var(--accent-2)' },
-    { label: 'Sem agentes', val: skills.filter(s=>!(skillAgentMap[s.slug||s.name]?.length)).length, color: 'var(--muted)' },
-  ].map(s => `<div class="stat-card">
-    <div class="stat-label">${s.label}</div>
-    <div class="stat-value" style="color:${s.color};">${s.val}</div>
-  </div>`).join('');
-
-  // Skill icons map
-  const icons = { brainstorming:'🧠', 'notion-sync':'📋', 'notion-research':'🔍',
-    'canvas-design':'🎨', 'super-agent':'⚡', 'meeting-intelligence':'🎙',
-    'skill-creator':'🔧', 'so-expert':'💡', 'user-profiling':'👤' };
-
-  if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty-state">Nenhuma skill encontrada.</div>';
-    return;
-  }
-
-  list.innerHTML = filtered.map(skill => {
-    const slug = skill.slug || skill.name || '';
-    const title = skill.title || skill.name || slug;
-    const desc = skill.description || '';
-    const linkedAgents = skillAgentMap[slug] || [];
-    const icon = icons[slug] || '⚙️';
-    return `<div class="skill-card" onclick="openSkillDetail('${slug}')">
-      <div class="skill-card-top">
-        <div>
-          <div class="skill-card-name">${title}</div>
-          <div class="skill-card-slug">${slug}</div>
-        </div>
-        <div class="skill-card-icon">${icon}</div>
-      </div>
-      <div class="skill-card-desc">${desc.substring(0,120)}${desc.length>120?'…':''}</div>
-      <div class="skill-card-footer">
-        <span class="skill-agents-count">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
-          ${linkedAgents.length} agente${linkedAgents.length!==1?'s':''}
-        </span>
-        ${linkedAgents.length > 0 ? '<span class="skill-active-badge">Em uso</span>' : ''}
-      </div>
-    </div>`;
-  }).join('');
-}
-
-let cachedAgents = [];
-
-let cachedSkills = [];
-
-function activateAgentChat(id) {
-  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
-  if (!agent) return;
-  navigateTo('chat');
-  const input = document.getElementById('chat-input-full');
-  if (input) {
-    input.placeholder = `Falando com ${agent.name}...`;
-    input.dataset.agentId = String(id);
-    toast(`Agente ${agent.name} ativado no chat.`, 'success', 'Chat', 3000);
-  }
-}
-
-async function analyzeMeeting(meetingId) {
-  try {
-    showInline('Analisando transcrição...');
-    await apiFetch('/api/meetings/analyze', { method: 'POST', body: JSON.stringify({ meetingId }) });
-    showInline('Análise concluída — insight salvo em Conhecimento.');
-    await loadMeetings();
-  } catch (err) {
-    showInline('Falha ao analisar reunião.');
-  }
-}
-
-async function deleteAgent(id) {
-  if (!confirm('Excluir este agente?')) return;
-  try {
-    await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
-    closeAgentDetail();
-    await loadAgents();
-    toast('Agente excluído.', 'info', null, 3000);
-  } catch (err) { showError(err); }
-}
-
-// Filters
-document.getElementById('agent-filter-level')?.addEventListener('change', () => renderAgentsView(cachedAgents));
-document.getElementById('agent-filter-status')?.addEventListener('change', () => renderAgentsView(cachedAgents));
-
-document.getElementById('agent-save')?.addEventListener('click', async () => {
-  const editId = document.getElementById('agent-edit-id')?.value;
-  const selectedSkills = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
-  const payload = {
-    name: document.getElementById('agent-name').value.trim(),
-    level: document.getElementById('agent-level').value,
-    status: document.getElementById('agent-status').value,
-    areas: parseList(document.getElementById('agent-areas').value),
-    skills: selectedSkills,
-    tags: parseList(document.getElementById('agent-tags').value),
-    description: document.getElementById('agent-description').value.trim(),
-    base_doc: document.getElementById('agent-base-doc').value.trim() || null,
-  };
-  if (!payload.name) { toast('Informe o nome do agente.', 'warn'); return; }
-  try {
-    if (editId) {
-      await apiFetch(`/api/agents/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });
-      await apiFetch(`/api/agents/${editId}/skills`, { method: 'POST', body: JSON.stringify({ skills: selectedSkills }) });
-      await apiFetch(`/api/agents/${editId}/tags`, { method: 'POST', body: JSON.stringify({ tags: payload.tags }) });
-      toast('Agente atualizado com sucesso.', 'success');
-    } else {
-      await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
-      toast('Agente criado com sucesso!', 'success');
-    }
-    closeAgentModal();
-    await loadAgents();
-  } catch (err) { showError(err); }
-});
-
-let inboxFilter = 'all';
-
-let inboxSort = 'recent';
-
-function toggleSkillChip(el) {
-  el.classList.toggle('selected');
-  const selected = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
-  document.getElementById('agent-skills').value = selected.join(',');
-}
-
-
-// Funções de suporte ausentes restauradas
-function closeAgentDetail() {
-  const detail = document.getElementById('agent-detail-panel');
-  if (detail) detail.classList.add('hidden');
-  const board = document.getElementById('agents-board');
-  if (board) board.classList.remove('hidden');
-}
-
 const DEFAULT_API_BASE = window.ANDCLAW_API_BASE_URL || "https://andclaw.onrender.com";
 const views = document.querySelectorAll('.view');
 const navItems = document.querySelectorAll('.nav-item');
@@ -771,25 +464,23 @@ async function flushQueue() {
   }
 }
 
-// ── INBOX SYSTEM (reescrito) ─────────────────────────────────
-
-let inboxAllItems = [];
+let inboxFilter = 'all';
+let inboxSort = 'recent';
 let inboxSelected = new Set();
 let inboxCurrentType = 'note';
-let inboxCurrentFilter = 'all';
+let inboxAllItems = [];
 
 const typeMap = { note: 'Nota', task: 'Tarefa', idea: 'Ideia', link: 'Link' };
 const tagClass = { note: 'inbox-tag-note', task: 'inbox-tag-task', idea: 'inbox-tag-idea', link: 'inbox-tag-link' };
 
 function inboxTimeAgo(dateStr) {
-  if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return 'agora';
-  if (m < 60) return 'há ' + m + 'm';
+  if (m < 60) return `há ${m}min`;
   const h = Math.floor(m / 60);
-  if (h < 24) return 'há ' + h + 'h';
-  return 'há ' + Math.floor(h / 24) + 'd';
+  if (h < 24) return `há ${h}h`;
+  return `há ${Math.floor(h / 24)}d`;
 }
 
 function inboxRender(items) {
@@ -832,24 +523,50 @@ function inboxRender(items) {
   }
 }
 
-function renderInboxItem(item) {
-  const isSelected = inboxSelected.has(Number(item.id));
-  const isDone = item.status === 'processed';
-  return '<div class="inbox-item' + (isSelected ? ' inbox-selected' : '') + '" data-id="' + item.id + '" onclick="inboxToggleSelect(' + item.id + ')">' +
-    '<div class="inbox-check' + (isDone ? ' inbox-done' : '') + '" onclick="event.stopPropagation();inboxToggleDone(' + item.id + ',\'' + item.status + '\')"></div>' +
-    '<div class="inbox-item-body">' +
-      '<div class="inbox-item-text' + (isDone ? ' inbox-done-text' : '') + '">' + (item.content || '') + '</div>' +
-      '<div class="inbox-item-meta">' +
-        '<span class="inbox-type-tag ' + (tagClass[item.type] || 'inbox-tag-note') + '">' + (typeMap[item.type] || 'Nota') + '</span>' +
-        '<span class="inbox-item-time">' + inboxTimeAgo(item.created_at) + '</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="inbox-item-actions" onclick="event.stopPropagation()">' +
-      '<button class="inbox-action-btn" onclick="inboxConvertTask(' + item.id + ')">✓ Tarefa</button>' +
-      '<button class="inbox-action-btn" onclick="inboxArchive(' + item.id + ')">Arquivar</button>' +
-      '<button class="inbox-action-btn inbox-action-danger" onclick="inboxDelete(' + item.id + ')">Excluir</button>' +
-    '</div>' +
-  '</div>';
+async function inboxToggleDone(id, currentStatus) {
+  const numId = Number(id);
+  const newStatus = currentStatus === 'processed' ? 'new' : 'processed';
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+}
+
+async function inboxArchive(id) {
+  const numId = Number(id);
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'PATCH', body: JSON.stringify({ status: 'archived' }) });
+    showInline('Item arquivado.');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+}
+
+async function inboxDelete(id) {
+  const numId = Number(id);
+  try {
+    await apiFetch(`/api/captures/${numId}`, { method: 'DELETE' });
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+}
+
+async function inboxConvertTask(id) {
+  const numId = Number(id);
+  try {
+    const res = await apiFetch('/api/captures/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ ids: [numId], action: 'convert_task' })
+    });
+    const data = await res.json();
+    if (data.ok) showInline('Convertido em tarefa com sucesso.');
+    await refreshCaptures();
+  } catch (err) { showError(err); }
+}
+
+function inboxToggleSelect(id) {
+  const numId = Number(id);
+  if (inboxSelected.has(numId)) inboxSelected.delete(numId);
+  else inboxSelected.add(numId);
+  inboxRender(inboxAllItems);
 }
 
 async function refreshCaptures() {
@@ -863,271 +580,1241 @@ async function refreshCaptures() {
   } catch (err) { /* silencioso no refresh */ }
 }
 
-function inboxToggleSelect(id) {
-  const numId = Number(id);
-  if (inboxSelected.has(numId)) inboxSelected.delete(numId);
-  else inboxSelected.add(numId);
-  const bar = document.getElementById('inbox-bulk-bar');
-  const cnt = document.getElementById('inbox-sel-count');
-  if (bar) bar.classList.toggle('hidden', inboxSelected.size === 0);
-  if (cnt) cnt.textContent = inboxSelected.size + ' selecionado' + (inboxSelected.size !== 1 ? 's' : '');
-  inboxRender(inboxAllItems);
-}
+const chatInput = document.getElementById('chat-input');
+const chatSend = document.getElementById('chat-send');
+const chatWindow = document.getElementById('chat-window');
 
-async function inboxToggleDone(id, currentStatus) {
-  const numId = Number(id);
-  const newStatus = currentStatus === 'processed' ? 'new' : 'processed';
+const chatInputFull = document.getElementById('chat-input-full');
+const chatSendFull = document.getElementById('chat-send-full');
+const chatWindowFull = document.getElementById('chat-window-full');
+
+async function loadChatHistory() {
+  if (!navigator.onLine) return;
   try {
-    await apiFetch('/api/captures/' + numId, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
-    await refreshCaptures();
-  } catch (err) { showError(err); }
-}
-
-async function inboxArchive(id) {
-  const numId = Number(id);
-  try {
-    await apiFetch('/api/captures/' + numId, { method: 'PATCH', body: JSON.stringify({ status: 'archived' }) });
-    toast('Item arquivado.', 'info', null, 2500);
-    await refreshCaptures();
-  } catch (err) { showError(err); }
-}
-
-async function inboxDelete(id) {
-  const numId = Number(id);
-  try {
-    await apiFetch('/api/captures/' + numId, { method: 'DELETE' });
-    await refreshCaptures();
-  } catch (err) { showError(err); }
-}
-
-async function inboxConvertTask(id) {
-  const numId = Number(id);
-  try {
-    const capture = inboxAllItems.find(function(i) { return Number(i.id) === numId; });
-    const title = capture ? capture.content : 'Tarefa do inbox';
-    await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: title, status: 'open', priority: 'normal' }) });
-    await apiFetch('/api/captures/' + numId, { method: 'PATCH', body: JSON.stringify({ status: 'processed' }) });
-    toast('Convertido em tarefa!', 'success', null, 3000);
-    await refreshCaptures();
-    await loadTasksInline();
-  } catch (err) { showError(err); }
-}
-
-// Type tab switching
-document.querySelectorAll('.inbox-type-tab').forEach(function(tab) {
-  tab.addEventListener('click', function() {
-    document.querySelectorAll('.inbox-type-tab').forEach(function(t) { t.classList.remove('active'); });
-    tab.classList.add('active');
-    inboxCurrentType = tab.dataset.type || 'note';
-  });
-});
-
-// Filter pills
-document.querySelectorAll('.filter-pill').forEach(function(pill) {
-  pill.addEventListener('click', function() {
-    document.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
-    pill.classList.add('active');
-    inboxCurrentFilter = pill.dataset.filter || 'all';
-    inboxRender(inboxAllItems);
-  });
-});
-
-// Bulk actions
-document.getElementById('inbox-select-all-btn')?.addEventListener('click', function() {
-  if (inboxSelected.size === inboxAllItems.length) { inboxSelected.clear(); }
-  else { inboxAllItems.forEach(function(i) { inboxSelected.add(Number(i.id)); }); }
-  const bar = document.getElementById('inbox-bulk-bar');
-  const cnt = document.getElementById('inbox-sel-count');
-  if (bar) bar.classList.toggle('hidden', inboxSelected.size === 0);
-  if (cnt) cnt.textContent = inboxSelected.size + ' selecionado' + (inboxSelected.size !== 1 ? 's' : '');
-  inboxRender(inboxAllItems);
-});
-
-document.getElementById('bulk-cancel-btn')?.addEventListener('click', function() {
-  inboxSelected.clear();
-  const bar = document.getElementById('inbox-bulk-bar');
-  if (bar) bar.classList.add('hidden');
-  inboxRender(inboxAllItems);
-});
-
-document.getElementById('bulk-delete-btn')?.addEventListener('click', async function() {
-  if (!inboxSelected.size) return;
-  try {
-    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'delete' }) });
-    inboxSelected.clear();
-    const bar = document.getElementById('inbox-bulk-bar');
-    if (bar) bar.classList.add('hidden');
-    await refreshCaptures();
-  } catch (err) { showError(err); }
-});
-
-document.getElementById('bulk-archive-btn')?.addEventListener('click', async function() {
-  if (!inboxSelected.size) return;
-  try {
-    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'archive' }) });
-    toast('Itens arquivados.', 'info', null, 2500);
-    inboxSelected.clear();
-    const bar = document.getElementById('inbox-bulk-bar');
-    if (bar) bar.classList.add('hidden');
-    await refreshCaptures();
-  } catch (err) { showError(err); }
-});
-
-document.getElementById('bulk-convert-btn')?.addEventListener('click', async function() {
-  if (!inboxSelected.size) return;
-  try {
-    for (const id of inboxSelected) {
-      const capture = inboxAllItems.find(function(i) { return Number(i.id) === id; });
-      if (capture) await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: capture.content, status: 'open', priority: 'normal' }) });
-    }
-    await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [...inboxSelected], action: 'convert_task' }) });
-    toast(inboxSelected.size + ' item(s) convertido(s) em tarefa!', 'success');
-    inboxSelected.clear();
-    const bar = document.getElementById('inbox-bulk-bar');
-    if (bar) bar.classList.add('hidden');
-    await refreshCaptures();
-    await loadTasksInline();
-  } catch (err) { showError(err); }
-});
-
-// AI processing
-document.getElementById('inbox-ai-process-btn')?.addEventListener('click', async function() {
-  const pending = inboxAllItems.filter(function(i) { return i.status === 'new'; });
-  if (!pending.length) return;
-  const bar = document.getElementById('inbox-progress-bar');
-  const fill = document.getElementById('inbox-progress-fill');
-  const label = document.getElementById('inbox-progress-label');
-  if (bar) bar.classList.remove('hidden');
-  for (let i = 0; i < pending.length; i++) {
-    const item = pending[i];
-    if (fill) fill.style.width = ((i / pending.length) * 100) + '%';
-    if (label) label.textContent = 'Processando ' + (i + 1) + ' de ' + pending.length + '...';
-    try {
-      const res = await apiFetch('/api/agent', { method: 'POST', body: JSON.stringify({ input: 'Classifique em uma palavra (task, note, idea ou link): ' + item.content }) });
-      const d = await res.json();
-      const tipo = (d.reply || '').toLowerCase().replace(/[^a-z]/g, '');
-      if (['task','note','idea','link'].includes(tipo)) {
-        await apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ ids: [Number(item.id)], action: 'set_type', type: tipo }) });
-      }
-    } catch {}
-  }
-  if (fill) fill.style.width = '100%';
-  if (label) label.textContent = 'Concluido!';
-  setTimeout(function() { if (bar) bar.classList.add('hidden'); }, 1500);
-  await refreshCaptures();
-});
-
-// ── TASKS INLINE ──────────────────────────────────────────────
-
-let allTasksInline = [];
-
-async function loadTasksInline() {
-  try {
-    const res = await apiFetch('/api/tasks');
-    if (!res.ok) return;
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.includes('application/json')) return;
+    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=50');
     const data = await res.json();
-    allTasksInline = data.items || [];
-    renderTasksInline();
-  } catch (err) { /* silencioso */ }
+    const items = data.items || [];
+    const renderMsgs = (windowEl) => {
+      if (!windowEl) return;
+      if (items.length === 0) {
+        windowEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">Nenhuma mensagem ainda. Diga olá ao agente!</div>';
+        return;
+      }
+      windowEl.innerHTML = items.map(msg => {
+        const isUser = msg.role === 'user';
+        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `<div class="chat-msg ${isUser ? 'user' : 'agent'}">
+          <div class="chat-avatar ${isUser ? 'user-av' : 'agent-av'}">${isUser ? 'U' : 'A'}</div>
+          <div>
+            <div class="chat-bubble">${msg.content}</div>
+            ${time ? `<div class="chat-time">${time}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      windowEl.scrollTop = windowEl.scrollHeight;
+    };
+    renderMsgs(chatWindow);
+    renderMsgs(chatWindowFull);
+  } catch (err) {
+    showError(err);
+  }
 }
 
-function renderTasksInline() {
-  const list = document.getElementById('tasks-list-inline');
-  if (!list) return;
-  const statusFilter = (document.getElementById('tasks-filter-status') || {}).value || '';
-  const priorityFilter = (document.getElementById('tasks-filter-priority') || {}).value || '';
-  let tasks = allTasksInline.filter(function(t) {
-    if (statusFilter && t.status !== statusFilter) return false;
-    if (priorityFilter && t.priority !== priorityFilter) return false;
-    return true;
-  });
+async function sendChatMessage(inputEl, windowEl) {
+  const content = inputEl.value.trim();
+  if (!content) return;
+  inputEl.value = '';
 
-  const today = new Date().toDateString();
-  const openCount = allTasksInline.filter(function(t) { return t.status !== 'done'; }).length;
-  const todayCount = allTasksInline.filter(function(t) { return t.due_date && new Date(t.due_date).toDateString() === today && t.status !== 'done'; }).length;
-  const doneCount = allTasksInline.filter(function(t) { return t.status === 'done'; }).length;
-  function setEl(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
-  setEl('stat-tasks-open', openCount);
-  setEl('stat-tasks-today', todayCount);
-  setEl('stat-tasks-done', doneCount);
-  setEl('stat-tasks', openCount);
-  setEl('stat-priority', allTasksInline.filter(function(t) { return t.priority === 'high' && t.status !== 'done'; }).length);
+  const userTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  windowEl.innerHTML += `<div class="chat-msg user">
+    <div class="chat-avatar user-av">U</div>
+    <div><div class="chat-bubble">${content}</div><div class="chat-time">${userTime}</div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
 
-  if (tasks.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:20px 0;font-size:12px;">Nenhuma tarefa. Converta itens do inbox ou adicione acima.</div>';
+  const typingId = 'typing-' + Date.now();
+  windowEl.innerHTML += `<div id="${typingId}" class="chat-msg agent">
+    <div class="chat-avatar agent-av">A</div>
+    <div><div class="chat-bubble" style="padding:10px 16px;">
+      <span style="display:flex;gap:5px;align-items:center;">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.2s;"></span>
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--muted);animation:typingDot 1.4s ease-in-out infinite;animation-delay:.4s;"></span>
+      </span>
+    </div></div>
+  </div>`;
+  windowEl.scrollTop = windowEl.scrollHeight;
+
+  if (navigator.onLine) {
+    try {
+      const res = await apiFetch('/api/agent', {
+        method: 'POST',
+        body: JSON.stringify({ input: content })
+      });
+      const data = await res.json();
+      document.getElementById(typingId)?.remove();
+      if (data.reply) {
+        const agentTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        windowEl.innerHTML += `<div class="chat-msg agent">
+          <div class="chat-avatar agent-av">A</div>
+          <div><div class="chat-bubble">${data.reply}</div><div class="chat-time">${agentTime}</div></div>
+        </div>`;
+        windowEl.scrollTop = windowEl.scrollHeight;
+      }
+    } catch (err) {
+      document.getElementById(typingId)?.remove();
+      showError(err);
+    }
+  } else {
+    document.getElementById(typingId)?.remove();
+    enqueueLocal('messages', { content, client_message_id: crypto.randomUUID(), role: 'user', conversationId: 'pwa-user' });
+  }
+}
+
+chatSend.addEventListener('click', () => sendChatMessage(chatInput, chatWindow));
+chatSendFull.addEventListener('click', () => sendChatMessage(chatInputFull, chatWindowFull));
+
+async function loadDashboard() {
+  try {
+    const [tasksRes, meetingsRes, capturesRes] = await Promise.all([
+      apiFetch('/api/tasks'),
+      apiFetch('/api/meetings'),
+      apiFetch('/api/captures'),
+    ]);
+    const tasks    = (await tasksRes.json()).items    || [];
+    const meetings = (await meetingsRes.json()).items || [];
+    const captures = (await capturesRes.json()).items || [];
+
+    const openTasks    = tasks.filter(t => t.status !== 'done');
+    const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'alta');
+    const newCaptures  = captures.filter(c => c.status === 'new');
+
+    const el = id => document.getElementById(id);
+    if (el('stat-tasks'))    el('stat-tasks').textContent    = openTasks.length;
+    if (el('stat-priority')) el('stat-priority').textContent = highPriority.length;
+    if (el('stat-meetings')) el('stat-meetings').textContent = meetings.length;
+    if (el('stat-inbox'))    el('stat-inbox').textContent    = newCaptures.length;
+
+    const today = new Date().toDateString();
+    const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
+    if (el('today-list')) {
+      el('today-list').innerHTML = todayTasks.length > 0
+        ? todayTasks.slice(0, 5).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.priority || 'normal'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas para hoje</div>';
+    }
+    if (el('priority-list')) {
+      el('priority-list').innerHTML = openTasks.length > 0
+        ? openTasks.slice(0, 3).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.status || 'open'}</div></div>`).join('')
+        : '<div class="empty-state">Sem tarefas</div>';
+    }
+    if (el('meetings-list')) {
+      el('meetings-list').innerHTML = meetings.length > 0
+        ? meetings.slice(0, 3).map(m => `<div class="list-item"><div class="list-item-title">${m.title}</div><div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div></div>`).join('')
+        : '<div class="empty-state">Sem reuniões</div>';
+    }
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadAgenda() {
+  try {
+    const res = await apiFetch('/api/calendar/combined');
+    const data = await res.json();
+    const list = document.getElementById('agenda-grid');
+    list.innerHTML = (data.items || [])
+      .sort((a, b) => new Date(a.start) - new Date(b.start))
+      .slice(0, 12)
+      .map(item => {
+        const label = item.type === 'task' ? 'Tarefa' : 'Evento';
+        const date = item.start ? new Date(item.start).toLocaleString() : '';
+        return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
+      })
+      .join('');
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function loadAdmin() {
+  try {
+    const res = await apiFetch('/api/status');
+    const data = await res.json();
+
+    const setHealth = (id, ok, label) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const dot = ok
+        ? '<span class="int-dot-green"></span>'
+        : '<span class="int-dot-red"></span>';
+      el.innerHTML = `${dot} ${label}`;
+    };
+
+    setHealth('health-backend', true, 'Online');
+    setHealth('health-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
+
+    const llm = data.llm || {};
+    const activeLlm = llm.gemini ? 'Gemini' : llm.openrouter ? 'OpenRouter' : llm.deepseek ? 'DeepSeek' : 'Nenhum';
+    const llmOk = llm.gemini || llm.openrouter || llm.deepseek;
+    setHealth('health-llm', llmOk, activeLlm);
+
+    const deployEl = document.getElementById('health-deploy');
+    if (deployEl) {
+      deployEl.textContent = data.deploy?.last
+        ? new Date(data.deploy.last).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+        : 'Nunca';
+    }
+
+    const connected = (data.google?.connectedAccounts || []).length;
+    setBadgeInt('badge-google', connected > 0, connected > 0 ? `${connected} conta(s)` : 'Não conectado');
+    const googleSyncEl = document.getElementById('google-last-sync');
+    if (googleSyncEl && connected > 0) googleSyncEl.textContent = 'Última sync há poucos minutos.';
+
+    const googleSyncBtn = document.getElementById('google-sync-now');
+    const googleDiscoBtn = document.getElementById('google-disconnect-btn');
+    const googleConnBtn = document.getElementById('google-connect-admin');
+    if (connected > 0) {
+      if (googleSyncBtn) googleSyncBtn.style.display = '';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = '';
+      if (googleConnBtn) googleConnBtn.style.display = 'none';
+    } else {
+      if (googleSyncBtn) googleSyncBtn.style.display = 'none';
+      if (googleDiscoBtn) googleDiscoBtn.style.display = 'none';
+      if (googleConnBtn) googleConnBtn.style.display = '';
+    }
+
+    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado', data.gitvault ? null : 'warn');
+    const repoInfo = document.getElementById('gitvault-repo-info');
+    if (repoInfo) repoInfo.textContent = data.gitvault ? 'Backup diário às 02h.' : '';
+
+    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado', data.raindrop ? null : 'warn');
+
+    const subs = data.pushSubscriptions || 0;
+    setBadgeInt('badge-push', subs > 0, subs > 0 ? `${subs} dispositivo(s)` : '0 subscrições', subs === 0 ? 'warn' : 'ok');
+    const pushSubsEl = document.getElementById('push-subs-info');
+    if (pushSubsEl) pushSubsEl.textContent = subs > 0 ? `${subs} dispositivo(s) inscrito(s).` : '';
+
+    setBadgeInt('badge-deploy', Boolean(data.deploy?.last), data.deploy?.last ? 'Render' : 'Nunca deployado');
+    const deployInfoEl = document.getElementById('deploy-last-info');
+    if (deployInfoEl && data.deploy?.last) {
+      deployInfoEl.textContent = `Último: ${new Date(data.deploy.last).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+    }
+
+    setBadgeInt('badge-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
+
+    const chain = document.getElementById('llm-chain-display');
+    if (chain) {
+      const providers = [
+        { name: 'Gemini Flash', active: llm.gemini },
+        { name: 'Gemini Lite', active: llm.gemini },
+        { name: 'OpenRouter', active: llm.openrouter },
+        { name: 'DeepSeek', active: llm.deepseek },
+      ];
+      chain.innerHTML = providers.map((p, i) => `
+        <div class="int-llm-node ${p.active ? 'int-llm-active' : 'int-llm-inactive'}">
+          <span class="int-llm-dot"></span>${p.name}
+        </div>
+        ${i < providers.length - 1 ? '<span class="int-llm-arrow">→</span>' : ''}
+      `).join('');
+    }
+
+    const tgBadge = document.getElementById('tg-badge');
+    if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
+
+    // Atualizar badges dos cards do grid (via setBadgeInt para consistência)
+    const llmProvider = data.llm?.gemini ? 'Gemini' : data.llm?.openrouter ? 'OpenRouter' : data.llm?.deepseek ? 'DeepSeek' : null;
+    setBadgeInt('badge-llm', data.llmConfigured, llmProvider || 'Não configurado');
+    setBadgeInt('badge-telegram', Boolean(data.telegram?.active), data.telegram?.active ? 'Ativo' : 'Offline', data.telegram?.active ? null : 'warn');
+    const tgNameMini = document.getElementById('tg-bot-name-mini');
+    if (tgNameMini) tgNameMini.textContent = data.telegram?.username ? '@' + data.telegram.username : '';
+    const tgStatus = document.getElementById('tg-bot-status');
+    if (tgStatus) tgStatus.textContent = 'Online · polling ativo';
+    const tgUsers = document.getElementById('tg-stat-users');
+    if (tgUsers) tgUsers.textContent = '1';
+    const tgSkills = document.getElementById('tg-stat-skills');
+    if (tgSkills) tgSkills.textContent = '—';
+
+    const statusDb = document.getElementById('status-db');
+    if (statusDb) statusDb.innerHTML = data.db?.ok ? '<span class="status-badge ok">OK</span>' : '<span class="status-badge bad">Falha</span>';
+    const statusGoogle = document.getElementById('status-google');
+    if (statusGoogle) statusGoogle.innerHTML = connected ? `<span class="status-badge ok">Conectado (${connected})</span>` : '<span class="status-badge bad">Não conectado</span>';
+    const statusGitvault = document.getElementById('status-gitvault');
+    if (statusGitvault) statusGitvault.innerHTML = data.gitvault ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusPush = document.getElementById('status-push');
+    if (statusPush) statusPush.innerHTML = subs > 0 ? `<span class="status-badge ok">Subs: ${subs}</span>` : '<span class="status-badge warn">0 subscrições</span>';
+    const statusRaindrop = document.getElementById('status-raindrop');
+    if (statusRaindrop) statusRaindrop.innerHTML = data.raindrop ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
+    const statusDeploy = document.getElementById('status-deploy');
+    if (statusDeploy) statusDeploy.textContent = data.deploy?.last ? new Date(data.deploy.last).toLocaleString() : 'Nenhum';
+    const statusLlm = document.getElementById('status-llm');
+    if (statusLlm) statusLlm.textContent = `Gemini: ${llm.gemini ? 'OK' : 'OFF'} | OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'} | DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`;
+
+    if (!llmOk) {
+      toast('Nenhum provider LLM configurado. Acesse Configurações → Integrações → Configurações avançadas para adicionar sua GEMINI_API_KEY.', 'warn', 'LLM offline', 0);
+    }
+
+    renderActivityLog(data);
+  } catch (err) {
+    showError(err);
+  }
+}
+
+function setBadgeInt(id, ok, label, forceState) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = label;
+  const state = forceState || (ok ? 'ok' : 'off');
+  el.className = `int-badge int-${state}`;
+}
+
+function renderActivityLog(data) {
+  const log = document.getElementById('activity-log');
+  if (!log) return;
+  const entries = [];
+  const now = new Date();
+  const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (data.db?.ok) entries.push({ time: fmt(now), tag: 'ok', label: 'DB', msg: 'Banco de dados respondendo normalmente' });
+  if (data.deploy?.last) entries.push({ time: fmt(data.deploy.last), tag: 'info', label: 'Deploy', msg: `Último deploy em ${new Date(data.deploy.last).toLocaleDateString('pt-BR')}` });
+  if (data.google?.connectedAccounts?.length) entries.push({ time: fmt(now), tag: 'ok', label: 'Google', msg: `${data.google.connectedAccounts.length} conta(s) conectada(s) ao Calendar` });
+  if (data.gitvault) entries.push({ time: '02:00', tag: 'ok', label: 'GitVault', msg: 'Backup diário agendado' });
+  if (!data.llm?.gemini && !data.llm?.openrouter && !data.llm?.deepseek) {
+    entries.push({ time: fmt(now), tag: 'warn', label: 'LLM', msg: 'Nenhum provider LLM configurado — agente offline' });
+  }
+
+  if (entries.length === 0) {
+    log.innerHTML = '<div class="int-log-empty">Nenhuma atividade registrada.</div>';
     return;
   }
 
-  tasks.sort(function(a, b) {
-    const pOrder = { high: 0, normal: 1, low: 2 };
-    const pDiff = (pOrder[a.priority] || 1) - (pOrder[b.priority] || 1);
-    if (pDiff !== 0) return pDiff;
-    if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-    if (a.due_date) return -1; if (b.due_date) return 1;
-    return 0;
+  log.innerHTML = entries.map(e => `
+    <div class="int-log-line">
+      <span class="int-log-time">${e.time}</span>
+      <span class="int-log-tag int-lt-${e.tag}">${e.label}</span>
+      <span class="int-log-msg">${e.msg}</span>
+    </div>
+  `).join('');
+}
+
+async function loadSettingsStatus() {
+  try {
+    const res = await apiFetch('/api/settings');
+    const data = await res.json();
+    const s = data.settings || {};
+
+    const setBadge = (id, value) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const ok = value && value !== '';
+      el.textContent = ok ? 'configurado' : 'pendente';
+      el.classList.toggle('ok', ok);
+      el.classList.toggle('bad', !ok);
+    };
+
+    setBadge('cfg-status-gemini', s.GEMINI_API_KEY);
+    setBadge('cfg-status-openrouter', s.OPENROUTER_API_KEY);
+    setBadge('cfg-status-deepseek', s.DEEPSEEK_API_KEY);
+    setBadge('cfg-status-default-provider', s.DEFAULT_LLM_PROVIDER);
+    setBadge('cfg-status-github-token', s.GITHUB_TOKEN);
+    setBadge('cfg-status-gitvault-repo', s.GITVAULT_REPO);
+    setBadge('cfg-status-gitvault-base', s.GITVAULT_BASE_PATH);
+    setBadge('cfg-status-google-client-id', s.GOOGLE_OAUTH_CLIENT_ID);
+    setBadge('cfg-status-google-client-secret', s.GOOGLE_OAUTH_CLIENT_SECRET);
+    setBadge('cfg-status-google-redirect', s.GOOGLE_OAUTH_REDIRECT_URI);
+    setBadge('cfg-status-google-calendar', s.GOOGLE_EXPORT_CALENDAR_ID);
+    setBadge('cfg-status-vapid-public', s.VAPID_PUBLIC_KEY);
+    setBadge('cfg-status-vapid-private', s.VAPID_PRIVATE_KEY);
+    setBadge('cfg-status-vapid-email', s.VAPID_CONTACT_EMAIL);
+    setBadge('cfg-status-render-hook', s.RENDER_DEPLOY_HOOK_URL);
+    setBadge('cfg-status-raindrop-token', s.RAINDROP_TOKEN);
+    setBadge('cfg-status-raindrop-collection', s.RAINDROP_COLLECTION_ID);
+  } catch {
+    // ignore
+  }
+}
+
+async function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    await navigator.serviceWorker.register('/sw.js');
+  }
+}
+
+async function subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const res = await apiFetch('/api/push/vapid');
+  const { publicKey } = await res.json();
+  if (!publicKey) return;
+
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey)
   });
 
-  list.innerHTML = tasks.map(function(task) {
-    const isDone = task.status === 'done';
-    const priClass = 'task-pri-' + (task.priority || 'normal');
-    const priLabel = task.priority === 'high' ? 'Alta' : task.priority === 'low' ? 'Baixa' : 'Normal';
-    let dueStr = ''; let dueClass = 'task-due';
-    if (task.due_date) {
-      const due = new Date(task.due_date);
-      if (due < new Date() && !isDone) dueClass += ' overdue';
-      dueStr = due.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  await apiFetch('/api/push/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ subscription: sub })
+  });
+}
+
+async function connectGoogle() {
+  try {
+    const res = await apiFetch('/api/google/auth/url');
+    const { url } = await res.json();
+    if (url) window.location.href = url;
+  } catch (err) {
+    showError(err);
+  }
+}
+
+document.getElementById('google-connect-btn').addEventListener('click', connectGoogle);
+
+const meetingTitle = document.getElementById('meeting-title');
+const meetingTranscript = document.getElementById('meeting-transcript');
+const meetingSave = document.getElementById('meeting-save');
+const meetingAnalyze = document.getElementById('meeting-analyze');
+
+meetingSave.addEventListener('click', async () => {
+  const title = meetingTitle.value.trim();
+  const transcript = meetingTranscript.value.trim();
+  if (!title) return showBanner('Informe o titulo da reuniao.');
+  try {
+    await apiFetch('/api/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ title, transcript_text: transcript || null })
+    });
+    meetingTitle.value = '';
+    meetingTranscript.value = '';
+    showInline('Reunião salva.');
+    await loadMeetings();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+meetingAnalyze.addEventListener('click', async () => {
+  const title = meetingTitle.value.trim();
+  const transcript = meetingTranscript.value.trim();
+  if (!title || !transcript) return showBanner('Informe titulo e transcricao.');
+  try {
+    const created = await apiFetch('/api/meetings', {
+      method: 'POST',
+      body: JSON.stringify({ title, transcript_text: transcript })
+    }).then(r => r.json());
+
+    await apiFetch('/api/meetings/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ meetingId: created.item.id })
+    });
+
+    meetingTitle.value = '';
+    meetingTranscript.value = '';
+    await loadMeetings();
+  } catch (err) {
+    showError(err);
+  }
+});
+
+async function loadMeetings() {
+  try {
+    const res = await apiFetch('/api/meetings');
+    const data = await res.json();
+    const list = document.getElementById('meetings-full-list');
+    if (!list) return;
+    const items = data.items || [];
+    list.innerHTML = items.length > 0
+      ? items.slice(0, 50).map(m => `
+          <div class="list-item" style="gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div class="list-item-title">${m.title}</div>
+              <span class="inbox-item-time">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
+            </div>
+            ${m.transcript_text ? `<div class="list-item-sub">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
+            ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state">Nenhuma reunião registrada.</div>';
+    // Atualizar log de atividade recente
+    renderAdminActivityLog();
+    // Resetar cache de modais para pegar status atualizado
+    intModalCurrentHealth = null;
+    intModalCurrentSettings = null;
+  } catch (err) {
+    showError(err);
+  }
+}
+
+async function analyzeMeeting(meetingId) {
+  try {
+    showInline('Analisando transcrição...');
+    await apiFetch('/api/meetings/analyze', { method: 'POST', body: JSON.stringify({ meetingId }) });
+    showInline('Análise concluída — insight salvo em Conhecimento.');
+    await loadMeetings();
+  } catch (err) {
+    showInline('Falha ao analisar reunião.');
+  }
+}
+
+const cfgSave = document.getElementById('cfg-save');
+const cfgDeploy = document.getElementById('cfg-deploy');
+const dbCheck = document.getElementById('db-check');
+const googleConnectAdmin = document.getElementById('google-connect-admin');
+const googleRefresh = document.getElementById('google-refresh');
+const gitvaultExport = document.getElementById('gitvault-export');
+const raindropSync = document.getElementById('raindrop-sync');
+const pushTest = document.getElementById('push-test');
+
+
+const settingsItems = document.querySelectorAll('.settings-item');
+const settingsViews = document.querySelectorAll('.settings-view');
+const profileSave = document.getElementById('profile-save');
+const notificationsSave = document.getElementById('notifications-save');
+const appearanceSave = document.getElementById('appearance-save');
+const profileAvatar = document.getElementById('profile-avatar');
+
+cfgSave.addEventListener('click', async () => {
+  const payload = {
+    GEMINI_API_KEY: document.getElementById('cfg-gemini').value.trim(),
+    OPENROUTER_API_KEY: document.getElementById('cfg-openrouter').value.trim(),
+    DEEPSEEK_API_KEY: document.getElementById('cfg-deepseek').value.trim(),
+    DEFAULT_LLM_PROVIDER: document.getElementById('cfg-default-provider').value.trim(),
+    GITHUB_TOKEN: document.getElementById('cfg-github-token').value.trim(),
+    GITVAULT_REPO: document.getElementById('cfg-gitvault-repo').value.trim(),
+    GITVAULT_BASE_PATH: document.getElementById('cfg-gitvault-base').value.trim(),
+    GOOGLE_OAUTH_CLIENT_ID: document.getElementById('cfg-google-client-id').value.trim(),
+    GOOGLE_OAUTH_CLIENT_SECRET: document.getElementById('cfg-google-client-secret').value.trim(),
+    GOOGLE_OAUTH_REDIRECT_URI: document.getElementById('cfg-google-redirect').value.trim(),
+    GOOGLE_EXPORT_CALENDAR_ID: document.getElementById('cfg-google-calendar').value.trim(),
+    VAPID_PUBLIC_KEY: document.getElementById('cfg-vapid-public').value.trim(),
+    VAPID_PRIVATE_KEY: document.getElementById('cfg-vapid-private').value.trim(),
+    VAPID_CONTACT_EMAIL: document.getElementById('cfg-vapid-email').value.trim(),
+    RENDER_DEPLOY_HOOK_URL: document.getElementById('cfg-render-hook').value.trim(),
+    RAINDROP_TOKEN: document.getElementById('cfg-raindrop-token').value.trim(),
+    RAINDROP_COLLECTION_ID: document.getElementById('cfg-raindrop-collection').value.trim(),
+  };
+
+  try {
+    await apiFetch('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    showInline('Configuracoes salvas.');
+    await loadAdmin();
+    await loadSettingsStatus();
+  } catch (err) {
+    showInline('Falha ao salvar configuracoes.');
+  }
+});
+
+cfgDeploy && cfgDeploy.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/deploy', { method: 'POST' });
+    showInline('Deploy disparado.');
+  } catch (err) {
+    showInline('Falha ao disparar deploy.');
+  }
+});
+
+dbCheck && dbCheck.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showInline('DB OK');
+  } catch (err) {
+    showInline('Falha ao checar DB.');
+  }
+});
+
+googleConnectAdmin && googleConnectAdmin.addEventListener('click', connectGoogle);
+
+googleRefresh && googleRefresh.addEventListener('click', async () => {
+  await loadAdmin();
+  showInline('Status atualizado.');
+});
+
+gitvaultExport && gitvaultExport.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showInline('GitVault exportado.');
+  } catch (err) {
+    showInline('Falha ao exportar GitVault.');
+  }
+});
+
+raindropSync && raindropSync.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
+    showInline('Raindrop sincronizado.');
+    await loadFavorites();
+  } catch (err) {
+    showInline('Falha ao sincronizar Raindrop.');
+  }
+});
+
+pushTest && pushTest.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/push/test', { method: 'POST' });
+    showInline('Push enviado.');
+  } catch (err) {
+    showInline('Falha ao enviar push.');
+  }
+});
+
+
+
+document.getElementById('db-check-2')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health/db');
+    if (res.ok) showInline('Banco de dados OK.');
+    else showInline('Falha na conexão com o banco.');
+  } catch { showInline('Erro ao verificar banco.'); }
+});
+
+document.getElementById('google-sync-now')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/calendar/sync', { method: 'POST' });
+    showInline('Google Calendar sincronizado.');
+    await loadAdmin();
+  } catch { showInline('Falha ao sincronizar Google Calendar.'); }
+});
+
+document.getElementById('google-disconnect-btn')?.addEventListener('click', async () => {
+  showInline('Para desconectar, revogue o acesso em myaccount.google.com/permissions');
+});
+
+document.getElementById('gitvault-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-gitvault-repo')?.focus();
+});
+
+document.getElementById('raindrop-config-btn')?.addEventListener('click', () => {
+  const adv = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
+  document.getElementById('cfg-raindrop-token')?.focus();
+});
+
+document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
+  try {
+    await subscribePush();
+    showInline('Push ativado neste dispositivo.');
+    await loadAdmin();
+  } catch { showInline('Falha ao ativar push.'); }
+});
+
+document.getElementById('tg-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/health');
+    if (res.ok) showInline('Backend respondendo — bot Telegram ativo.');
+  } catch { showInline('Falha ao verificar bot.'); }
+});
+
+document.getElementById('tg-history-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/messages?limit=10');
+    const data = await res.json();
+    const count = (data.items || []).length;
+    showInline(`${count} mensagem(ns) recentes no banco.`);
+  } catch { showInline('Falha ao buscar histórico.'); }
+});
+
+document.getElementById('llm-test-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await apiFetch('/api/agent', {
+      method: 'POST',
+      body: JSON.stringify({ input: 'responda apenas: ok' })
+    });
+    const data = await res.json();
+    showInline(data.reply ? `LLM respondeu: "${data.reply}"` : 'LLM não respondeu.');
+  } catch { showInline('Falha ao testar LLM.'); }
+});
+
+document.getElementById('llm-tokens-btn')?.addEventListener('click', async () => {
+  showInline('Monitoramento de tokens por provider ainda não implementado.');
+});
+
+document.getElementById('db-backup-btn')?.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/gitvault/export', { method: 'POST' });
+    showInline('Exportação de dados disparada via GitVault.');
+  } catch { showInline('Falha ao exportar dados.'); }
+});
+
+document.getElementById('advanced-toggle')?.addEventListener('click', () => {
+  const content = document.getElementById('advanced-content');
+  const arrow = document.getElementById('advanced-arrow');
+  if (!content) return;
+  const isOpen = content.style.display !== 'none';
+  content.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? '›' : '˅';
+});
+
+settingsItems.forEach(item => {
+  item.addEventListener('click', () => {
+    settingsItems.forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    const target = item.dataset.settings;
+    settingsViews.forEach(v => v.classList.remove('active'));
+    document.querySelector(`[data-settings-view=\"${target}\"]`)?.classList.add('active');
+  });
+});
+
+async function loadProfile() {
+  try {
+    const res = await apiFetch('/api/profile');
+    const data = await res.json();
+    const profile = data.profile || {};
+    document.getElementById('profile-name').value = profile.fullName || '';
+    document.getElementById('profile-email').value = profile.email || '';
+    document.getElementById('profile-company').value = profile.company || '';
+    document.getElementById('profile-role').value = profile.role || '';
+    document.getElementById('profile-photo').value = profile.photoUrl || '';
+    if (profileAvatar) {
+      if (profile.photoUrl) {
+        profileAvatar.style.backgroundImage = `url(${profile.photoUrl})`;
+        profileAvatar.style.backgroundSize = 'cover';
+        profileAvatar.style.backgroundPosition = 'center';
+        profileAvatar.textContent = '';
+      } else {
+        const initial = (profile.fullName || 'A').trim()[0] || 'A';
+        profileAvatar.style.backgroundImage = '';
+        profileAvatar.textContent = initial.toUpperCase();
+      }
     }
-    return '<div class="task-item' + (isDone ? ' task-done' : '') + '">' +
-      '<div class="task-check' + (isDone ? ' checked' : '') + '" onclick="toggleTaskDone(' + task.id + ',\'' + task.status + '\')"></div>' +
-      '<div class="task-body">' +
-        '<div class="task-title">' + (task.title || '') + '</div>' +
-        '<div class="task-meta">' +
-          '<span class="task-priority ' + priClass + '">' + priLabel + '</span>' +
-          (dueStr ? '<span class="' + dueClass + '">' + dueStr + '</span>' : '') +
-        '</div>' +
-      '</div>' +
-      '<button class="task-delete-btn" onclick="deleteTaskInline(' + task.id + ')">×</button>' +
-    '</div>';
+  } catch {}
+}
+
+async function loadPreferences() {
+  try {
+    const res = await apiFetch('/api/preferences');
+    const data = await res.json();
+    const prefs = data.preferences || {};
+    const theme = prefs.theme || localStorage.getItem('andclaw_theme') || 'auto';
+    applyTheme(theme);
+    document.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('active', card.dataset.theme === theme);
+    });
+    document.getElementById('pref-language').value = prefs.language || 'pt-BR';
+    document.getElementById('pref-date-format').value = prefs.dateFormat || 'DD/MM/YYYY';
+    document.getElementById('notify-email').checked = prefs.notifyEmail === 'true';
+    document.getElementById('notify-push').checked = prefs.notifyPush === 'true';
+    document.getElementById('notify-weekly').checked = prefs.notifyWeekly === 'true';
+    document.getElementById('notify-analysis').checked = prefs.notifyAnalysis === 'true';
+  } catch {}
+}
+
+profileSave && profileSave.addEventListener('click', async () => {
+  const payload = {
+    fullName: document.getElementById('profile-name').value.trim(),
+    email: document.getElementById('profile-email').value.trim(),
+    company: document.getElementById('profile-company').value.trim(),
+    role: document.getElementById('profile-role').value.trim(),
+    photoUrl: document.getElementById('profile-photo').value.trim(),
+  };
+  try {
+    await apiFetch('/api/profile', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Perfil atualizado.');
+    await loadProfile();
+  } catch {
+    showInline('Falha ao salvar perfil.');
+  }
+});
+
+notificationsSave && notificationsSave.addEventListener('click', async () => {
+  const payload = {
+    notifyEmail: String(document.getElementById('notify-email').checked),
+    notifyPush: String(document.getElementById('notify-push').checked),
+    notifyWeekly: String(document.getElementById('notify-weekly').checked),
+    notifyAnalysis: String(document.getElementById('notify-analysis').checked),
+  };
+  try {
+    if (payload.notifyPush === 'true') {
+      await subscribePush();
+    }
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Preferências salvas.');
+  } catch {
+    showInline('Falha ao salvar preferências.');
+  }
+});
+
+appearanceSave && appearanceSave.addEventListener('click', async () => {
+  const selected = document.querySelector('.theme-card.active')?.dataset.theme || 'auto';
+  const payload = {
+    theme: selected,
+    language: document.getElementById('pref-language').value.trim(),
+    dateFormat: document.getElementById('pref-date-format').value.trim(),
+  };
+  try {
+    applyTheme(selected);
+    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
+    showInline('Aparência salva.');
+  } catch {
+    showInline('Falha ao salvar aparência.');
+  }
+});
+
+document.querySelectorAll('.theme-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    applyTheme(card.dataset.theme);
+  });
+});
+
+// ── Tag autocomplete para campos de texto ──
+function initTagAutocomplete(inputId, suggestionsId) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  if (!input || !box) return;
+
+  input.addEventListener('input', () => {
+    const val = input.value;
+    const lastComma = val.lastIndexOf(',');
+    const typing = val.slice(lastComma + 1).trim().toLowerCase();
+    if (!typing || cachedTags.length === 0) { box.classList.add('hidden'); return; }
+
+    const matches = cachedTags.filter(t =>
+      t.name.toLowerCase().includes(typing) &&
+      !val.split(',').map(s => s.trim()).includes(t.name)
+    );
+
+    if (matches.length === 0) { box.classList.add('hidden'); return; }
+
+    box.innerHTML = matches.slice(0, 6).map(t => {
+      const color = t.color || '#8b5cf6';
+      return `<div class="tag-suggestion-item" onclick="selectTagSuggestion('${inputId}', '${suggestionsId}', '${t.name}')">
+        <span class="tag-suggestion-dot" style="background:${color};"></span>
+        ${t.name}
+      </div>`;
+    }).join('');
+    box.classList.remove('hidden');
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => box.classList.add('hidden'), 150);
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') box.classList.add('hidden');
+  });
+}
+
+function selectTagSuggestion(inputId, suggestionsId, tagName) {
+  const input = document.getElementById(inputId);
+  const box = document.getElementById(suggestionsId);
+  if (!input) return;
+  const val = input.value;
+  const lastComma = val.lastIndexOf(',');
+  const prefix = lastComma >= 0 ? val.slice(0, lastComma + 1) + ' ' : '';
+  input.value = prefix + tagName + ', ';
+  input.focus();
+  if (box) box.classList.add('hidden');
+}
+
+// Inicializar autocomplete após DOM pronto
+document.addEventListener('DOMContentLoaded', () => {
+  initTagAutocomplete('agent-tags', 'agent-tags-suggestions');
+  initTagAutocomplete('favorite-tags', 'favorite-tags-suggestions');
+});
+
+
+function parseList(value) {
+  return value.split(',').map(v => v.trim()).filter(Boolean);
+}
+
+let cachedSkills = [];
+
+async function loadSkills() {
+  try {
+    const [skillsRes, agentsRes] = await Promise.all([
+      apiFetch('/api/skills'),
+      apiFetch('/api/agents'),
+    ]);
+    const skillData = await skillsRes.json();
+    const agentData = await agentsRes.json();
+    cachedSkills = skillData.items || [];
+    const agents = agentData.items || [];
+
+    // Map skill→agents
+    const skillAgentMap = {};
+    agents.forEach(a => {
+      (a.skills || []).forEach(s => {
+        if (!skillAgentMap[s]) skillAgentMap[s] = [];
+        skillAgentMap[s].push(a);
+      });
+    });
+
+    renderSkillsView(cachedSkills, skillAgentMap);
+  } catch (err) { showError(err); }
+}
+
+function renderSkillsView(skills, skillAgentMap = {}) {
+  const list = document.getElementById('skills-list');
+  const statsRow = document.getElementById('skills-stats-row');
+  if (!list) return;
+
+  const search = document.getElementById('skills-search')?.value.toLowerCase() || '';
+  const filtered = search ? skills.filter(s =>
+    (s.title||s.name||'').toLowerCase().includes(search) ||
+    (s.slug||'').toLowerCase().includes(search) ||
+    (s.description||'').toLowerCase().includes(search)
+  ) : skills;
+
+  // Stats
+  const totalAgents = Object.values(skillAgentMap).flat().length;
+  if (statsRow) statsRow.innerHTML = [
+    { label: 'Skills carregadas', val: skills.length, color: 'var(--accent)' },
+    { label: 'Com agentes ativos', val: Object.keys(skillAgentMap).length, color: 'var(--accent-3)' },
+    { label: 'Associações total', val: totalAgents, color: 'var(--accent-2)' },
+    { label: 'Sem agentes', val: skills.filter(s=>!(skillAgentMap[s.slug||s.name]?.length)).length, color: 'var(--muted)' },
+  ].map(s => `<div class="stat-card">
+    <div class="stat-label">${s.label}</div>
+    <div class="stat-value" style="color:${s.color};">${s.val}</div>
+  </div>`).join('');
+
+  // Skill icons map
+  const icons = { brainstorming:'🧠', 'notion-sync':'📋', 'notion-research':'🔍',
+    'canvas-design':'🎨', 'super-agent':'⚡', 'meeting-intelligence':'🎙',
+    'skill-creator':'🔧', 'so-expert':'💡', 'user-profiling':'👤' };
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">Nenhuma skill encontrada.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(skill => {
+    const slug = skill.slug || skill.name || '';
+    const title = skill.title || skill.name || slug;
+    const desc = skill.description || '';
+    const linkedAgents = skillAgentMap[slug] || [];
+    const icon = icons[slug] || '⚙️';
+    return `<div class="skill-card" onclick="openSkillDetail('${slug}')">
+      <div class="skill-card-top">
+        <div>
+          <div class="skill-card-name">${title}</div>
+          <div class="skill-card-slug">${slug}</div>
+        </div>
+        <div class="skill-card-icon">${icon}</div>
+      </div>
+      <div class="skill-card-desc">${desc.substring(0,120)}${desc.length>120?'…':''}</div>
+      <div class="skill-card-footer">
+        <span class="skill-agents-count">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+          ${linkedAgents.length} agente${linkedAgents.length!==1?'s':''}
+        </span>
+        ${linkedAgents.length > 0 ? '<span class="skill-active-badge">Em uso</span>' : ''}
+      </div>
+    </div>`;
   }).join('');
 }
 
-async function toggleTaskDone(id, currentStatus) {
-  const newStatus = currentStatus === 'done' ? 'open' : 'done';
-  try {
-    await apiFetch('/api/tasks/' + id, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
-    await loadTasksInline();
-  } catch (err) { showError(err); }
+function openSkillDetail(slug) {
+  const skill = cachedSkills.find(s => (s.slug||s.name) === slug);
+  if (!skill) return;
+  const detail = document.getElementById('skill-detail');
+  const grid = document.getElementById('skills-list');
+  const statsRow = document.getElementById('skills-stats-row');
+  if (grid) grid.style.display = 'none';
+  if (statsRow) statsRow.style.display = 'none';
+  if (detail) {
+    detail.style.display = 'block';
+    document.getElementById('skill-detail-title').textContent = skill.title || skill.name || slug;
+    document.getElementById('skill-detail-meta').innerHTML = `
+      <div class="skill-meta-pill">🔧 ${slug}</div>
+      ${skill.version ? `<div class="skill-meta-pill">v${skill.version}</div>` : ''}
+      ${skill.author ? `<div class="skill-meta-pill">✍ ${skill.author}</div>` : ''}
+    `;
+    document.getElementById('skill-detail-desc').textContent = skill.description || 'Sem descrição disponível.';
+    // Agents usando esta skill
+    const agentsUsing = (cachedAgents || []).filter(a => (a.skills||[]).includes(slug));
+    const agentsEl = document.getElementById('skill-detail-agents');
+    agentsEl.innerHTML = agentsUsing.length > 0
+      ? `<div class="agent-detail-section-title" style="margin-bottom:8px;">Agentes usando esta skill</div>` +
+        agentsUsing.map(a => `<div class="skill-agent-row" onclick="openAgentDetail(${a.id})">
+          <span class="agent-status-pill status-${a.status||'ativo'}">${a.status||'ativo'}</span>
+          <span>${a.name}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);">${a.level}</span>
+        </div>`).join('')
+      : '<div class="empty-state">Nenhum agente usa esta skill ainda.</div>';
+
+    // Assign button
+    const assignBtn = document.getElementById('skill-assign-btn');
+    if (assignBtn) assignBtn.onclick = () => { openAgentModal(); closeSkillDetail(); };
+  }
 }
 
-async function deleteTaskInline(id) {
-  try {
-    await apiFetch('/api/tasks/' + id, { method: 'DELETE' });
-    await loadTasksInline();
-    toast('Tarefa excluida.', 'info', null, 2000);
-  } catch (err) { showError(err); }
+function closeSkillDetail() {
+  document.getElementById('skill-detail').style.display = 'none';
+  document.getElementById('skills-list').style.display = 'grid';
+  const statsRow = document.getElementById('skills-stats-row');
+  if (statsRow) statsRow.style.display = 'grid';
 }
 
-document.getElementById('task-quick-input')?.addEventListener('keydown', async function(e) {
-  if (e.key !== 'Enter') return;
-  const title = e.target.value.trim();
-  if (!title) return;
-  const priority = (document.getElementById('task-quick-priority') || {}).value || 'normal';
-  const due_date = (document.getElementById('task-quick-date') || {}).value || null;
-  try {
-    await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: title, status: 'open', priority: priority, due_date: due_date }) });
-    e.target.value = '';
-    const dateEl = document.getElementById('task-quick-date'); if (dateEl) dateEl.value = '';
-    await loadTasksInline();
-    toast('Tarefa criada!', 'success', null, 2000);
-  } catch (err) { showError(err); }
+document.getElementById('skills-search')?.addEventListener('input', () => {
+  renderSkillsView(cachedSkills);
 });
 
-document.getElementById('tasks-filter-status')?.addEventListener('change', renderTasksInline);
-document.getElementById('tasks-filter-priority')?.addEventListener('change', renderTasksInline);
+document.getElementById('skills-reload-btn')?.addEventListener('click', async () => {
+  await loadSkills();
+  toast('Skills recarregadas.', 'success', null, 2000);
+});
 
+let cachedAgents = [];
 
+async function loadAgents() {
+  try {
+    const res = await apiFetch('/api/agents');
+    const data = await res.json();
+    cachedAgents = data.items || [];
+    renderAgentsView(cachedAgents);
+  } catch (err) { showError(err); }
+}
+
+function renderAgentsView(agents) {
+  const filterLevel  = document.getElementById('agent-filter-level')?.value  || '';
+  const filterStatus = document.getElementById('agent-filter-status')?.value || '';
+  const filtered = agents.filter(a =>
+    (!filterLevel  || a.level  === filterLevel) &&
+    (!filterStatus || a.status === filterStatus)
+  );
+
+  const groups = { estrategico: [], tatico: [], operacional: [] };
+  filtered.forEach(a => {
+    const key = (a.level||'Estrategico').toLowerCase();
+    (groups[key] || groups.estrategico).push(a);
+  });
+
+  ['estrategico','tatico','operacional'].forEach(level => {
+    const el = document.getElementById(`agents-${level}`);
+    const count = document.getElementById(`count-${level}`);
+    if (count) count.textContent = groups[level].length;
+    if (!el) return;
+    el.innerHTML = groups[level].length > 0
+      ? groups[level].map(a => agentCardHTML(a)).join('')
+      : '<div class="empty-state" style="padding:20px 0;font-size:13px;">Nenhum agente</div>';
+  });
+
+  // Stats row
+  const statsEl = document.getElementById('agents-stats');
+  if (statsEl) {
+    const total   = agents.length;
+    const ativos  = agents.filter(a => a.status === 'ativo').length;
+    const withSkills = agents.filter(a => (a.skills||[]).length > 0).length;
+    const withDoc    = agents.filter(a => a.base_doc).length;
+    statsEl.innerHTML = [
+      { label: 'Total de agentes', val: total,      color: 'var(--text)' },
+      { label: 'Ativos',           val: ativos,     color: 'var(--accent-3)' },
+      { label: 'Com skills',       val: withSkills, color: 'var(--accent)' },
+      { label: 'Com documento base', val: withDoc,  color: 'var(--accent-2)' },
+    ].map(s => `<div class="stat-card">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value" style="color:${s.color};">${s.val}</div>
+    </div>`).join('');
+  }
+}
+
+function agentCardHTML(a) {
+  const statusClass = { ativo:'status-ativo', desenvolvimento:'status-desenvolvimento', inativo:'status-inativo' }[a.status] || 'status-ativo';
+  const skills = (a.skills||[]).slice(0,4).map(s => `<span class="agent-skill-chip">${s}</span>`).join('');
+  const moreSkills = (a.skills||[]).length > 4 ? `<span class="agent-skill-chip">+${(a.skills||[]).length-4}</span>` : '';
+  const tags = (a.tags||[]).map(t => {
+    const color = t.color||'#8b5cf6';
+    const bg = hexToRgba(color, 0.12);
+    return `<span class="tag-inline-pill" style="background:${bg};border:1px solid ${hexToRgba(color,0.3)};color:${color};">${t.name}</span>`;
+  }).join('');
+  const areas = (a.areas||[]).map(ar => `<span class="tag-inline-pill" style="background:var(--surface-3);color:var(--muted);border:1px solid var(--border);">${ar}</span>`).join('');
+  return `<div class="agent-card-new" onclick="openAgentDetail(${a.id})">
+    <div class="agent-card-top">
+      <div class="agent-card-name">${a.name}</div>
+      <span class="agent-status-pill ${statusClass}">${a.status||'ativo'}</span>
+    </div>
+    ${a.description ? `<div class="agent-card-desc">${a.description}</div>` : ''}
+    ${(a.skills||[]).length > 0 ? `<div class="agent-card-skills">${skills}${moreSkills}</div>` : ''}
+    ${(a.areas||[]).length > 0 || (a.tags||[]).length > 0 ? `<div class="tag-inline-pills">${areas}${tags}</div>` : ''}
+    <div class="agent-card-footer">
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();openAgentModal(${a.id})">✎ Editar</button>
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();activateAgentChat(${a.id})" style="color:var(--accent);">💬 Chat</button>
+      <button class="agent-card-footer-btn" onclick="event.stopPropagation();deleteAgent(${a.id})" style="color:var(--danger);margin-left:auto;">Excluir</button>
+    </div>
+  </div>`;
+}
+
+function openAgentDetail(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  const panel = document.getElementById('agent-detail');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  document.getElementById('agent-detail-name').textContent = agent.name;
+
+  const statusClass = { ativo:'status-ativo', desenvolvimento:'status-desenvolvimento', inativo:'status-inativo' }[agent.status] || 'status-ativo';
+  const skills = (agent.skills||[]).map(s => {
+    const skill = cachedSkills.find(sk => (sk.slug||sk.name) === s);
+    return `<span class="agent-skill-chip" style="cursor:pointer;" onclick="navigateTo('skills');setTimeout(()=>openSkillDetail('${s}'),100)">${skill?.title||s}</span>`;
+  }).join('');
+
+  document.getElementById('agent-detail-body').innerHTML = `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Status & Nível</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="agent-status-pill ${statusClass}">${agent.status||'ativo'}</span>
+        <span class="agent-status-pill" style="background:var(--surface-2);color:var(--muted);border:1px solid var(--border);">${agent.level}</span>
+        ${(agent.areas||[]).map(ar=>`<span class="skill-meta-pill">${ar}</span>`).join('')}
+      </div>
+    </div>
+    ${agent.description ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Propósito</div>
+      <div class="agent-detail-doc">${agent.description}</div>
+    </div>` : ''}
+    ${(agent.skills||[]).length > 0 ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Skills ativas (${(agent.skills||[]).length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${skills}</div>
+    </div>` : ''}
+    ${agent.base_doc ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">📄 Documento base</div>
+      <div class="agent-detail-doc">${agent.base_doc}</div>
+    </div>` : '<div class="empty-state">Sem documento base. Edite o agente para adicionar contexto rico.</div>'}
+    ${(agent.tags||[]).length > 0 ? `
+    <div class="agent-detail-section">
+      <div class="agent-detail-section-title">Tags</div>
+      <div class="tag-inline-pills">
+        ${(agent.tags||[]).map(t=>{const c=t.color||'#8b5cf6';return `<span class="tag-inline-pill" style="background:${hexToRgba(c,0.12)};border:1px solid ${hexToRgba(c,0.3)};color:${c};">${t.name}</span>`;}).join('')}
+      </div>
+    </div>` : ''}
+    <div style="padding-top:8px;border-top:1px solid var(--border);">
+      <div class="agent-detail-section-title">Criado em</div>
+      <div style="font-size:12px;color:var(--muted);font-family:'Fira Code',monospace;">${new Date(agent.created_at).toLocaleString('pt-BR')}</div>
+    </div>
+  `;
+
+  document.getElementById('agent-detail-chat-btn').onclick = () => activateAgentChat(id);
+  document.getElementById('agent-detail-edit-btn').onclick = () => { closeAgentDetail(); openAgentModal(id); };
+}
+
+function closeAgentDetail() {
+  document.getElementById('agent-detail')?.classList.add('hidden');
+}
+
+function openAgentModal(editId = null) {
+  const modal = document.getElementById('agent-modal');
+  if (!modal) return;
+  const titleEl = document.getElementById('agent-modal-title');
+  const saveBtn = document.getElementById('agent-save');
+  const editIdEl = document.getElementById('agent-edit-id');
+
+  // Preencher skills picker com skills disponíveis
+  const picker = document.getElementById('agent-skills-picker');
+  let selectedSkills = new Set();
+
+  if (editId) {
+    const agent = cachedAgents.find(a => Number(a.id) === Number(editId));
+    if (agent) {
+      document.getElementById('agent-name').value = agent.name;
+      document.getElementById('agent-level').value = agent.level || 'Estrategico';
+      document.getElementById('agent-status').value = agent.status || 'ativo';
+      document.getElementById('agent-areas').value = (agent.areas||[]).join(', ');
+      document.getElementById('agent-description').value = agent.description || '';
+      document.getElementById('agent-base-doc').value = agent.base_doc || '';
+      document.getElementById('agent-tags').value = (agent.tags||[]).map(t=>t.name).join(', ');
+      selectedSkills = new Set(agent.skills||[]);
+      if (titleEl) titleEl.textContent = 'Editar Agente';
+      if (saveBtn) saveBtn.textContent = 'Salvar Alterações';
+      if (editIdEl) editIdEl.value = String(editId);
+    }
+  } else {
+    document.getElementById('agent-name').value = '';
+    document.getElementById('agent-level').value = 'Estrategico';
+    document.getElementById('agent-status').value = 'ativo';
+    document.getElementById('agent-areas').value = '';
+    document.getElementById('agent-description').value = '';
+    document.getElementById('agent-base-doc').value = '';
+    document.getElementById('agent-tags').value = '';
+    if (titleEl) titleEl.textContent = 'Novo Agente';
+    if (saveBtn) saveBtn.textContent = 'Criar Agente';
+    if (editIdEl) editIdEl.value = '';
+  }
+
+  if (picker) {
+    picker.innerHTML = cachedSkills.map(s => {
+      const slug = s.slug||s.name||'';
+      const isSelected = selectedSkills.has(slug);
+      return `<span class="skill-toggle-chip ${isSelected?'selected':''}" data-slug="${slug}"
+        onclick="toggleSkillChip(this)">${slug}</span>`;
+    }).join('') || '<span style="color:var(--muted);font-size:12px;">Nenhuma skill carregada</span>';
+  }
+
+  modal.classList.remove('hidden');
+  document.getElementById('agent-name').focus();
+}
+
+function closeAgentModal() {
+  document.getElementById('agent-modal')?.classList.add('hidden');
+}
+
+function toggleSkillChip(el) {
+  el.classList.toggle('selected');
+  const selected = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
+  document.getElementById('agent-skills').value = selected.join(',');
+}
+
+function activateAgentChat(id) {
+  const agent = cachedAgents.find(a => Number(a.id) === Number(id));
+  if (!agent) return;
+  navigateTo('chat');
+  const input = document.getElementById('chat-input-full');
+  if (input) {
+    input.placeholder = `Falando com ${agent.name}...`;
+    input.dataset.agentId = String(id);
+    toast(`Agente ${agent.name} ativado no chat.`, 'success', 'Chat', 3000);
+  }
+}
+
+async function deleteAgent(id) {
+  if (!confirm('Excluir este agente?')) return;
+  try {
+    await apiFetch(`/api/agents/${id}`, { method: 'DELETE' });
+    closeAgentDetail();
+    await loadAgents();
+    toast('Agente excluído.', 'info', null, 3000);
+  } catch (err) { showError(err); }
+}
+
+// Filters
+document.getElementById('agent-filter-level')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+document.getElementById('agent-filter-status')?.addEventListener('change', () => renderAgentsView(cachedAgents));
+
+document.getElementById('agent-save')?.addEventListener('click', async () => {
+  const editId = document.getElementById('agent-edit-id')?.value;
+  const selectedSkills = [...document.querySelectorAll('.skill-toggle-chip.selected')].map(e=>e.dataset.slug);
+  const payload = {
+    name: document.getElementById('agent-name').value.trim(),
+    level: document.getElementById('agent-level').value,
+    status: document.getElementById('agent-status').value,
+    areas: parseList(document.getElementById('agent-areas').value),
+    skills: selectedSkills,
+    tags: parseList(document.getElementById('agent-tags').value),
+    description: document.getElementById('agent-description').value.trim(),
+    base_doc: document.getElementById('agent-base-doc').value.trim() || null,
+  };
+  if (!payload.name) { toast('Informe o nome do agente.', 'warn'); return; }
+  try {
+    if (editId) {
+      await apiFetch(`/api/agents/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      await apiFetch(`/api/agents/${editId}/skills`, { method: 'POST', body: JSON.stringify({ skills: selectedSkills }) });
+      await apiFetch(`/api/agents/${editId}/tags`, { method: 'POST', body: JSON.stringify({ tags: payload.tags }) });
+      toast('Agente atualizado com sucesso.', 'success');
+    } else {
+      await apiFetch('/api/agents', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Agente criado com sucesso!', 'success');
+    }
+    closeAgentModal();
+    await loadAgents();
+  } catch (err) { showError(err); }
+});
 
 let cachedTags = [];
 
@@ -1594,7 +2281,6 @@ async function initApp() {
   await loadProjects();
   await loadKnowledge();
   await loadArchive();
-  await loadTasksInline();
 }
 
 // ── SISTEMA DE ABAS (Skills e Agents) ────────────────────────
@@ -2461,641 +3147,138 @@ function renderAdminActivityLog() {
   }).join('');
 }
 
+// ── TASKS INLINE ──────────────────────────────────────
 
-async function loadDashboard() {
+async function loadTasksInline() {
   try {
-    const [tasksRes, meetingsRes, capturesRes] = await Promise.all([
-      apiFetch('/api/tasks'),
-      apiFetch('/api/meetings'),
-      apiFetch('/api/captures'),
-    ]);
-    const tasks    = (await tasksRes.json()).items    || [];
-    const meetings = (await meetingsRes.json()).items || [];
-    const captures = (await capturesRes.json()).items || [];
-
-    const openTasks    = tasks.filter(t => t.status !== 'done');
-    const highPriority = tasks.filter(t => t.priority === 'high' || t.priority === 'alta');
-    const newCaptures  = captures.filter(c => c.status === 'new');
-
-    const el = id => document.getElementById(id);
-    if (el('stat-tasks'))    el('stat-tasks').textContent    = openTasks.length;
-    if (el('stat-priority')) el('stat-priority').textContent = highPriority.length;
-    if (el('stat-meetings')) el('stat-meetings').textContent = meetings.length;
-    if (el('stat-inbox'))    el('stat-inbox').textContent    = newCaptures.length;
-
-    const today = new Date().toDateString();
-    const todayTasks = tasks.filter(t => t.due_date && new Date(t.due_date).toDateString() === today);
-    if (el('today-list')) {
-      el('today-list').innerHTML = todayTasks.length > 0
-        ? todayTasks.slice(0, 5).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.priority || 'normal'}</div></div>`).join('')
-        : '<div class="empty-state">Sem tarefas para hoje</div>';
-    }
-    if (el('priority-list')) {
-      el('priority-list').innerHTML = openTasks.length > 0
-        ? openTasks.slice(0, 3).map(t => `<div class="list-item"><div class="list-item-title">${t.title}</div><div class="list-item-sub">${t.status || 'open'}</div></div>`).join('')
-        : '<div class="empty-state">Sem tarefas</div>';
-    }
-    if (el('meetings-list')) {
-      el('meetings-list').innerHTML = meetings.length > 0
-        ? meetings.slice(0, 3).map(m => `<div class="list-item"><div class="list-item-title">${m.title}</div><div class="list-item-sub">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : 'Sem data'}</div></div>`).join('')
-        : '<div class="empty-state">Sem reuniões</div>';
-    }
-  } catch (err) {
-    showError(err);
-  }
+    const res = await apiFetch('/api/tasks');
+    if (!res.ok) return;
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('application/json')) return;
+    const data = await res.json();
+    allTasksInline = data.items || [];
+    renderTasksInline();
+  } catch (err) { /* silencioso */ }
 }
 
-async function loadAgenda() {
-  try {
-    const res = await apiFetch('/api/calendar/combined');
-    const data = await res.json();
-    const list = document.getElementById('agenda-grid');
-    list.innerHTML = (data.items || [])
-      .sort((a, b) => new Date(a.start) - new Date(b.start))
-      .slice(0, 12)
-      .map(item => {
-        const label = item.type === 'task' ? 'Tarefa' : 'Evento';
-        const date = item.start ? new Date(item.start).toLocaleString() : '';
-        return `<div class="card"><strong>${label}</strong><div>${item.title || ''}</div><div>${date}</div></div>`;
-      })
-      .join('');
-  } catch (err) {
-    showError(err);
-  }
-}
-
-async function loadChatHistory() {
-  if (!navigator.onLine) return;
-  try {
-    const res = await apiFetch('/api/messages/by-conversation/pwa-user?limit=50');
-    const data = await res.json();
-    const items = data.items || [];
-    const renderMsgs = (windowEl) => {
-      if (!windowEl) return;
-      if (items.length === 0) {
-        windowEl.innerHTML = '<div class="empty-state" style="padding:20px 0;">Nenhuma mensagem ainda. Diga olá ao agente!</div>';
-        return;
-      }
-      windowEl.innerHTML = items.map(msg => {
-        const isUser = msg.role === 'user';
-        const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
-        return `<div class="chat-msg ${isUser ? 'user' : 'agent'}">
-          <div class="chat-avatar ${isUser ? 'user-av' : 'agent-av'}">${isUser ? 'U' : 'A'}</div>
-          <div>
-            <div class="chat-bubble">${msg.content}</div>
-            ${time ? `<div class="chat-time">${time}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('');
-      windowEl.scrollTop = windowEl.scrollHeight;
-    };
-    renderMsgs(chatWindow);
-    renderMsgs(chatWindowFull);
-  } catch (err) {
-    showError(err);
-  }
-}
-
-async function loadMeetings() {
-  try {
-    const res = await apiFetch('/api/meetings');
-    const data = await res.json();
-    const list = document.getElementById('meetings-full-list');
-    if (!list) return;
-    const items = data.items || [];
-    list.innerHTML = items.length > 0
-      ? items.slice(0, 50).map(m => `
-          <div class="list-item" style="gap:8px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-              <div class="list-item-title">${m.title}</div>
-              <span class="inbox-item-time">${m.meeting_date ? new Date(m.meeting_date).toLocaleDateString('pt-BR') : new Date(m.created_at).toLocaleDateString('pt-BR')}</span>
-            </div>
-            ${m.transcript_text ? `<div class="list-item-sub">${m.transcript_text.substring(0, 80)}...</div>` : '<div class="list-item-sub">Sem transcrição</div>'}
-            ${m.transcript_text ? `<div><button class="int-act-btn" onclick="analyzeMeeting(${m.id})">Analisar com IA</button></div>` : ''}
-          </div>`).join('')
-      : '<div class="empty-state">Nenhuma reunião registrada.</div>';
-  } catch (err) {
-    showError(err);
-  }
-}
-
-async function loadAdmin() {
-  try {
-    const res = await apiFetch('/api/status');
-    const data = await res.json();
-
-    const setHealth = (id, ok, label) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const dot = ok
-        ? '<span class="int-dot-green"></span>'
-        : '<span class="int-dot-red"></span>';
-      el.innerHTML = `${dot} ${label}`;
-    };
-
-    setHealth('health-backend', true, 'Online');
-    setHealth('health-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
-
-    const llm = data.llm || {};
-    const activeLlm = llm.gemini ? 'Gemini' : llm.openrouter ? 'OpenRouter' : llm.deepseek ? 'DeepSeek' : 'Nenhum';
-    const llmOk = llm.gemini || llm.openrouter || llm.deepseek;
-    setHealth('health-llm', llmOk, activeLlm);
-
-    const deployEl = document.getElementById('health-deploy');
-    if (deployEl) {
-      deployEl.textContent = data.deploy?.last
-        ? new Date(data.deploy.last).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
-        : 'Nunca';
-    }
-
-    const connected = (data.google?.connectedAccounts || []).length;
-    setBadgeInt('badge-google', connected > 0, connected > 0 ? `${connected} conta(s)` : 'Não conectado');
-    const googleSyncEl = document.getElementById('google-last-sync');
-    if (googleSyncEl && connected > 0) googleSyncEl.textContent = 'Última sync há poucos minutos.';
-
-    const googleSyncBtn = document.getElementById('google-sync-now');
-    const googleDiscoBtn = document.getElementById('google-disconnect-btn');
-    const googleConnBtn = document.getElementById('google-connect-admin');
-    if (connected > 0) {
-      if (googleSyncBtn) googleSyncBtn.style.display = '';
-      if (googleDiscoBtn) googleDiscoBtn.style.display = '';
-      if (googleConnBtn) googleConnBtn.style.display = 'none';
-    } else {
-      if (googleSyncBtn) googleSyncBtn.style.display = 'none';
-      if (googleDiscoBtn) googleDiscoBtn.style.display = 'none';
-      if (googleConnBtn) googleConnBtn.style.display = '';
-    }
-
-    setBadgeInt('badge-gitvault', data.gitvault, data.gitvault ? 'Configurado' : 'Não configurado');
-    const repoInfo = document.getElementById('gitvault-repo-info');
-    if (repoInfo) repoInfo.textContent = data.gitvault ? 'Backup diário às 02h.' : '';
-
-    setBadgeInt('badge-raindrop', data.raindrop, data.raindrop ? 'Configurado' : 'Não configurado');
-
-    const subs = data.pushSubscriptions || 0;
-    setBadgeInt('badge-push', subs > 0, subs > 0 ? `${subs} dispositivo(s)` : '0 subscrições', subs === 0 ? 'warn' : 'ok');
-    const pushSubsEl = document.getElementById('push-subs-info');
-    if (pushSubsEl) pushSubsEl.textContent = subs > 0 ? `${subs} dispositivo(s) inscrito(s).` : '';
-
-    setBadgeInt('badge-deploy', Boolean(data.deploy?.last), data.deploy?.last ? 'Render' : 'Nunca deployado');
-    const deployInfoEl = document.getElementById('deploy-last-info');
-    if (deployInfoEl && data.deploy?.last) {
-      deployInfoEl.textContent = `Último: ${new Date(data.deploy.last).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
-    }
-
-    setBadgeInt('badge-db', data.db?.ok, data.db?.ok ? 'Conectado' : 'Falha');
-
-    const chain = document.getElementById('llm-chain-display');
-    if (chain) {
-      const providers = [
-        { name: 'Gemini Flash', active: llm.gemini },
-        { name: 'Gemini Lite', active: llm.gemini },
-        { name: 'OpenRouter', active: llm.openrouter },
-        { name: 'DeepSeek', active: llm.deepseek },
-      ];
-      chain.innerHTML = providers.map((p, i) => `
-        <div class="int-llm-node ${p.active ? 'int-llm-active' : 'int-llm-inactive'}">
-          <span class="int-llm-dot"></span>${p.name}
-        </div>
-        ${i < providers.length - 1 ? '<span class="int-llm-arrow">→</span>' : ''}
-      `).join('');
-    }
-
-    const tgBadge = document.getElementById('tg-badge');
-    if (tgBadge) { tgBadge.textContent = 'Ativo'; tgBadge.className = 'int-badge int-ok'; }
-    const tgStatus = document.getElementById('tg-bot-status');
-    if (tgStatus) tgStatus.textContent = 'Online · polling ativo';
-    const tgUsers = document.getElementById('tg-stat-users');
-    if (tgUsers) tgUsers.textContent = '1';
-    const tgSkills = document.getElementById('tg-stat-skills');
-    if (tgSkills) tgSkills.textContent = '—';
-
-    const statusDb = document.getElementById('status-db');
-    if (statusDb) statusDb.innerHTML = data.db?.ok ? '<span class="status-badge ok">OK</span>' : '<span class="status-badge bad">Falha</span>';
-    const statusGoogle = document.getElementById('status-google');
-    if (statusGoogle) statusGoogle.innerHTML = connected ? `<span class="status-badge ok">Conectado (${connected})</span>` : '<span class="status-badge bad">Não conectado</span>';
-    const statusGitvault = document.getElementById('status-gitvault');
-    if (statusGitvault) statusGitvault.innerHTML = data.gitvault ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
-    const statusPush = document.getElementById('status-push');
-    if (statusPush) statusPush.innerHTML = subs > 0 ? `<span class="status-badge ok">Subs: ${subs}</span>` : '<span class="status-badge warn">0 subscrições</span>';
-    const statusRaindrop = document.getElementById('status-raindrop');
-    if (statusRaindrop) statusRaindrop.innerHTML = data.raindrop ? '<span class="status-badge ok">Configurado</span>' : '<span class="status-badge bad">Não configurado</span>';
-    const statusDeploy = document.getElementById('status-deploy');
-    if (statusDeploy) statusDeploy.textContent = data.deploy?.last ? new Date(data.deploy.last).toLocaleString() : 'Nenhum';
-    const statusLlm = document.getElementById('status-llm');
-    if (statusLlm) statusLlm.textContent = `Gemini: ${llm.gemini ? 'OK' : 'OFF'} | OpenRouter: ${llm.openrouter ? 'OK' : 'OFF'} | DeepSeek: ${llm.deepseek ? 'OK' : 'OFF'}`;
-
-    if (!llmOk) {
-      toast('Nenhum provider LLM configurado. Acesse Configurações → Integrações → Configurações avançadas para adicionar sua GEMINI_API_KEY.', 'warn', 'LLM offline', 0);
-    }
-
-    renderActivityLog(data);
-  } catch (err) {
-    showError(err);
-  }
-}
-
-async function loadSettingsStatus() {
-  try {
-    const res = await apiFetch('/api/settings');
-    const data = await res.json();
-    const s = data.settings || {};
-
-    const setBadge = (id, value) => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const ok = value && value !== '';
-      el.textContent = ok ? 'configurado' : 'pendente';
-      el.classList.toggle('ok', ok);
-      el.classList.toggle('bad', !ok);
-    };
-
-    setBadge('cfg-status-gemini', s.GEMINI_API_KEY);
-    setBadge('cfg-status-openrouter', s.OPENROUTER_API_KEY);
-    setBadge('cfg-status-deepseek', s.DEEPSEEK_API_KEY);
-    setBadge('cfg-status-default-provider', s.DEFAULT_LLM_PROVIDER);
-    setBadge('cfg-status-github-token', s.GITHUB_TOKEN);
-    setBadge('cfg-status-gitvault-repo', s.GITVAULT_REPO);
-    setBadge('cfg-status-gitvault-base', s.GITVAULT_BASE_PATH);
-    setBadge('cfg-status-google-client-id', s.GOOGLE_OAUTH_CLIENT_ID);
-    setBadge('cfg-status-google-client-secret', s.GOOGLE_OAUTH_CLIENT_SECRET);
-    setBadge('cfg-status-google-redirect', s.GOOGLE_OAUTH_REDIRECT_URI);
-    setBadge('cfg-status-google-calendar', s.GOOGLE_EXPORT_CALENDAR_ID);
-    setBadge('cfg-status-vapid-public', s.VAPID_PUBLIC_KEY);
-    setBadge('cfg-status-vapid-private', s.VAPID_PRIVATE_KEY);
-    setBadge('cfg-status-vapid-email', s.VAPID_CONTACT_EMAIL);
-    setBadge('cfg-status-render-hook', s.RENDER_DEPLOY_HOOK_URL);
-    setBadge('cfg-status-raindrop-token', s.RAINDROP_TOKEN);
-    setBadge('cfg-status-raindrop-collection', s.RAINDROP_COLLECTION_ID);
-  } catch {
-    // ignore
-  }
-}
-
-
-const cfgSave = document.getElementById('cfg-save');
-const cfgDeploy = document.getElementById('cfg-deploy');
-const dbCheck = document.getElementById('db-check');
-const googleConnectAdmin = document.getElementById('google-connect-admin');
-const googleRefresh = document.getElementById('google-refresh');
-const gitvaultExport = document.getElementById('gitvault-export');
-const raindropSync = document.getElementById('raindrop-sync');
-const pushTest = document.getElementById('push-test');
-
-
-const settingsItems = document.querySelectorAll('.settings-item');
-const settingsViews = document.querySelectorAll('.settings-view');
-const profileSave = document.getElementById('profile-save');
-const notificationsSave = document.getElementById('notifications-save');
-const appearanceSave = document.getElementById('appearance-save');
-const profileAvatar = document.getElementById('profile-avatar');
-
-cfgSave.addEventListener('click', async () => {
-  const payload = {
-    GEMINI_API_KEY: document.getElementById('cfg-gemini').value.trim(),
-    OPENROUTER_API_KEY: document.getElementById('cfg-openrouter').value.trim(),
-    DEEPSEEK_API_KEY: document.getElementById('cfg-deepseek').value.trim(),
-    DEFAULT_LLM_PROVIDER: document.getElementById('cfg-default-provider').value.trim(),
-    GITHUB_TOKEN: document.getElementById('cfg-github-token').value.trim(),
-    GITVAULT_REPO: document.getElementById('cfg-gitvault-repo').value.trim(),
-    GITVAULT_BASE_PATH: document.getElementById('cfg-gitvault-base').value.trim(),
-    GOOGLE_OAUTH_CLIENT_ID: document.getElementById('cfg-google-client-id').value.trim(),
-    GOOGLE_OAUTH_CLIENT_SECRET: document.getElementById('cfg-google-client-secret').value.trim(),
-    GOOGLE_OAUTH_REDIRECT_URI: document.getElementById('cfg-google-redirect').value.trim(),
-    GOOGLE_EXPORT_CALENDAR_ID: document.getElementById('cfg-google-calendar').value.trim(),
-    VAPID_PUBLIC_KEY: document.getElementById('cfg-vapid-public').value.trim(),
-    VAPID_PRIVATE_KEY: document.getElementById('cfg-vapid-private').value.trim(),
-    VAPID_CONTACT_EMAIL: document.getElementById('cfg-vapid-email').value.trim(),
-    RENDER_DEPLOY_HOOK_URL: document.getElementById('cfg-render-hook').value.trim(),
-    RAINDROP_TOKEN: document.getElementById('cfg-raindrop-token').value.trim(),
-    RAINDROP_COLLECTION_ID: document.getElementById('cfg-raindrop-collection').value.trim(),
-  };
-
-  try {
-    await apiFetch('/api/settings', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    showInline('Configuracoes salvas.');
-    await loadAdmin();
-    await loadSettingsStatus();
-  } catch (err) {
-    showInline('Falha ao salvar configuracoes.');
-  }
-});
-
-cfgDeploy && cfgDeploy.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/deploy', { method: 'POST' });
-    showInline('Deploy disparado.');
-  } catch (err) {
-    showInline('Falha ao disparar deploy.');
-  }
-});
-
-dbCheck && dbCheck.addEventListener('click', async () => {
-  try {
-    const res = await apiFetch('/api/health/db');
-    if (res.ok) showInline('DB OK');
-  } catch (err) {
-    showInline('Falha ao checar DB.');
-  }
-});
-
-async function connectGoogle() {
-  try {
-    const res = await apiFetch('/api/google/auth/url');
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-  } catch (err) { showError(err); }
-}
-
-
-googleConnectAdmin && googleConnectAdmin.addEventListener('click', connectGoogle);
-
-googleRefresh && googleRefresh.addEventListener('click', async () => {
-  await loadAdmin();
-  showInline('Status atualizado.');
-});
-
-gitvaultExport && gitvaultExport.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/gitvault/export', { method: 'POST' });
-    showInline('GitVault exportado.');
-  } catch (err) {
-    showInline('Falha ao exportar GitVault.');
-  }
-});
-
-raindropSync && raindropSync.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/raindrop/sync', { method: 'POST', body: JSON.stringify({}) });
-    showInline('Raindrop sincronizado.');
-    await loadFavorites();
-  } catch (err) {
-    showInline('Falha ao sincronizar Raindrop.');
-  }
-});
-
-pushTest && pushTest.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/push/test', { method: 'POST' });
-    showInline('Push enviado.');
-  } catch (err) {
-    showInline('Falha ao enviar push.');
-  }
-});
-
-
-
-document.getElementById('db-check-2')?.addEventListener('click', async () => {
-  try {
-    const res = await apiFetch('/api/health/db');
-    if (res.ok) showInline('Banco de dados OK.');
-    else showInline('Falha na conexão com o banco.');
-  } catch { showInline('Erro ao verificar banco.'); }
-});
-
-document.getElementById('google-sync-now')?.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/calendar/sync', { method: 'POST' });
-    showInline('Google Calendar sincronizado.');
-    await loadAdmin();
-  } catch { showInline('Falha ao sincronizar Google Calendar.'); }
-});
-
-document.getElementById('google-disconnect-btn')?.addEventListener('click', async () => {
-  showInline('Para desconectar, revogue o acesso em myaccount.google.com/permissions');
-});
-
-document.getElementById('gitvault-config-btn')?.addEventListener('click', () => {
-  const adv = document.getElementById('advanced-content');
-  const arrow = document.getElementById('advanced-arrow');
-  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
-  document.getElementById('cfg-gitvault-repo')?.focus();
-});
-
-document.getElementById('raindrop-config-btn')?.addEventListener('click', () => {
-  const adv = document.getElementById('advanced-content');
-  const arrow = document.getElementById('advanced-arrow');
-  if (adv) { adv.style.display = 'block'; if (arrow) arrow.textContent = '˅'; }
-  document.getElementById('cfg-raindrop-token')?.focus();
-});
-
-document.getElementById('push-enable-btn')?.addEventListener('click', async () => {
-  try {
-    await subscribePush();
-    showInline('Push ativado neste dispositivo.');
-    await loadAdmin();
-  } catch { showInline('Falha ao ativar push.'); }
-});
-
-document.getElementById('tg-test-btn')?.addEventListener('click', async () => {
-  try {
-    const res = await apiFetch('/api/health');
-    if (res.ok) showInline('Backend respondendo — bot Telegram ativo.');
-  } catch { showInline('Falha ao verificar bot.'); }
-});
-
-document.getElementById('tg-history-btn')?.addEventListener('click', async () => {
-  try {
-    const res = await apiFetch('/api/messages?limit=10');
-    const data = await res.json();
-    const count = (data.items || []).length;
-    showInline(`${count} mensagem(ns) recentes no banco.`);
-  } catch { showInline('Falha ao buscar histórico.'); }
-});
-
-document.getElementById('llm-test-btn')?.addEventListener('click', async () => {
-  try {
-    const res = await apiFetch('/api/agent', {
-      method: 'POST',
-      body: JSON.stringify({ input: 'responda apenas: ok' })
-    });
-    const data = await res.json();
-    showInline(data.reply ? `LLM respondeu: "${data.reply}"` : 'LLM não respondeu.');
-  } catch { showInline('Falha ao testar LLM.'); }
-});
-
-document.getElementById('llm-tokens-btn')?.addEventListener('click', async () => {
-  showInline('Monitoramento de tokens por provider ainda não implementado.');
-});
-
-document.getElementById('db-backup-btn')?.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/gitvault/export', { method: 'POST' });
-    showInline('Exportação de dados disparada via GitVault.');
-  } catch { showInline('Falha ao exportar dados.'); }
-});
-
-document.getElementById('advanced-toggle')?.addEventListener('click', () => {
-  const content = document.getElementById('advanced-content');
-  const arrow = document.getElementById('advanced-arrow');
-  if (!content) return;
-  const isOpen = content.style.display !== 'none';
-  content.style.display = isOpen ? 'none' : 'block';
-  if (arrow) arrow.textContent = isOpen ? '›' : '˅';
-});
-
-settingsItems.forEach(item => {
-  item.addEventListener('click', () => {
-    settingsItems.forEach(i => i.classList.remove('active'));
-    item.classList.add('active');
-    const target = item.dataset.settings;
-    settingsViews.forEach(v => v.classList.remove('active'));
-    document.querySelector(`[data-settings-view=\"${target}\"]`)?.classList.add('active');
+function renderTasksInline() {
+  const list = document.getElementById('tasks-list-inline');
+  if (!list) return;
+  const statusFilter = (document.getElementById('tasks-filter-status') || {}).value || '';
+  const priorityFilter = (document.getElementById('tasks-filter-priority') || {}).value || '';
+  let tasks = allTasksInline.filter(function(t) {
+    if (statusFilter && t.status !== statusFilter) return false;
+    if (priorityFilter && t.priority !== priorityFilter) return false;
+    return true;
   });
-});
 
+  const today = new Date().toDateString();
+  const openCount = allTasksInline.filter(function(t) { return t.status !== 'done'; }).length;
+  const todayCount = allTasksInline.filter(function(t) { return t.due_date && new Date(t.due_date).toDateString() === today && t.status !== 'done'; }).length;
+  const doneCount = allTasksInline.filter(function(t) { return t.status === 'done'; }).length;
+  function setEl(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  setEl('stat-tasks-open', openCount);
+  setEl('stat-tasks-today', todayCount);
+  setEl('stat-tasks-done', doneCount);
+  setEl('stat-tasks', openCount);
+  setEl('stat-priority', allTasksInline.filter(function(t) { return t.priority === 'high' && t.status !== 'done'; }).length);
 
-async function loadProfile() {
-  try {
-    const res = await apiFetch('/api/profile');
-    const data = await res.json();
-    const profile = data.profile || {};
-    document.getElementById('profile-name').value = profile.fullName || '';
-    document.getElementById('profile-email').value = profile.email || '';
-    document.getElementById('profile-company').value = profile.company || '';
-    document.getElementById('profile-role').value = profile.role || '';
-    document.getElementById('profile-photo').value = profile.photoUrl || '';
-    if (profileAvatar) {
-      if (profile.photoUrl) {
-        profileAvatar.style.backgroundImage = `url(${profile.photoUrl})`;
-        profileAvatar.style.backgroundSize = 'cover';
-        profileAvatar.style.backgroundPosition = 'center';
-        profileAvatar.textContent = '';
-      } else {
-        const initial = (profile.fullName || 'A').trim()[0] || 'A';
-        profileAvatar.style.backgroundImage = '';
-        profileAvatar.textContent = initial.toUpperCase();
-      }
-    }
-  } catch {}
-}
-
-async function loadPreferences() {
-  try {
-    const res = await apiFetch('/api/preferences');
-    const data = await res.json();
-    const prefs = data.preferences || {};
-    const theme = prefs.theme || localStorage.getItem('andclaw_theme') || 'auto';
-    applyTheme(theme);
-    document.querySelectorAll('.theme-card').forEach(card => {
-      card.classList.toggle('active', card.dataset.theme === theme);
-    });
-    document.getElementById('pref-language').value = prefs.language || 'pt-BR';
-    document.getElementById('pref-date-format').value = prefs.dateFormat || 'DD/MM/YYYY';
-    document.getElementById('notify-email').checked = prefs.notifyEmail === 'true';
-    document.getElementById('notify-push').checked = prefs.notifyPush === 'true';
-    document.getElementById('notify-weekly').checked = prefs.notifyWeekly === 'true';
-    document.getElementById('notify-analysis').checked = prefs.notifyAnalysis === 'true';
-  } catch {}
-}
-
-profileSave && profileSave.addEventListener('click', async () => {
-  const payload = {
-    fullName: document.getElementById('profile-name').value.trim(),
-    email: document.getElementById('profile-email').value.trim(),
-    company: document.getElementById('profile-company').value.trim(),
-    role: document.getElementById('profile-role').value.trim(),
-    photoUrl: document.getElementById('profile-photo').value.trim(),
-  };
-  try {
-    await apiFetch('/api/profile', { method: 'POST', body: JSON.stringify(payload) });
-    showInline('Perfil atualizado.');
-    await loadProfile();
-  } catch {
-    showInline('Falha ao salvar perfil.');
+  if (tasks.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px 0;font-size:12px;">Nenhuma tarefa. Converta itens do inbox ou adicione acima.</div>';
+    return;
   }
-});
 
-notificationsSave && notificationsSave.addEventListener('click', async () => {
-  const payload = {
-    notifyEmail: String(document.getElementById('notify-email').checked),
-    notifyPush: String(document.getElementById('notify-push').checked),
-    notifyWeekly: String(document.getElementById('notify-weekly').checked),
-    notifyAnalysis: String(document.getElementById('notify-analysis').checked),
-  };
-  try {
-    if (payload.notifyPush === 'true') {
-      await subscribePush();
-    }
-    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
-    showInline('Preferências salvas.');
-  } catch {
-    showInline('Falha ao salvar preferências.');
-  }
-});
-
-appearanceSave && appearanceSave.addEventListener('click', async () => {
-  const selected = document.querySelector('.theme-card.active')?.dataset.theme || 'auto';
-  const payload = {
-    theme: selected,
-    language: document.getElementById('pref-language').value.trim(),
-    dateFormat: document.getElementById('pref-date-format').value.trim(),
-  };
-  try {
-    applyTheme(selected);
-    await apiFetch('/api/preferences', { method: 'POST', body: JSON.stringify(payload) });
-    showInline('Aparência salva.');
-  } catch {
-    showInline('Falha ao salvar aparência.');
-  }
-});
-
-document.querySelectorAll('.theme-card').forEach(card => {
-  card.addEventListener('click', () => {
-    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
-    card.classList.add('active');
-    applyTheme(card.dataset.theme);
+  tasks.sort(function(a, b) {
+    const pOrder = { high: 0, normal: 1, low: 2 };
+    const pDiff = (pOrder[a.priority] || 1) - (pOrder[b.priority] || 1);
+    if (pDiff !== 0) return pDiff;
+    if (a.due_date && b.due_date) return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+    if (a.due_date) return -1; if (b.due_date) return 1;
+    return 0;
   });
+
+  list.innerHTML = tasks.map(function(task) {
+    const isDone = task.status === 'done';
+    const priClass = 'task-pri-' + (task.priority || 'normal');
+    const priLabel = task.priority === 'high' ? 'Alta' : task.priority === 'low' ? 'Baixa' : 'Normal';
+    let dueStr = ''; let dueClass = 'task-due';
+    if (task.due_date) {
+      const due = new Date(task.due_date);
+      if (due < new Date() && !isDone) dueClass += ' overdue';
+      dueStr = due.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    }
+    return '<div class="task-item' + (isDone ? ' task-done' : '') + '">' +
+      '<div class="task-check' + (isDone ? ' checked' : '') + '" onclick="toggleTaskDone(' + task.id + ',\'' + task.status + '\')"></div>' +
+      '<div class="task-body">' +
+        '<div class="task-title">' + (task.title || '') + '</div>' +
+        '<div class="task-meta">' +
+          '<span class="task-priority ' + priClass + '">' + priLabel + '</span>' +
+          (dueStr ? '<span class="' + dueClass + '">' + dueStr + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="task-delete-btn" onclick="deleteTaskInline(' + task.id + ')">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+async function deleteTaskInline(id) {
+  try {
+    await apiFetch('/api/tasks/' + id, { method: 'DELETE' });
+    await loadTasksInline();
+    toast('Tarefa excluida.', 'info', null, 2000);
+  } catch (err) { showError(err); }
+}
+
+document.getElementById('task-quick-input')?.addEventListener('keydown', async function(e) {
+  if (e.key !== 'Enter') return;
+  const title = e.target.value.trim();
+  if (!title) return;
+  const priority = (document.getElementById('task-quick-priority') || {}).value || 'normal';
+  const due_date = (document.getElementById('task-quick-date') || {}).value || null;
+  try {
+    await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: title, status: 'open', priority: priority, due_date: due_date }) });
+    e.target.value = '';
+    const dateEl = document.getElementById('task-quick-date'); if (dateEl) dateEl.value = '';
+    await loadTasksInline();
+    toast('Tarefa criada!', 'success', null, 2000);
+  } catch (err) { showError(err); }
 });
 
-async function loadSkills() {
+document.getElementById('tasks-filter-status')?.addEventListener('change', renderTasksInline);
+document.getElementById('tasks-filter-priority')?.addEventListener('change', renderTasksInline);
+
+
+
+
+function renderInboxItem(item) {
+  const isSelected = inboxSelected.has(Number(item.id));
+  const isDone = item.status === 'processed';
+  return '<div class="inbox-item' + (isSelected ? ' inbox-selected' : '') + '" data-id="' + item.id + '" onclick="inboxToggleSelect(' + item.id + ')">' +
+    '<div class="inbox-check' + (isDone ? ' inbox-done' : '') + '" onclick="event.stopPropagation();inboxToggleDone(' + item.id + ',\'' + item.status + '\')"></div>' +
+    '<div class="inbox-item-body">' +
+      '<div class="inbox-item-text' + (isDone ? ' inbox-done-text' : '') + '">' + (item.content || '') + '</div>' +
+      '<div class="inbox-item-meta">' +
+        '<span class="inbox-type-tag ' + (tagClass[item.type] || 'inbox-tag-note') + '">' + (typeMap[item.type] || 'Nota') + '</span>' +
+        '<span class="inbox-item-time">' + inboxTimeAgo(item.created_at) + '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="inbox-item-actions" onclick="event.stopPropagation()">' +
+      '<button class="inbox-action-btn" onclick="inboxConvertTask(' + item.id + ')">✓ Tarefa</button>' +
+      '<button class="inbox-action-btn" onclick="inboxArchive(' + item.id + ')">Arquivar</button>' +
+      '<button class="inbox-action-btn inbox-action-danger" onclick="inboxDelete(' + item.id + ')">Excluir</button>' +
+    '</div>' +
+  '</div>';
+}
+
+async function toggleTaskDone(id, currentStatus) {
+  const newStatus = currentStatus === 'done' ? 'open' : 'done';
   try {
-    const [skillsRes, agentsRes] = await Promise.all([
-      apiFetch('/api/skills'),
-      apiFetch('/api/agents'),
-    ]);
-    const skillData = await skillsRes.json();
-    const agentData = await agentsRes.json();
-    cachedSkills = skillData.items || [];
-    const agents = agentData.items || [];
-
-    // Map skill→agents
-    const skillAgentMap = {};
-    agents.forEach(a => {
-      (a.skills || []).forEach(s => {
-        if (!skillAgentMap[s]) skillAgentMap[s] = [];
-        skillAgentMap[s].push(a);
-      });
-    });
-
-    renderSkillsView(cachedSkills, skillAgentMap);
+    await apiFetch('/api/tasks/' + id, { method: 'PATCH', body: JSON.stringify({ status: newStatus }) });
+    await loadTasksInline();
   } catch (err) { showError(err); }
 }
 
-async function loadAgents() {
-  try {
-    const res = await apiFetch('/api/agents');
-    const data = await res.json();
-    cachedAgents = data.items || [];
-    renderAgentsView(cachedAgents);
-  } catch (err) { showError(err); }
-}
-
-async function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('/sw.js');
-    } catch (e) { console.warn('SW register failed:', e); }
-  }
-}
-
-function parseList(value) {
-  if (!value) return [];
-  return value.split(',').map(function(v) { return v.trim(); }).filter(Boolean);
-}
+let allTasksInline = [];
 
 
 initApp();
