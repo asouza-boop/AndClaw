@@ -1,0 +1,938 @@
+openapi: 3.1.0
+info:
+  title: AndClaw API
+  description: Personal AI Agent — Command Center backend API
+  version: 2.0.0
+  contact:
+    name: AndClaw
+servers:
+  - url: https://andclaw.onrender.com
+    description: Production (Render)
+  - url: http://localhost:3000
+    description: Local Development
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Capture:
+      type: object
+      properties:
+        id:         { type: integer }
+        content:    { type: string }
+        source:     { type: string, default: pwa }
+        type:       { type: string, enum: [note, task, idea, link] }
+        status:     { type: string, enum: [new, processed, archived] }
+        tags:       { type: array, items: { type: string } }
+        project_id: { type: integer, nullable: true }
+        due_date:   { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Task:
+      type: object
+      properties:
+        id:         { type: integer }
+        title:      { type: string }
+        status:     { type: string, enum: [open, in_progress, done] }
+        priority:   { type: string, enum: [low, normal, high] }
+        due_date:   { type: string, format: date-time, nullable: true }
+        project_id: { type: integer, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Agent:
+      type: object
+      properties:
+        id:          { type: integer }
+        name:        { type: string }
+        level:       { type: string, enum: [Estrategico, Tatico, Operacional] }
+        status:      { type: string }
+        description: { type: string, nullable: true }
+        areas:       { type: array, items: { type: string } }
+        skills:      { type: array, items: { type: string } }
+        tags:        { type: array, items: { type: object } }
+        created_at:  { type: string, format: date-time }
+
+    Skill:
+      type: object
+      properties:
+        slug:        { type: string }
+        title:       { type: string }
+        description: { type: string }
+        tools:       { type: array, items: { type: string } }
+        sections:    { type: integer }
+
+    Meeting:
+      type: object
+      properties:
+        id:               { type: integer }
+        title:            { type: string }
+        meeting_date:     { type: string, format: date-time, nullable: true }
+        transcript_text:  { type: string, nullable: true }
+        created_at:       { type: string, format: date-time }
+
+    Favorite:
+      type: object
+      properties:
+        id:         { type: integer }
+        title:      { type: string }
+        url:        { type: string, format: uri }
+        source:     { type: string }
+        external_id: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    Tag:
+      type: object
+      properties:
+        id:    { type: integer }
+        name:  { type: string }
+        color: { type: string }
+
+    Error:
+      type: object
+      properties:
+        error:   { type: string }
+        message: { type: string }
+
+    OkResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+
+paths:
+
+  # ── HEALTH ──────────────────────────────────────────────────
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Liveness check
+      security: []
+      responses:
+        '200':
+          description: API online
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
+  /api/health/db:
+    get:
+      tags: [Health]
+      summary: Database connectivity check
+      security: []
+      responses:
+        '200':
+          description: Database connected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:         { type: boolean }
+                  latency_ms: { type: integer }
+                  database:   { type: string }
+
+  /api/status:
+    get:
+      tags: [Health]
+      summary: Full system status
+      responses:
+        '200':
+          description: System status overview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:           { type: boolean }
+                  db:           { type: object }
+                  google:       { type: object }
+                  gitvault:     { type: boolean }
+                  push:         { type: boolean }
+                  raindrop:     { type: boolean }
+                  llmConfigured: { type: boolean }
+                  llm:          { type: object }
+                  pushSubscriptions: { type: integer }
+                  deploy:       { type: object }
+
+  # ── AUTH ────────────────────────────────────────────────────
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and get JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string, minLength: 8 }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+        '401':
+          description: Invalid password
+
+  /api/auth/bootstrap:
+    post:
+      tags: [Auth]
+      summary: First-time system setup
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:    { type: string, minLength: 8 }
+                tokenSecret: { type: string, minLength: 24 }
+      responses:
+        '200':
+          description: Bootstrap successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:       { type: string }
+                  tokenSecret: { type: string }
+        '409':
+          description: Already bootstrapped
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Verify token and get current user
+      responses:
+        '200':
+          description: Token valid
+        '401':
+          description: Unauthorized
+
+  # ── CAPTURES (INBOX) ────────────────────────────────────────
+  /api/captures:
+    get:
+      tags: [Captures]
+      summary: List inbox captures
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string, enum: [note, task, idea, link] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [new, processed, archived] }
+      responses:
+        '200':
+          description: List of captures
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  items: { type: array, items: { $ref: '#/components/schemas/Capture' } }
+
+    post:
+      tags: [Captures]
+      summary: Create a new capture
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:    { type: string, description: "Main text (also accepts 'title' as alias)" }
+                title:      { type: string, description: "Alias for content" }
+                source:     { type: string, default: pwa }
+                type:       { type: string, enum: [note, task, idea, link], default: note }
+                tags:       { type: array, items: { type: string } }
+                project_id: { type: integer }
+                due_date:   { type: string, format: date-time }
+      responses:
+        '201':
+          description: Capture created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  id:      { type: integer }
+                  title:   { type: string }
+                  content: { type: string }
+                  type:    { type: string }
+                  status:  { type: string }
+                  item:    { $ref: '#/components/schemas/Capture' }
+
+  /api/captures/{id}:
+    patch:
+      tags: [Captures]
+      summary: Update capture status or type
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:  { type: string, enum: [new, processed, archived] }
+                type:    { type: string, enum: [note, task, idea, link] }
+                content: { type: string }
+      responses:
+        '200':
+          description: Updated
+
+    delete:
+      tags: [Captures]
+      summary: Delete a capture
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+
+  /api/captures/bulk:
+    post:
+      tags: [Captures]
+      summary: Bulk action on captures
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, action]
+              properties:
+                ids:    { type: array, items: { type: integer } }
+                action: { type: string, enum: [delete, archive, convert_task, set_type] }
+                type:   { type: string, description: "Required when action=set_type" }
+      responses:
+        '200':
+          description: Action applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+
+  # ── TASKS ───────────────────────────────────────────────────
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, in_progress, done] }
+        - name: priority
+          in: query
+          schema: { type: string, enum: [low, normal, high] }
+      responses:
+        '200':
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  items: { type: array, items: { $ref: '#/components/schemas/Task' } }
+
+    post:
+      tags: [Tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:      { type: string }
+                status:     { type: string, enum: [open, in_progress, done], default: open }
+                priority:   { type: string, enum: [low, normal, high], default: normal }
+                due_date:   { type: string, format: date-time }
+                project_id: { type: integer }
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  id:   { type: integer }
+                  item: { $ref: '#/components/schemas/Task' }
+
+  /api/tasks/{id}:
+    patch:
+      tags: [Tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:    { type: string }
+                status:   { type: string, enum: [open, in_progress, done] }
+                priority: { type: string, enum: [low, normal, high] }
+                due_date: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Updated
+
+    delete:
+      tags: [Tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+
+  # ── AGENTS ──────────────────────────────────────────────────
+  /api/agents:
+    get:
+      tags: [Agents]
+      summary: List all agents
+      responses:
+        '200':
+          description: Array of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Agent' }
+
+    post:
+      tags: [Agents]
+      summary: Create an agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:        { type: string }
+                level:       { type: string, enum: [Estrategico, Tatico, Operacional] }
+                status:      { type: string, default: ativo }
+                description: { type: string }
+                areas:       { type: array, items: { type: string } }
+                skills:      { type: array, items: { type: string } }
+                tags:        { type: array, items: { type: string } }
+                base_doc:    { type: string }
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  id:     { type: integer }
+                  name:   { type: string }
+                  level:  { type: string }
+                  status: { type: string }
+                  item:   { $ref: '#/components/schemas/Agent' }
+
+  /api/agents/{id}:
+    patch:
+      tags: [Agents]
+      summary: Update an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:        { type: string }
+                level:       { type: string }
+                status:      { type: string }
+                description: { type: string }
+      responses:
+        '200':
+          description: Updated
+
+    delete:
+      tags: [Agents]
+      summary: Delete an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+
+  # ── SKILLS ──────────────────────────────────────────────────
+  /api/skills:
+    get:
+      tags: [Skills]
+      summary: List skills loaded from disk
+      responses:
+        '200':
+          description: List of skills
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:     { type: boolean }
+                  items:  { type: array, items: { $ref: '#/components/schemas/Skill' } }
+                  skills: { type: array, items: { $ref: '#/components/schemas/Skill' } }
+
+    post:
+      tags: [Skills]
+      summary: Create a skill (writes SKILL.md to disk)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:         { type: string, description: "Alias for slug" }
+                slug:         { type: string }
+                title:        { type: string }
+                description:  { type: string }
+                content:      { type: string }
+                allowedTools: { type: array, items: { type: string } }
+      responses:
+        '201':
+          description: Skill created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  slug:  { type: string }
+                  name:  { type: string }
+                  title: { type: string }
+                  id:    { type: string }
+
+  # ── AGENT / CHAT ────────────────────────────────────────────
+  /api/agent:
+    post:
+      tags: [Agent]
+      summary: Send message to AI agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [input]
+              properties:
+                input:   { type: string }
+                options: { type: object }
+      responses:
+        '200':
+          description: Agent reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  reply: { type: string }
+
+  /api/skill-chat:
+    post:
+      tags: [Agent]
+      summary: Chat with skill-creator AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                system:   { type: string }
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:    { type: string, enum: [user, assistant] }
+                      content: { type: string }
+      responses:
+        '200':
+          description: AI reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  reply: { type: string }
+
+  # ── MEETINGS ────────────────────────────────────────────────
+  /api/meetings:
+    get:
+      tags: [Meetings]
+      summary: List meetings
+      responses:
+        '200':
+          description: List of meetings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  items: { type: array, items: { $ref: '#/components/schemas/Meeting' } }
+
+    post:
+      tags: [Meetings]
+      summary: Create a meeting
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:           { type: string }
+                meeting_date:    { type: string, format: date-time }
+                transcript_text: { type: string }
+      responses:
+        '201':
+          description: Meeting created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  id:   { type: integer }
+                  item: { $ref: '#/components/schemas/Meeting' }
+
+  /api/meetings/analyze:
+    post:
+      tags: [Meetings]
+      summary: Analyze meeting transcript with AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [meetingId]
+              properties:
+                meetingId: { type: integer }
+      responses:
+        '200':
+          description: AI analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:      { type: boolean }
+                  insight: { type: string }
+
+  # ── FAVORITES ───────────────────────────────────────────────
+  /api/favorites:
+    get:
+      tags: [Favorites]
+      summary: List favorites
+      responses:
+        '200':
+          description: List of favorites
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  items: { type: array, items: { $ref: '#/components/schemas/Favorite' } }
+
+    post:
+      tags: [Favorites]
+      summary: Add a favorite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, url]
+              properties:
+                title: { type: string }
+                url:   { type: string, format: uri }
+                tags:  { type: array, items: { type: string } }
+      responses:
+        '201':
+          description: Favorite created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  id:   { type: integer }
+                  item: { $ref: '#/components/schemas/Favorite' }
+
+  /api/raindrop/sync:
+    post:
+      tags: [Favorites]
+      summary: Sync bookmarks from Raindrop.io
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                collectionId: { type: string }
+                perpage:      { type: integer, default: 50 }
+                page:         { type: integer, default: 0 }
+      responses:
+        '200':
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  count: { type: integer }
+
+  # ── TAGS ────────────────────────────────────────────────────
+  /api/tags:
+    get:
+      tags: [Tags]
+      summary: List tags
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:    { type: boolean }
+                  items: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+
+    post:
+      tags: [Tags]
+      summary: Create a tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:  { type: string }
+                color: { type: string }
+      responses:
+        '201':
+          description: Tag created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  id:   { type: integer }
+                  item: { $ref: '#/components/schemas/Tag' }
+
+  /api/tags/{id}:
+    delete:
+      tags: [Tags]
+      summary: Delete a tag
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+
+  # ── SETTINGS ────────────────────────────────────────────────
+  /api/settings:
+    get:
+      tags: [Settings]
+      summary: Get current settings (masked)
+      responses:
+        '200':
+          description: Settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:       { type: boolean }
+                  settings: { type: object }
+
+    post:
+      tags: [Settings]
+      summary: Update settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                GEMINI_API_KEY:          { type: string }
+                OPENROUTER_API_KEY:      { type: string }
+                DEEPSEEK_API_KEY:        { type: string }
+                DEFAULT_LLM_PROVIDER:    { type: string }
+                RAINDROP_TOKEN:          { type: string }
+                RAINDROP_COLLECTION_ID:  { type: string }
+                GITHUB_TOKEN:            { type: string }
+                GITVAULT_REPO:           { type: string }
+                RENDER_DEPLOY_HOOK_URL:  { type: string }
+                VAPID_PUBLIC_KEY:        { type: string }
+                VAPID_PRIVATE_KEY:       { type: string }
+                VAPID_CONTACT_EMAIL:     { type: string }
+      responses:
+        '200':
+          description: Settings saved
+
+  /api/deploy:
+    post:
+      tags: [Settings]
+      summary: Trigger Render deploy
+      responses:
+        '200':
+          description: Deploy triggered
+
+  # ── PROFILE ─────────────────────────────────────────────────
+  /api/profile:
+    get:
+      tags: [Profile]
+      summary: Get user profile
+      responses:
+        '200':
+          description: Profile data
+
+    post:
+      tags: [Profile]
+      summary: Update user profile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string }
+                email:    { type: string, format: email }
+                company:  { type: string }
+                role:     { type: string }
+                photoUrl: { type: string, format: uri }
+      responses:
+        '200':
+          description: Profile updated
+
+  /api/preferences:
+    get:
+      tags: [Profile]
+      summary: Get user preferences
+      responses:
+        '200':
+          description: Preferences
+
+    post:
+      tags: [Profile]
+      summary: Update preferences
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                theme:           { type: string, enum: [dark, light, auto] }
+                language:        { type: string }
+                notifyEmail:     { type: string }
+                notifyPush:      { type: string }
+      responses:
+        '200':
+          description: Preferences updated
+
+  # ── PUSH ────────────────────────────────────────────────────
+  /api/push/vapid:
+    get:
+      tags: [Push]
+      summary: Get VAPID public key
+      responses:
+        '200':
+          description: VAPID key
+
+  /api/push/subscribe:
+    post:
+      tags: [Push]
+      summary: Subscribe device for push notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscription]
+              properties:
+                subscription: { type: object }
+      responses:
+        '200':
+          description: Subscribed
+
+  /api/push/test:
+    post:
+      tags: [Push]
+      summary: Send test push notification
+      responses:
+        '200':
+          description: Push sent
