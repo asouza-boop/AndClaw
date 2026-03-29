@@ -1,4 +1,18 @@
 const CACHE_NAME = 'andclaw-cache-v13';
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw new Error('offline');
+  }
+}
 
 self.addEventListener('install', event => {
   // Não cachear nada no install para evitar falhas por 401/404
@@ -9,7 +23,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
+    ).then(() => self.clients.claim())
   );
   self.clients.claim();
 });
@@ -17,27 +31,22 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-
-  // Nunca interceptar chamadas de API
   if (url.pathname.startsWith('/api/')) return;
+  const isAppShell =
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('/styles.css') ||
+    url.pathname.endsWith('/app.js') ||
+    url.pathname.endsWith('/manifest.json') ||
+    url.pathname.endsWith('/config.js');
 
-  // JS e CSS: network-first, fallback para cache
-  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          }
-          return res;
-        })
-        .catch(() => caches.match(event.request))
-    );
+  if (isAppShell) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
-
-  // Tudo mais: network primeiro, sem forçar cache
+  event.respondWith(
+    caches.match(event.request).then(resp => resp || fetch(event.request))
+  );
 });
 
 self.addEventListener('push', event => {
