@@ -786,7 +786,7 @@ router.post('/tasks', async (req: Request, res: Response) => {
   exportTasksToGoogle().catch(e => console.error('[tasks] gcal sync failed:', e.message));
 });
 
-router.get('/tasks', async (_req: Request, res: Response) => {
+router.get('/tasks', async (req: Request, res: Response) => {
   const { status, priority } = req.query as { status?: string; priority?: string };
   let sql = 'SELECT * FROM tasks';
   const params: any[] = [];
