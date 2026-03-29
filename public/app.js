@@ -2396,6 +2396,8 @@ async function initApp() {
   if (!authed) return;
   hideBanner();
   logPush('App inicializado com sucesso', 'success', 'Sistema');
+  const initialView = getInitialView();
+  navigateTo(initialView);
   await registerServiceWorker();
   await flushQueue();
   await refreshCaptures();
@@ -2419,7 +2421,7 @@ async function initApp() {
   await loadProjects();
   await loadKnowledge();
   await loadArchive();
-  navigateTo(getInitialView());
+  navigateTo(initialView);
 }
 
 // ── SISTEMA DE ABAS (Skills e Agents) ────────────────────────
