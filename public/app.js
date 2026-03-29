@@ -10,23 +10,39 @@ const VIEW_TITLES = {
   favorites: 'Favoritos', knowledge: 'Conhecimento', archive: 'Arquivo', admin: 'Configurações',
 };
 
+const DEFAULT_VIEW = 'dashboard';
+const VIEW_STORAGE_KEY = 'andclaw_active_view';
+
+function getInitialView() {
+  const hashView = window.location.hash?.replace('#', '').trim();
+  if (hashView && VIEW_TITLES[hashView]) return hashView;
+  const storedView = localStorage.getItem(VIEW_STORAGE_KEY);
+  if (storedView && VIEW_TITLES[storedView]) return storedView;
+  return DEFAULT_VIEW;
+}
+
 function navigateTo(target) {
   if (!target) return;
+  const safeTarget = VIEW_TITLES[target] ? target : DEFAULT_VIEW;
+  localStorage.setItem(VIEW_STORAGE_KEY, safeTarget);
+  if (window.location.hash !== `#${safeTarget}`) {
+    history.replaceState(null, '', `#${safeTarget}`);
+  }
   // Atualizar nav items
   document.querySelectorAll('.nav-item').forEach(i => {
-    i.classList.toggle('active', i.dataset.view === target);
+    i.classList.toggle('active', i.dataset.view === safeTarget);
   });
   // Trocar views
   document.querySelectorAll('.view').forEach(v => {
     v.classList.remove('active');
     v.style.display = 'none';
   });
-  const targetView = document.getElementById('view-' + target);
+  const targetView = document.getElementById('view-' + safeTarget);
   if (targetView) {
     targetView.classList.add('active');
     targetView.style.display = 'block';
   } else {
-    console.warn('[nav] view não encontrada: view-' + target);
+    console.warn('[nav] view não encontrada: view-' + safeTarget);
     const fallback = document.getElementById('view-dashboard');
     if (fallback) {
       fallback.classList.add('active');
@@ -34,8 +50,8 @@ function navigateTo(target) {
     }
   }
   // Atualizar título
-  if (pageTitleEl && VIEW_TITLES[target]) {
-    pageTitleEl.textContent = VIEW_TITLES[target];
+  if (pageTitleEl && VIEW_TITLES[safeTarget]) {
+    pageTitleEl.textContent = VIEW_TITLES[safeTarget];
   }
 }
 
@@ -2403,6 +2419,7 @@ async function initApp() {
   await loadProjects();
   await loadKnowledge();
   await loadArchive();
+  navigateTo(getInitialView());
 }
 
 // ── SISTEMA DE ABAS (Skills e Agents) ────────────────────────
