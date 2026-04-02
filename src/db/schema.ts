@@ -70,7 +70,15 @@ export async function ensureSchema(): Promise<void> {
       id BIGSERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       meeting_date TIMESTAMPTZ,
+      status TEXT DEFAULT 'scheduled',
+      duration INTEGER,
+      participants TEXT[] DEFAULT '{}',
       transcript_text TEXT,
+      summary TEXT,
+      action_items JSONB DEFAULT '[]'::jsonb,
+      skills_used TEXT[] DEFAULT '{}',
+      notes TEXT,
+      audio_file_name TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -211,4 +219,12 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'scheduled'`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS duration INTEGER`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS participants TEXT[] DEFAULT '{}'`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS summary TEXT`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS action_items JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS skills_used TEXT[] DEFAULT '{}'`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS notes TEXT`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS audio_file_name TEXT`);
 }

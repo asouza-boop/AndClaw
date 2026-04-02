@@ -43,7 +43,7 @@ export default function Dashboard() {
         method: 'POST',
         body: JSON.stringify({ message: msg, conversation: 'pwa-user' }),
       });
-      setChatMessages((p) => [...p, { role: 'assistant', content: res.response || res.message || JSON.stringify(res) }]);
+      setChatMessages((p) => [...p, { role: 'assistant', content: res.reply || res.response || res.message || JSON.stringify(res) }]);
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {

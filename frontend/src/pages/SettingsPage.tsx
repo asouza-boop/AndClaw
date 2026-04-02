@@ -17,22 +17,35 @@ const integrations = [
 export default function SettingsPage() {
   const qc = useQueryClient();
   const { data: status } = useQuery({ queryKey: ['status'], queryFn: () => apiFetch<any>('/api/status').catch(() => null) });
+  const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: () => apiFetch<any>('/api/settings').catch(() => null) });
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [configValue, setConfigValue] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const settingKeyMap: Record<string, string> = {
+    google_calendar: 'GOOGLE_EXPORT_CALENDAR_ID',
+    gitvault: 'GITVAULT_REPO',
+    raindrop: 'RAINDROP_TOKEN',
+    push: 'VAPID_PUBLIC_KEY',
+    ai: 'GEMINI_API_KEY',
+    deploy: 'RENDER_DEPLOY_HOOK_URL',
+  };
 
   const saveConfig = async () => {
     if (!activeModal || !configValue.trim()) return;
     setSaving(true);
     try {
+      const settingKey = settingKeyMap[activeModal];
+      if (!settingKey) throw new Error('Integração ainda não suportada neste painel.');
       await apiFetch('/api/settings', {
         method: 'POST',
-        body: JSON.stringify({ [activeModal]: configValue.trim() }),
+        body: JSON.stringify({ [settingKey]: configValue.trim() }),
       });
       toast('Configuração salva', 'success');
       setActiveModal(null);
       setConfigValue('');
       qc.invalidateQueries({ queryKey: ['status'] });
+      qc.invalidateQueries({ queryKey: ['settings'] });
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {
@@ -47,9 +60,9 @@ export default function SettingsPage() {
         <h3 className="text-sm font-semibold mb-4">Status do Sistema</h3>
         <div className="flex gap-6">
           {[
-            { label: 'Backend', icon: Server, ok: !!status },
-            { label: 'Database', icon: Database, ok: status?.db !== false },
-            { label: 'LLM', icon: Brain, ok: status?.llm !== false },
+            { label: 'Backend', icon: Server, ok: !!status?.ok },
+            { label: 'Database', icon: Database, ok: !!status?.db?.ok },
+            { label: 'LLM', icon: Brain, ok: !!status?.llmConfigured },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-2">
               <s.icon className="w-4 h-4 text-muted-foreground" />
@@ -79,7 +92,10 @@ export default function SettingsPage() {
               <span className="text-2xl">{int.icon}</span>
               <div className="flex-1">
                 <p className="text-sm font-medium">{int.label}</p>
-                <p className="text-xs text-muted-foreground">{int.desc}</p>
+                <p className="text-xs text-muted-foreground">
+                  {int.desc}
+                  {settingKeyMap[int.key] && settingsData?.settings?.[settingKeyMap[int.key]] === 'configured' ? ' · configurado' : ''}
+                </p>
               </div>
               <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>

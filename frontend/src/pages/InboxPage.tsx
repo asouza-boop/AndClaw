@@ -47,8 +47,9 @@ export default function InboxPage() {
 
   const pendingTasks = tasks.filter((t: any) => t.status !== 'done');
   const todayTasks = tasks.filter((t: any) => {
-    if (!t.dueDate) return false;
-    return new Date(t.dueDate).toDateString() === new Date().toDateString();
+    const due = t.dueDate || t.due_date;
+    if (!due) return false;
+    return new Date(due).toDateString() === new Date().toDateString();
   });
   const doneTasks = tasks.filter((t: any) => t.status === 'done');
 

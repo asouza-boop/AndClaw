@@ -25,6 +25,57 @@ import path from 'path';
 const router = Router();
 const agent = new AgentController();
 
+type SkillDiskRecord = {
+  slug: string;
+  title: string;
+  description: string;
+  allowedTools: string[];
+  content: string;
+};
+
+function parseSkillDocument(slug: string, content: string): SkillDiskRecord {
+  let title = slug;
+  let description = '';
+  let allowedTools: string[] = [];
+  const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (fmMatch) {
+    const fm = fmMatch[1];
+    const nameMatch = fm.match(/^name:\s*(.+)$/m);
+    const descMatch = fm.match(/^description:\s*(.+)$/m);
+    const toolsMatch = fm.match(/^allowed-tools:\s*(.+)$/m);
+    if (nameMatch) title = nameMatch[1].trim();
+    if (descMatch) description = descMatch[1].trim();
+    if (toolsMatch) allowedTools = toolsMatch[1].split(',').map(t => t.trim()).filter(Boolean);
+  }
+  if (!description) {
+    const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
+    const heading = lines.find(l => l.startsWith('#'));
+    if (heading) title = heading.replace(/^#+\s*/, '').trim();
+    description = lines.find(l => !l.startsWith('#') && l.length > 20) || '';
+  }
+  return { slug, title, description, allowedTools, content };
+}
+
+function inferActionItems(text: string) {
+  const candidates = text
+    .split(/\n+/)
+    .map(line => line.replace(/^[-*]\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return candidates.map(item => ({ text: item, done: false }));
+}
+
+function mapMeetingRow(meeting: any) {
+  return {
+    ...meeting,
+    date: meeting.meeting_date,
+    transcript: meeting.transcript_text,
+    action_items: Array.isArray(meeting.action_items) ? meeting.action_items : [],
+    skills_used: meeting.skills_used || [],
+    participants: meeting.participants || [],
+  };
+}
+
 async function getProfileValues(userId: string, prefix: string) {
   const rows = await query<{ key: string; value: string }>(
     `SELECT key, value FROM user_profile WHERE key LIKE $1`,
@@ -67,33 +118,24 @@ async function listSkillsFromDisk() {
     if (!entry.isDirectory()) continue;
     const slug = entry.name;
     const file = path.join(root, slug, 'SKILL.md');
-    let title = slug;
-    let description = '';
-    let allowedTools: string[] = [];
     let content = '';
     try {
       content = await fs.readFile(file, 'utf-8');
-      // Parse YAML frontmatter
-      const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-      if (fmMatch) {
-        const fm = fmMatch[1];
-        const nameMatch = fm.match(/^name:\s*(.+)$/m);
-        const descMatch = fm.match(/^description:\s*(.+)$/m);
-        const toolsMatch = fm.match(/^allowed-tools:\s*(.+)$/m);
-        if (nameMatch) title = nameMatch[1].trim();
-        if (descMatch) description = descMatch[1].trim();
-        if (toolsMatch) allowedTools = toolsMatch[1].split(',').map(t => t.trim());
-      }
-      if (!description) {
-        const lines = content.split('\n').map(l => l.trim()).filter(Boolean);
-        const heading = lines.find(l => l.startsWith('#'));
-        if (heading) title = heading.replace(/^#+\s*/, '').trim();
-        description = lines.find(l => !l.startsWith('#') && l.length > 20) || '';
-      }
+      const parsed = parseSkillDocument(slug, content);
+      const sectionCount = (content.match(/^##\s/gm) || []).length;
+      skills.push({
+        slug,
+        id: slug,
+        title: parsed.title,
+        name: slug,
+        description: parsed.description,
+        allowedTools: parsed.allowedTools,
+        tools: parsed.allowedTools,
+        content,
+        sectionCount,
+        hasContent: content.length > 100,
+      });
     } catch {}
-    // Count sections in SKILL.md
-    const sectionCount = (content.match(/^##\s/gm) || []).length;
-    skills.push({ slug, title, name: slug, description, allowedTools, sectionCount, hasContent: content.length > 100 });
   }
   return skills;
 }
@@ -115,6 +157,16 @@ ${toolsLine}
 ${content}
 `;
   await fs.writeFile(path.join(skillDir, 'SKILL.md'), md, 'utf-8');
+}
+
+async function updateSkillOnDisk(slug: string, content: string) {
+  const file = path.join(config.paths.skills, slug, 'SKILL.md');
+  await fs.writeFile(file, content, 'utf-8');
+}
+
+async function deleteSkillOnDisk(slug: string) {
+  const skillDir = path.join(config.paths.skills, slug);
+  await fs.rm(skillDir, { recursive: true, force: true });
 }
 
 async function upsertTags(names: string[]) {
@@ -168,6 +220,7 @@ router.get('/health/db', async (_req: Request, res: Response) => {
 });
 
 router.get('/status', async (_req: Request, res: Response) => {
+  await ensureSchema();
   const db = { ok: false };
   try {
     await query('SELECT 1 as ok');
@@ -192,6 +245,13 @@ router.get('/status', async (_req: Request, res: Response) => {
     openrouter: Boolean(config.llm.openrouterKey),
     deepseek: Boolean(config.llm.deepseekKey),
   };
+  const recentEvents = [
+    ...(await query<any>(`SELECT 'task' as type, title as message, created_at as timestamp FROM tasks ORDER BY created_at DESC LIMIT 3`)),
+    ...(await query<any>(`SELECT 'meeting' as type, title as message, created_at as timestamp FROM meetings ORDER BY created_at DESC LIMIT 3`)),
+    ...(await query<any>(`SELECT 'capture' as type, content as message, created_at as timestamp FROM captures ORDER BY created_at DESC LIMIT 3`)),
+  ]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 8);
 
   res.json({
     ok: true,
@@ -204,7 +264,30 @@ router.get('/status', async (_req: Request, res: Response) => {
     llmConfigured,
     pushSubscriptions,
     deploy: { last: settings.LAST_DEPLOY_AT || null },
+    lastDeploy: settings.LAST_DEPLOY_AT || null,
+    recentEvents,
   });
+});
+
+router.get('/notifications', async (_req: Request, res: Response) => {
+  await ensureSchema();
+  const items = [
+    ...(await query<any>(`SELECT id::text, 'task' as type, 'Nova tarefa' as title, title as body, false as read, created_at FROM tasks ORDER BY created_at DESC LIMIT 5`)),
+    ...(await query<any>(`SELECT id::text, 'meeting' as type, 'Reunião registrada' as title, title as body, false as read, created_at FROM meetings ORDER BY created_at DESC LIMIT 5`)),
+    ...(await query<any>(`SELECT id::text, 'alert' as type, 'Inbox atualizado' as title, content as body, false as read, created_at FROM captures ORDER BY created_at DESC LIMIT 5`)),
+  ]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10)
+    .map((item) => ({
+      ...item,
+      createdAt: item.created_at,
+      link:
+        item.type === 'task' ? '/projetos' :
+        item.type === 'meeting' ? '/reunioes' :
+        '/inbox',
+    }));
+
+  res.json({ ok: true, items });
 });
 
 router.get('/settings', async (_req: Request, res: Response) => {
@@ -237,15 +320,27 @@ router.get('/skills', async (_req: Request, res: Response) => {
 
 router.post('/skills', async (req: Request, res: Response) => {
   const body = req.body || {};
-  // Accept 'name' as alias for 'slug' (REST convention compatibility)
   const slug = body.slug || body.name;
-  // Accept 'title' fallback to slug/name
   const title = body.title || body.name || slug;
   const { description, content = '', allowedTools = [] } = body;
   if (!slug || !title) return res.status(400).json({ error: 'slug/name and title are required', required_fields: ['slug (or name)', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
   const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
   res.status(201).json({ ok: true, slug: safeSlug, name: safeSlug, title, id: safeSlug });
+});
+
+router.put('/skills/:id', async (req: Request, res: Response) => {
+  const slug = String(req.params.id);
+  const { content } = req.body || {};
+  if (!content) return res.status(400).json({ error: 'content is required' });
+  await updateSkillOnDisk(slug, String(content));
+  res.json({ ok: true, id: slug });
+});
+
+router.delete('/skills/:id', async (req: Request, res: Response) => {
+  const slug = String(req.params.id);
+  await deleteSkillOnDisk(slug);
+  res.json({ ok: true, id: slug });
 });
 
 router.get('/tags', async (_req: Request, res: Response) => {
@@ -674,13 +769,14 @@ router.post('/skill-chat', async (req: Request, res: Response) => {
 });
 
 router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
-  const { input, options = {} } = req.body || {};
+  const { input, message, options = {} } = req.body || {};
   const userId = (req as any).user?.sub || 'pwa-user';
-  if (!input) return res.status(400).json({ error: 'input is required' });
+  const resolvedInput = input || message;
+  if (!resolvedInput) return res.status(400).json({ error: 'input is required' });
   if (!hasLLMConfig()) {
     return res.json({ ok: true, reply: offlineFallbackMessage() });
   }
-  const reply = await agent.processInput(userId, input, options);
+  const reply = await agent.processInput(userId, resolvedInput, options);
   res.json({ ok: true, reply });
 });
 
@@ -787,12 +883,13 @@ router.post('/tasks', async (req: Request, res: Response) => {
 });
 
 router.get('/tasks', async (req: Request, res: Response) => {
-  const { status, priority } = req.query as { status?: string; priority?: string };
+  const { status, priority, project_id } = req.query as { status?: string; priority?: string; project_id?: string };
   let sql = 'SELECT * FROM tasks';
   const params: any[] = [];
   const conditions: string[] = [];
   if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
   if (priority) { params.push(priority); conditions.push(`priority = $${params.length}`); }
+  if (project_id) { params.push(project_id); conditions.push(`project_id = $${params.length}`); }
   if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
   sql += ' ORDER BY created_at DESC LIMIT 500';
   const rows = await query(sql, params);
@@ -822,14 +919,38 @@ router.delete('/tasks/:id', async (req: Request, res: Response) => {
 });
 
 router.post('/meetings', async (req: Request, res: Response) => {
-  const { title, meeting_date, transcript_text } = req.body || {};
+  const {
+    title,
+    meeting_date,
+    date,
+    transcript_text,
+    transcript,
+    status = 'scheduled',
+    duration = null,
+    participants = [],
+    summary = null,
+    action_items = [],
+    skills_used = [],
+    notes = null,
+  } = req.body || {};
   if (!title) return res.status(400).json({ error: 'title is required' });
   const rows = await query(
-    `INSERT INTO meetings (title, meeting_date, transcript_text)
-     VALUES ($1, $2, $3) RETURNING *`,
-    [title, meeting_date || null, transcript_text || null]
+    `INSERT INTO meetings (title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) RETURNING *`,
+    [
+      title,
+      meeting_date || date || null,
+      transcript_text || transcript || null,
+      status,
+      duration,
+      participants,
+      summary,
+      JSON.stringify(action_items || []),
+      skills_used,
+      notes,
+    ]
   );
-  res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
+  res.status(201).json({ ok: true, item: mapMeetingRow(rows[0]), id: rows[0]?.id });
 });
 
 router.post('/meetings/analyze', async (req: Request, res: Response) => {
@@ -847,6 +968,7 @@ router.post('/meetings/analyze', async (req: Request, res: Response) => {
   const prompt = `Analise a transcricao a seguir e extraia:\n- Principais decisoes\n- Proximas acoes\n- Riscos e pendencias\n- Insights estrategicos\n\nTranscricao:\n${meeting.transcript_text || ''}`;
 
   const reply = await agent.processInput('pwa-user', prompt);
+  await query(`UPDATE meetings SET summary = $1 WHERE id = $2`, [reply, meetingId]);
   await query(
     `INSERT INTO memory_items (type, content, source_type, source_id)
      VALUES ($1, $2, $3, $4)`,
@@ -856,9 +978,95 @@ router.post('/meetings/analyze', async (req: Request, res: Response) => {
   res.json({ ok: true, insight: reply });
 });
 
+router.get('/meetings/:id', async (req: Request, res: Response) => {
+  const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'meeting not found' });
+  res.json({ ok: true, item: mapMeetingRow(rows[0]) });
+});
+
+router.put('/meetings/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { title, date, meeting_date, transcript, transcript_text, status, duration, participants, summary, action_items, skills_used, notes } = req.body || {};
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (title !== undefined) { params.push(title); updates.push(`title = $${params.length}`); }
+  if (date !== undefined || meeting_date !== undefined) { params.push(meeting_date || date || null); updates.push(`meeting_date = $${params.length}`); }
+  if (transcript !== undefined || transcript_text !== undefined) { params.push(transcript_text || transcript || null); updates.push(`transcript_text = $${params.length}`); }
+  if (status !== undefined) { params.push(status); updates.push(`status = $${params.length}`); }
+  if (duration !== undefined) { params.push(duration); updates.push(`duration = $${params.length}`); }
+  if (participants !== undefined) { params.push(participants); updates.push(`participants = $${params.length}`); }
+  if (summary !== undefined) { params.push(summary); updates.push(`summary = $${params.length}`); }
+  if (action_items !== undefined) { params.push(JSON.stringify(action_items)); updates.push(`action_items = $${params.length}::jsonb`); }
+  if (skills_used !== undefined) { params.push(skills_used); updates.push(`skills_used = $${params.length}`); }
+  if (notes !== undefined) { params.push(notes); updates.push(`notes = $${params.length}`); }
+  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
+  params.push(id);
+  const rows = await query<any>(`UPDATE meetings SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+  res.json({ ok: true, item: mapMeetingRow(rows[0]) });
+});
+
+router.post('/meetings/:id/upload-audio', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const rows = await query<any>(
+    `UPDATE meetings
+     SET audio_file_name = COALESCE(audio_file_name, 'upload-received'), status = 'in_progress'
+     WHERE id = $1 RETURNING *`,
+    [id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'meeting not found' });
+  res.json({ ok: true, item: mapMeetingRow(rows[0]) });
+});
+
+router.post('/meetings/:id/process', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { action = 'summarize' } = req.body || {};
+  const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
+  const meeting = rows[0];
+  if (!meeting) return res.status(404).json({ error: 'meeting not found' });
+
+  if (action === 'transcribe') {
+    const transcript = meeting.transcript_text || `Áudio recebido para "${meeting.title}". Transcrição automática ainda não está configurada no backend.`;
+    const updated = await query<any>(`UPDATE meetings SET transcript_text = $1, status = 'in_progress' WHERE id = $2 RETURNING *`, [transcript, id]);
+    return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+  }
+
+  if (!meeting.transcript_text) {
+    return res.status(400).json({ error: 'meeting transcript not available' });
+  }
+
+  if (!hasLLMConfig()) {
+    if (action === 'extract_actions') {
+      const actionItems = inferActionItems(meeting.transcript_text);
+      const updated = await query<any>(`UPDATE meetings SET action_items = $1::jsonb WHERE id = $2 RETURNING *`, [JSON.stringify(actionItems), id]);
+      return res.json({ ok: true, item: mapMeetingRow(updated[0]), offline: true });
+    }
+    const summary = offlineFallbackMessage();
+    const updated = await query<any>(`UPDATE meetings SET summary = $1, status = 'completed' WHERE id = $2 RETURNING *`, [summary, id]);
+    return res.json({ ok: true, item: mapMeetingRow(updated[0]), offline: true });
+  }
+
+  if (action === 'extract_actions') {
+    const prompt = `Extraia próximas ações objetivas da transcrição abaixo. Responda em lista markdown.\n\n${meeting.transcript_text}`;
+    const reply = await agent.processInput('pwa-user', prompt);
+    const actionItems = reply
+      .split('\n')
+      .map(line => line.replace(/^[-*0-9.\s]+/, '').trim())
+      .filter(Boolean)
+      .slice(0, 10)
+      .map(text => ({ text, done: false }));
+    const updated = await query<any>(`UPDATE meetings SET action_items = $1::jsonb, status = 'completed' WHERE id = $2 RETURNING *`, [JSON.stringify(actionItems), id]);
+    return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+  }
+
+  const prompt = `Resuma a reunião abaixo em markdown com decisões, riscos e próximos passos.\n\n${meeting.transcript_text}`;
+  const reply = await agent.processInput('pwa-user', prompt);
+  const updated = await query<any>(`UPDATE meetings SET summary = $1, status = 'completed' WHERE id = $2 RETURNING *`, [reply, id]);
+  res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+});
+
 router.get('/meetings', async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM meetings ORDER BY created_at DESC LIMIT 200`);
-  res.json({ ok: true, items: rows });
+  res.json({ ok: true, items: rows.map(mapMeetingRow) });
 });
 
 router.post('/memory', async (req: Request, res: Response) => {

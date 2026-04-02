@@ -17,8 +17,10 @@ export function createApp() {
   app.use(express.json({ limit: '5mb' }));
 
   const frontendDistDir = path.join(process.cwd(), 'frontend', 'dist');
-  const publicDir = fs.existsSync(frontendDistDir) ? frontendDistDir : path.join(process.cwd(), 'public');
-  app.use(express.static(publicDir));
+  if (!fs.existsSync(frontendDistDir)) {
+    console.warn('[frontend] frontend/dist not found. Run `npm run frontend:build` before starting the server.');
+  }
+  app.use(express.static(frontendDistDir));
 
   app.use('/api', (req, res, next) => {
     const openPaths = ['/health', '/health/db', '/auth/login', '/auth/bootstrap', '/google/oauth/callback'];
@@ -30,7 +32,7 @@ export function createApp() {
   app.use('/api', routes);
 
   app.get('*', (_req: Request, res: Response) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    res.sendFile(path.join(frontendDistDir, 'index.html'));
   });
 
   return app;

@@ -12,9 +12,11 @@ import AgentsPage from "./pages/AgentsPage";
 import SkillsPage from "./pages/SkillsPage";
 import SettingsPage from "./pages/SettingsPage";
 import MeetingsPage from "./pages/MeetingsPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import NotFound from "./pages/NotFound";
+import FavoritesPage from "./pages/FavoritesPage";
+import KnowledgePage from "./pages/KnowledgePage";
+import ArchivePage from "./pages/ArchivePage";
 
 const queryClient = new QueryClient();
 
@@ -40,9 +42,9 @@ const App = () => {
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="projetos" element={<ProjectsPage />} />
               <Route path="reunioes" element={<MeetingsPage />} />
-              <Route path="favoritos" element={<PlaceholderPage title="Favoritos" />} />
-              <Route path="conhecimento" element={<PlaceholderPage title="Conhecimento" />} />
-              <Route path="arquivo" element={<PlaceholderPage title="Arquivo" />} />
+              <Route path="favoritos" element={<FavoritesPage />} />
+              <Route path="conhecimento" element={<KnowledgePage />} />
+              <Route path="arquivo" element={<ArchivePage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
