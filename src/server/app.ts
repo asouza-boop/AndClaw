@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
 import routes from './routes';
 import { authMiddleware } from './auth';
@@ -15,7 +16,8 @@ export function createApp() {
   }));
   app.use(express.json({ limit: '5mb' }));
 
-  const publicDir = path.join(process.cwd(), 'public');
+  const frontendDistDir = path.join(process.cwd(), 'frontend', 'dist');
+  const publicDir = fs.existsSync(frontendDistDir) ? frontendDistDir : path.join(process.cwd(), 'public');
   app.use(express.static(publicDir));
 
   app.use('/api', (req, res, next) => {

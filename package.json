@@ -9,6 +9,10 @@
     "start": "node dist/index.js",
     "db:init": "tsx scripts/db-init.ts",
     "watch:transcripts": "tsx scripts/watch-transcripts.ts",
+    "frontend:install": "npm --prefix frontend install",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:test": "npm --prefix frontend run test",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
