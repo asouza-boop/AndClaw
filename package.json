@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm run frontend:build && tsc",
+    "build": "npm run frontend:install && npm run frontend:build && tsc",
     "start": "node dist/index.js",
     "db:init": "tsx scripts/db-init.ts",
     "watch:transcripts": "tsx scripts/watch-transcripts.ts",
