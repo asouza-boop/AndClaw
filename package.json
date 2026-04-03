@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm run frontend:install && npm run frontend:build && tsc",
+    "build": "npm run frontend:install && npm run frontend:build && npm run frontend:sync-public && tsc",
     "start": "node dist/index.js",
     "db:init": "tsx scripts/db-init.ts",
     "watch:transcripts": "tsx scripts/watch-transcripts.ts",
@@ -13,7 +13,8 @@
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:test": "npm --prefix frontend run test",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "frontend:sync-public": "node scripts/sync-frontend-dist.js"
   },
   "repository": {
     "type": "git",
