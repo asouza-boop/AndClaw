@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { Topbar } from './Topbar';
 import { BackendRetryBanner } from './BackendRetryBanner';
+import { BackendRetryIndicator } from './BackendRetryIndicator';
 import { useEffect } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 
@@ -46,6 +47,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <BackendRetryIndicator />
     </div>
   );
 }

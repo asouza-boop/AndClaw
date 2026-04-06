@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, RotateCcw, X } from 'lucide-react';
+import { AlertTriangle, Loader2, RotateCcw } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { useBackendStore } from '@/stores/backendStore';
 
@@ -15,7 +15,7 @@ type RuntimeHealth = {
 };
 
 export function BackendRetryBanner() {
-  const { lastFailure, isRetrying, retryLastFailure, clearFailure } = useBackendStore();
+  const { isRetrying } = useBackendStore();
 
   const runtime = useQuery({
     queryKey: ['backend-runtime'],
@@ -27,27 +27,16 @@ export function BackendRetryBanner() {
   const runtimeData = runtime.data;
   const runtimeError = runtime.error as any;
   const hasRuntimeIssue = Boolean(runtimeError) || Boolean(runtimeData && (!runtimeData.ok || runtimeData.retryable));
-  const hasFailure = Boolean(lastFailure);
-  const visible = hasFailure || hasRuntimeIssue;
+  const visible = hasRuntimeIssue;
 
   if (!visible) return null;
 
-  const title = lastFailure?.message
-    || runtimeError?.message
-    || (runtimeData?.ok ? 'Backend disponível' : 'Backend inicializando');
-
-  const details = lastFailure
-    ? `${lastFailure.method} ${lastFailure.path}${lastFailure.requestId ? ` • ${lastFailure.requestId}` : ''}`
-    : runtimeData?.bootstrapped
-      ? `DB ${runtimeData.db?.ok ? 'ok' : 'offline'}${runtimeData.db?.latencyMs != null ? ` • ${runtimeData.db.latencyMs}ms` : ''}${runtimeData.db?.error ? ` • ${runtimeData.db.error}` : ''}`
-      : 'Sistema ainda não foi bootstrapado';
-
-  const retryEnabled = Boolean(lastFailure?.retryable || runtimeData?.retryable || runtimeError);
+  const title = runtimeError?.message || (runtimeData?.ok ? 'Backend disponível' : 'Backend inicializando');
+  const details = runtimeData?.bootstrapped
+    ? `DB ${runtimeData.db?.ok ? 'ok' : 'offline'}${runtimeData.db?.latencyMs != null ? ` • ${runtimeData.db.latencyMs}ms` : ''}${runtimeData.db?.error ? ` • ${runtimeData.db.error}` : ''}`
+    : 'Sistema ainda não foi bootstrapado';
+  const retryEnabled = Boolean(runtimeData?.retryable || runtimeError);
   const retry = async () => {
-    if (lastFailure?.retryable) {
-      await retryLastFailure();
-      return;
-    }
     await runtime.refetch();
   };
 
@@ -72,14 +61,6 @@ export function BackendRetryBanner() {
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Tentar novamente
-            </button>
-            <button
-              type="button"
-              onClick={() => clearFailure()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground hover:bg-surface-2"
-            >
-              <X className="h-3.5 w-3.5" />
-              Fechar
             </button>
             {runtimeData?.retryAfterMs ? (
               <span className="text-[11px] text-muted-foreground">

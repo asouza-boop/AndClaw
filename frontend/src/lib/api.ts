@@ -1,4 +1,5 @@
 import { useBackendStore } from '@/stores/backendStore';
+import { toast } from '@/stores/toastStore';
 
 const FALLBACK_API_BASE = 'https://andclaw.onrender.com';
 const TOKEN_KEY = 'auth_token';
@@ -37,6 +38,8 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 export const apiFetch = async <T = unknown>(path: string, options?: RequestInit): Promise<T> => {
   const token = getToken();
   const method = (options?.method || 'GET').toUpperCase();
+  const backendState = useBackendStore.getState();
+  const wasFailed = Boolean(backendState.lastFailure);
   const res = await fetch(apiUrl(path), {
     ...options,
     headers: {
@@ -77,6 +80,11 @@ export const apiFetch = async <T = unknown>(path: string, options?: RequestInit)
     });
     registeredFailure(error, () => apiFetch<T>(path, options));
     throw error;
+  }
+  backendState.setRetrying(false);
+  backendState.clearFailure();
+  if (wasFailed) {
+    toast('Conexão restabelecida com sucesso!', 'success', 'Backend Online');
   }
   if (res.status === 401) {
     clearToken();
