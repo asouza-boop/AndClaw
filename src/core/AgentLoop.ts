@@ -2,18 +2,33 @@ import { ProviderFactory } from '../providers/ProviderFactory';
 import { ToolRegistry } from './ToolRegistry';
 import { config } from '../config/env';
 import { ProfileRepository } from '../memory/repositories/ProfileRepository';
+import { EmbeddingService } from './embedding/EmbeddingService';
+import { MemoryService } from './memory/MemoryService';
+import { MemoryManager } from '../memory/MemoryManager';
 
 export class AgentLoop {
     private providerName: string;
     private registry: ToolRegistry;
     private maxIterations: number;
     private profileRepo: ProfileRepository;
+    private embeddingService: EmbeddingService;
+    private memoryService: MemoryService;
+    private memoryManager: MemoryManager;
 
-    constructor(providerName: string, registry: ToolRegistry) {
+    constructor(
+      providerName: string,
+      registry: ToolRegistry,
+      embeddingService = new EmbeddingService(),
+      memoryService = new MemoryService(embeddingService),
+      memoryManager = new MemoryManager(embeddingService, memoryService),
+    ) {
         this.providerName = providerName;
         this.registry = registry;
         this.maxIterations = config.llm.maxIterations || 5;
         this.profileRepo = new ProfileRepository();
+        this.embeddingService = embeddingService;
+        this.memoryService = memoryService;
+        this.memoryManager = memoryManager;
     }
 
     /**
@@ -34,7 +49,11 @@ export class AgentLoop {
         }
 
         const provider = ProviderFactory.getChain();
-        // No need to call initialize() here — ProviderChain handles it per-provider lazily
+        const userId = options.userId || 'pwa-user';
+        const semanticContext = await this.memoryManager.buildSemanticContext(userInput, options.memoryLimit || 5);
+        if (semanticContext) {
+            systemPrompt = `${systemPrompt}\n\n${semanticContext}`;
+        }
 
         const messages = [...history];
         const lastUserMessage = { role: 'user', content: userInput } as any;
@@ -99,6 +118,10 @@ export class AgentLoop {
                 }
 
                 // If no tool calls -> Answer phase reached
+                await this.memoryManager.persistTurn(userId, this.providerName, userInput, response.text, {
+                  source: 'agent-loop',
+                  provider: this.providerName,
+                });
                 return response.text;
 
             } catch (e: any) {

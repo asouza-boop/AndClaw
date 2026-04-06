@@ -45,7 +45,7 @@ export class AgentController {
             await this.memoryManager.addMessage(conversationId, 'user', input);
 
             // 5. Executar Agent Loop
-            const result = await this.executor.execute(input, skill, history, providerName, options);
+            const result = await this.executor.execute(input, skill, history, providerName, { ...options, userId });
 
             // 6. Salvar e retornar output
             await this.memoryManager.addMessage(conversationId, 'assistant', result);

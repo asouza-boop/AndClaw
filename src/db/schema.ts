@@ -1,6 +1,8 @@
 import { query } from './postgres';
 
 export async function ensureSchema(): Promise<void> {
+  await query(`CREATE EXTENSION IF NOT EXISTS vector`);
+
   await query(`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
@@ -93,6 +95,8 @@ export async function ensureSchema(): Promise<void> {
       content TEXT NOT NULL,
       source_type TEXT,
       source_id TEXT,
+      metadata JSONB DEFAULT '{}'::jsonb,
+      embedding vector(1536),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -233,4 +237,6 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS skills_used TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS notes TEXT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS audio_file_name TEXT`);
+  await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
+  await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS embedding vector(1536)`);
 }
