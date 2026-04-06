@@ -19,6 +19,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { ProjectsSkeleton } from '@/components/PageSkeletons';
 
 /* ─── types ─── */
 interface Task {
@@ -189,9 +190,7 @@ export default function ProjectsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <ProjectsSkeleton />
       ) : view === 'kanban' ? (
         /* ─── KANBAN ─── */
         <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">

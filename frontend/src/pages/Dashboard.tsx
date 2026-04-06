@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
-import { ListTodo, AlertTriangle, Video, Inbox, Send, Loader2 } from 'lucide-react';
+import { ListTodo, AlertTriangle, Video, Inbox, Send } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from '@/stores/toastStore';
+import { DashboardSkeleton } from '@/components/PageSkeletons';
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: number; sub: string; color: string }) {
   return (
@@ -20,9 +21,9 @@ function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: 
 }
 
 export default function Dashboard() {
-  const { data: tasks } = useQuery({ queryKey: ['tasks'], queryFn: () => apiFetch('/api/tasks').then(ensureArray) });
-  const { data: captures } = useQuery({ queryKey: ['captures'], queryFn: () => apiFetch('/api/captures').then(ensureArray) });
-  const { data: meetings } = useQuery({ queryKey: ['meetings'], queryFn: () => apiFetch('/api/meetings').catch(() => []).then(ensureArray) });
+  const { data: tasks, isLoading: loadingTasks } = useQuery({ queryKey: ['tasks'], queryFn: () => apiFetch('/api/tasks').then(ensureArray) });
+  const { data: captures, isLoading: loadingCaptures } = useQuery({ queryKey: ['captures'], queryFn: () => apiFetch('/api/captures').then(ensureArray) });
+  const { data: meetings, isLoading: loadingMeetings } = useQuery({ queryKey: ['meetings'], queryFn: () => apiFetch('/api/meetings').catch(() => []).then(ensureArray) });
 
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
@@ -31,6 +32,10 @@ export default function Dashboard() {
   const pendingTasks = tasks?.filter((t: any) => t.status !== 'done') || [];
   const highPriority = tasks?.filter((t: any) => t.priority === 'high' && t.status !== 'done') || [];
   const unprocessed = captures?.filter((c: any) => c.status !== 'processed') || [];
+
+  if (loadingTasks || loadingCaptures || loadingMeetings) {
+    return <DashboardSkeleton />;
+  }
 
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;

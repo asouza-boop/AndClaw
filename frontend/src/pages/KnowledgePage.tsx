@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { KnowledgeSkeleton } from '@/components/PageSkeletons';
 import {
   BookOpen,
   Brain,
@@ -237,9 +238,7 @@ export default function KnowledgePage() {
       </div>
 
       {loadingMemories || loadingLinks ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
+        <KnowledgeSkeleton />
       ) : filteredMemories.length === 0 ? (
         <Card className="bg-card border-border/50">
           <CardContent className="p-12 text-center">

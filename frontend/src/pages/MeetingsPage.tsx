@@ -9,6 +9,7 @@ import {
   ChevronRight, Search, RotateCcw, Upload, Loader2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { MeetingsSkeleton } from '@/components/PageSkeletons';
 
 interface Meeting {
   _id?: string;
@@ -681,11 +682,11 @@ function MeetingDetail({
 
 export default function MeetingsPage() {
   const qc = useQueryClient();
-  const { data: meetings = [] } = useQuery({
+  const { data: meetings = [], isLoading: loadingMeetings } = useQuery({
     queryKey: ['meetings'],
     queryFn: () => apiFetch('/api/meetings').catch(() => []).then(ensureArray),
   });
-  const { data: skills = [] } = useQuery({
+  const { data: skills = [], isLoading: loadingSkills } = useQuery({
     queryKey: ['skills'],
     queryFn: () => apiFetch('/api/skills').catch(() => []).then(ensureArray),
   });
@@ -725,6 +726,10 @@ export default function MeetingsPage() {
   const currentMeeting = selected
     ? meetings.find((m: Meeting) => (m._id || m.id) === (selected._id || selected.id)) || selected
     : null;
+
+  if (loadingMeetings || loadingSkills) {
+    return <MeetingsSkeleton />;
+  }
 
   if (currentMeeting) {
     return <MeetingDetail meeting={currentMeeting} onBack={() => setSelected(null)} skills={skills} />;

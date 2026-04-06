@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState } from 'react';
-import { Plus, X, Pencil, Trash2, ChevronRight } from 'lucide-react';
+import { Plus, X, Trash2, ChevronRight } from 'lucide-react';
+import { AgentsSkeleton } from '@/components/PageSkeletons';
 
 const levels = ['Estratégico', 'Tático', 'Operacional'];
 const levelColors: Record<string, string> = {
@@ -36,7 +37,7 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: () => void }) {
 
 export default function AgentsPage() {
   const qc = useQueryClient();
-  const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: () => apiFetch('/api/agents').then(ensureArray) });
+  const { data: agents = [], isLoading } = useQuery({ queryKey: ['agents'], queryFn: () => apiFetch('/api/agents').then(ensureArray) });
   const [wizardOpen, setWizardOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ name: '', level: 'Tático', status: 'active', description: '', areas: '', skills: '', base_doc: '' });
@@ -71,6 +72,10 @@ export default function AgentsPage() {
     level,
     agents: agents.filter((a: any) => (a.level || 'Tático') === level),
   }));
+
+  if (isLoading) {
+    return <AgentsSkeleton />;
+  }
 
   return (
     <div className="space-y-6">

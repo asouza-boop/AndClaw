@@ -3,10 +3,11 @@ import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState } from 'react';
 import { Bookmark, ExternalLink, RefreshCw, Plus } from 'lucide-react';
+import { FavoritesSkeleton } from '@/components/PageSkeletons';
 
 export default function FavoritesPage() {
   const qc = useQueryClient();
-  const { data: favorites = [] } = useQuery({
+  const { data: favorites = [], isLoading } = useQuery({
     queryKey: ['favorites'],
     queryFn: () => apiFetch('/api/favorites').then(ensureArray),
   });
@@ -42,6 +43,10 @@ export default function FavoritesPage() {
     },
     onError: (err: Error) => toast(err.message, 'error'),
   });
+
+  if (isLoading) {
+    return <FavoritesSkeleton />;
+  }
 
   return (
     <div className="space-y-6 max-w-6xl">
