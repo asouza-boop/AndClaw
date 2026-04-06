@@ -768,6 +768,18 @@ router.post('/skill-chat', async (req: Request, res: Response) => {
   }
 });
 
+router.post('/ag', agentLimiter, async (req: Request, res: Response) => {
+  const { input, message, options = {} } = req.body || {};
+  const userId = (req as any).user?.sub || 'pwa-user';
+  const resolvedInput = input || message;
+  if (!resolvedInput) return res.status(400).json({ error: 'input is required' });
+  if (!hasLLMConfig()) {
+    return res.json({ ok: true, reply: offlineFallbackMessage() });
+  }
+  const reply = await agent.processInput(userId, resolvedInput, options);
+  res.json({ ok: true, reply });
+});
+
 router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
   const { input, message, options = {} } = req.body || {};
   const userId = (req as any).user?.sub || 'pwa-user';
@@ -847,7 +859,7 @@ router.delete('/captures/:id', async (req: Request, res: Response) => {
 
 router.post('/captures/bulk', async (req: Request, res: Response) => {
   const { ids, action, type } = req.body || {};
-  if (!ids?.length || !action) return res.status(400).json({ error: 'ids and action required' });
+  if (!ids?.length && action !== 'extract') return res.status(400).json({ error: 'ids and action required' });
 
   if (action === 'delete') {
     await query(`DELETE FROM captures WHERE id = ANY($1)`, [ids]);
@@ -864,6 +876,58 @@ router.post('/captures/bulk', async (req: Request, res: Response) => {
     await query(`UPDATE captures SET status = 'processed', processed_at = NOW() WHERE id = ANY($1)`, [ids]);
   } else if (action === 'set_type' && type) {
     await query(`UPDATE captures SET type = $1 WHERE id = ANY($2)`, [type, ids]);
+  } else if (action === 'extract') {
+    // Process all unprocessed or specific IDs
+    const targetIds = ids?.length ? ids : null;
+    let items;
+    if (targetIds) {
+      items = await query<any>(`SELECT * FROM captures WHERE id = ANY($1) AND status != 'processed'`, [targetIds]);
+    } else {
+      items = await query<any>(`SELECT * FROM captures WHERE status != 'processed' LIMIT 20`);
+    }
+
+    if (!items.length) return res.json({ ok: true, message: 'Nada para processar' });
+
+    if (!hasLLMConfig()) {
+      return res.status(500).json({ error: 'LLM não configurada para extração automática' });
+    }
+
+    const inputData = items.map((it: any, idx: number) => `${idx + 1}. [ID:${it.id}] ${it.content}`).join('\n');
+    const prompt = `Analise os itens capturados abaixo e categorize cada um. 
+Responda APENAS em JSON no formato: [{"id": x, "category": "task"|"knowledge", "title": "título curto", "content": "conteúdo formatado markdown", "priority": "high"|"normal"|"low"}]
+
+Contexto:
+- "task": Algo acionável (Gerar tarefa).
+- "knowledge": Informação, ideia ou nota (Gerar item de memória/conhecimento).
+
+Itens:
+${inputData}`;
+
+    const reply = await agent.processInput('pwa-user', prompt);
+    let results;
+    try {
+      const jsonStr = reply.replace(/```json|```/g, '').trim();
+      results = JSON.parse(jsonStr);
+    } catch (e) {
+      console.error('[extract] Failed to parse agent JSON:', reply);
+      return res.status(500).json({ error: 'Falha na análise estruturada do agente', raw: reply });
+    }
+
+    for (const resItem of results) {
+      if (resItem.category === 'task') {
+        await query(
+          `INSERT INTO tasks (title, status, priority) VALUES ($1, 'open', $2)`,
+          [resItem.title || 'Nova Tarefa', resItem.priority || 'normal']
+        );
+      } else {
+        await query(
+          `INSERT INTO memory_items (type, content, source_type, source_id)
+           VALUES ($1, $2, $3, $4)`,
+          ['ai_extraction', resItem.content || resItem.title, 'capture', String(resItem.id)]
+        );
+      }
+      await query(`UPDATE captures SET status = 'processed', processed_at = NOW() WHERE id = $1`, [resItem.id]);
+    }
   }
 
   res.json({ ok: true });
@@ -1083,6 +1147,44 @@ router.post('/memory', async (req: Request, res: Response) => {
 router.get('/memory', async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM memory_items ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows });
+});
+
+// Knowledge API aliases (Lovable compatibility)
+router.get('/knowledge', async (_req: Request, res: Response) => {
+  const rows = await query(`SELECT * FROM memory_items ORDER BY created_at DESC LIMIT 200`);
+  res.json({ ok: true, items: rows });
+});
+
+router.post('/knowledge', async (req: Request, res: Response) => {
+  const { type, content, source_type, source_id, title } = req.body || {};
+  const actualContent = content || title;
+  if (!type || !actualContent) return res.status(400).json({ error: 'type and content are required' });
+  const rows = await query(
+    `INSERT INTO memory_items (type, content, source_type, source_id)
+     VALUES ($1, $2, $3, $4) RETURNING *`,
+    [type, actualContent, source_type || null, source_id || null]
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.patch('/knowledge/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { content, type, title } = req.body || {};
+  const actualContent = content || title;
+  const updates: string[] = [];
+  const params: any[] = [];
+  if (actualContent !== undefined) { params.push(actualContent); updates.push(`content = $${params.length}`); }
+  if (type !== undefined) { params.push(type); updates.push(`type = $${params.length}`); }
+  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
+  params.push(id);
+  const rows = await query(`UPDATE memory_items SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.delete('/knowledge/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query(`DELETE FROM memory_items WHERE id = $1`, [id]);
+  res.json({ ok: true });
 });
 
 router.post('/projects', async (req: Request, res: Response) => {

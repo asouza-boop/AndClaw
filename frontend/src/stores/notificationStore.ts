@@ -34,13 +34,13 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     set((s) => {
       const items = s.items.map((n) => (n.id === id ? { ...n, read: true } : n));
       const unreadCount = items.filter((n) => !n.read).length;
-      try { navigator.setAppBadge?.(unreadCount); } catch {}
+      try { (navigator as any).setAppBadge?.(unreadCount); } catch {}
       return { items, unreadCount };
     }),
 
   markAllRead: () =>
     set((s) => {
-      try { navigator.clearAppBadge?.(); } catch {}
+      try { (navigator as any).clearAppBadge?.(); } catch {}
       return {
         items: s.items.map((n) => ({ ...n, read: true })),
         unreadCount: 0,
@@ -57,7 +57,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       };
       const items = [item, ...s.items].slice(0, 50);
       const unreadCount = items.filter((i) => !i.read).length;
-      try { navigator.setAppBadge?.(unreadCount); } catch {}
+      try { (navigator as any).setAppBadge?.(unreadCount); } catch {}
       return { items, unreadCount };
     }),
 
@@ -76,9 +76,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       const unreadCount = items.filter((n: Notification) => !n.read).length;
       try { 
         if (unreadCount > 0) {
-          navigator.setAppBadge?.(unreadCount); 
+          (navigator as any).setAppBadge?.(unreadCount); 
         } else {
-          navigator.clearAppBadge?.();
+          (navigator as any).clearAppBadge?.();
         }
       } catch {}
       set({ items, unreadCount });

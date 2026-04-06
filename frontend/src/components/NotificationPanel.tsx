@@ -3,7 +3,7 @@ import { Bell, MessageSquare, AlertTriangle, CheckCircle2, Calendar, Bot, X, Che
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const iconMap: Record<string, typeof Bell> = {
+const iconMap: Record<string, any> = {
   message: MessageSquare,
   alert: AlertTriangle,
   task: CheckCircle2,
@@ -45,34 +45,43 @@ export function NotificationPanel() {
   };
 
   return (
-    <div ref={panelRef} className="absolute right-0 top-full mt-2 w-96 max-h-[480px] rounded-xl bg-card border border-border shadow-xl z-50 flex flex-col overflow-hidden">
+    <div 
+      ref={panelRef} 
+      className="absolute right-0 top-full mt-3 w-80 max-h-[480px] rounded-xl bg-surface border border-white/[0.08] shadow-2xl z-[60] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.05] bg-surface-2/50 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Notificações</h3>
+          <h3 className="text-sm font-semibold">Notificações</h3>
           {unreadCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">{unreadCount}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-bold">{unreadCount}</span>
           )}
         </div>
         <div className="flex items-center gap-1">
           {unreadCount > 0 && (
-            <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-muted/50">
-              <CheckCheck className="w-3.5 h-3.5" />
-              Marcar tudo
+            <button 
+              onClick={markAllRead} 
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-surface-3"
+            >
+              <CheckCheck className="w-3 h-3" />
+              Lido
             </button>
           )}
-          <button onClick={() => setOpen(false)} className="p-1 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            onClick={() => setOpen(false)} 
+            className="p-1 rounded-md hover:bg-surface-3 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
         {items.length === 0 ? (
-          <div className="py-12 text-center">
-            <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-            <p className="text-xs text-muted-foreground">Nenhuma notificação</p>
+          <div className="py-12 text-center opacity-40">
+            <Bell className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-xs">Nenhuma notificação</p>
           </div>
         ) : (
           items.map((n) => {
@@ -81,19 +90,19 @@ export function NotificationPanel() {
               <button
                 key={n.id}
                 onClick={() => handleClick(n)}
-                className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors border-b border-border/50 last:border-0 ${!n.read ? 'bg-primary/[0.03]' : ''}`}
+                className={`w-full flex items-start gap-3 px-4 py-4 text-left transition-colors border-b border-white/[0.03] last:border-0 ${!n.read ? 'bg-primary/[0.03] hover:bg-primary/[0.05]' : 'hover:bg-surface-2'}`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${!n.read ? 'bg-primary/15 text-primary' : 'bg-muted/50 text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${!n.read ? 'bg-primary/20 text-primary' : 'bg-surface-3 text-muted-foreground'}`}>
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className={`text-sm truncate ${!n.read ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{n.title}</p>
+                    <p className={`text-sm truncate ${!n.read ? 'font-semibold text-foreground' : 'text-muted-foreground text-xs'}`}>{n.title}</p>
                     {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{n.body}</p>
+                  <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{n.body}</p>
+                  <p className="text-[9px] text-muted-foreground/60 mt-1 uppercase tracking-tight font-medium">{timeAgo(n.createdAt)}</p>
                 </div>
-                <span className="text-[10px] text-muted-foreground flex-shrink-0 mt-0.5">{timeAgo(n.createdAt)}</span>
               </button>
             );
           })

@@ -46,12 +46,12 @@ export function AppSidebar() {
     <aside className="w-64 h-screen flex flex-col bg-surface border-r border-white/[0.07] shrink-0 sticky top-0">
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-white">
-          A
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-primary/20">
+          AC
         </div>
         <div>
-          <p className="text-sm font-semibold">AndClaw</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">cmd center</p>
+          <p className="text-sm font-bold tracking-tight bg-gradient-to-r from-white to-white/70 bg-clip-text text-transparent">AndClaw</p>
+          <p className="text-[9px] text-muted-foreground uppercase tracking-[0.2em] font-medium opacity-70">Cmd Center</p>
         </div>
       </div>
 

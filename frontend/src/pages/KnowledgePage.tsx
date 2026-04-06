@@ -86,7 +86,7 @@ export default function KnowledgePage() {
 
   const { data: memories = [], isLoading: loadingMemories } = useQuery<MemoryItem[]>({
     queryKey: ['memory'],
-    queryFn: () => apiFetch('/api/memory').then(ensureArray),
+    queryFn: () => apiFetch('/api/knowledge').then(ensureArray),
   });
 
   const { data: links = [], isLoading: loadingLinks } = useQuery<PageLink[]>({
@@ -100,7 +100,7 @@ export default function KnowledgePage() {
       const body = entryForm.content.trim();
       if (!title || !body) throw new Error('Título e conteúdo são obrigatórios');
       const markdown = `# ${title}\n\n${body}`;
-      return apiFetch('/api/memory', {
+      return apiFetch('/api/knowledge', {
         method: 'POST',
         body: JSON.stringify({
           type: entryForm.type,

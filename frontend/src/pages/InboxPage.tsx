@@ -91,6 +91,17 @@ export default function InboxPage() {
     } catch (err: any) { toast(err.message, 'error'); }
   };
 
+  const processAI = useMutation({
+    mutationFn: () => apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ action: 'extract' }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['captures'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['memory'] });
+      toast('Processamento concluído pelo Agente', 'success');
+    },
+    onError: (err: any) => toast(err.message, 'error'),
+  });
+
   const deleteTask = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/tasks/${id}`, { method: 'DELETE' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); toast('Tarefa excluída', 'success'); },
@@ -105,7 +116,7 @@ export default function InboxPage() {
   ];
 
   return (
-    <div className="flex gap-6 max-w-7xl">
+    <div className="flex gap-6 max-w-7xl animate-in fade-in duration-500">
       {/* Left - Captures */}
       <div className="flex-[7] space-y-4">
         {/* Toolbar */}
@@ -129,13 +140,23 @@ export default function InboxPage() {
 
         {/* AI Banner */}
         {unprocessed.length > 0 && (
-          <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="flex items-center gap-2 text-sm">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span>{unprocessed.length} itens para processar</span>
+          <div className="flex items-center justify-between p-4 rounded-xl bg-primary/10 border border-primary/20 shadow-lg shadow-primary/5">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="p-2 rounded-lg bg-primary/20 text-primary">
+                <Sparkles className={`w-4 h-4 ${processAI.isPending ? 'animate-pulse' : ''}`} />
+              </div>
+              <div>
+                <p className="font-semibold">O Agente pode ajudar</p>
+                <p className="text-xs text-muted-foreground">{unprocessed.length} itens aguardando organização inteligente.</p>
+              </div>
             </div>
-            <button className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90">
-              Processar com IA
+            <button 
+              onClick={() => processAI.mutate()}
+              disabled={processAI.isPending}
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2 shadow-md shadow-primary/20"
+            >
+              {processAI.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {processAI.isPending ? 'Processando...' : 'Processar com IA'}
             </button>
           </div>
         )}
