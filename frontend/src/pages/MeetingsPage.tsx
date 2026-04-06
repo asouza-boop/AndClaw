@@ -6,7 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import {
   Plus, X, ArrowLeft, Calendar, Clock, Users, Zap,
   FileText, CheckSquare, Brain, Play, Pause, Mic, MicOff, Square,
-  ChevronRight, Search, RotateCcw, Upload, Loader2
+  ChevronRight, Search, RotateCcw, Upload, Loader2, BookOpen
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { MeetingsSkeleton } from '@/components/PageSkeletons';
@@ -347,6 +347,48 @@ function MeetingDetail({
     }
   };
 
+  const generateKnowledge = async () => {
+    if (!meeting.summary && !meeting.transcript) {
+      toast('Gere um resumo ou transcrição antes de extrair conhecimento', 'warn');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const sections = [
+        meeting.summary ? `## Resumo\n${meeting.summary}` : '',
+        meeting.action_items?.length
+          ? `## Ações\n${meeting.action_items
+              .map((a) => `- [${a.done ? 'x' : ' '}] ${a.text}${a.assignee ? ` (@${a.assignee})` : ''}`)
+              .join('\n')}`
+          : '',
+        meeting.transcript
+          ? `## Transcrição\n${meeting.transcript.slice(0, 2000)}${
+              meeting.transcript.length > 2000 ? '\n\n...(truncado)' : ''
+            }`
+          : '',
+      ].filter(Boolean);
+
+      await apiFetch('/api/knowledge', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'insight',
+          title: `Insights: ${meeting.title}`,
+          content: `# Insights: ${meeting.title}\n\n${sections.join('\n\n') || meeting.title}`,
+          source_type: 'meeting',
+          source_id: id,
+        }),
+      });
+
+      qc.invalidateQueries({ queryKey: ['memory'] });
+      toast('Conhecimento extraído e salvo na base!', 'success', '📚 Conhecimento');
+    } catch (err: any) {
+      toast(err.message || 'Erro ao gerar conhecimento', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const toggleAction = async (actionIdx: number) => {
     try {
       const items = [...(meeting.action_items || [])];
@@ -539,6 +581,14 @@ function MeetingDetail({
         >
           <CheckSquare className="w-3 h-3" />
           Extrair Ações
+        </button>
+        <button
+          onClick={generateKnowledge}
+          disabled={processing || uploading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warn/10 text-warn text-xs font-medium hover:bg-warn/20 disabled:opacity-50 transition-colors"
+        >
+          <BookOpen className="w-3 h-3" />
+          Gerar Conhecimento
         </button>
         {processing && <span className="text-xs text-muted-foreground animate-pulse ml-2">Processando...</span>}
       </div>
