@@ -546,6 +546,103 @@ router.post('/agents/:id/skills', async (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+router.post('/agents/:id/execute', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { skill_id, skill_ids, task_id, task_title, task_description } = req.body || {};
+
+  const agentRows = await query<any>(`SELECT * FROM agents WHERE id = $1`, [id]);
+  const agentRow = agentRows[0];
+  if (!agentRow) return res.status(404).json({ error: 'agent not found' });
+
+  const taskRows = task_id
+    ? await query<any>(`SELECT * FROM tasks WHERE id = $1`, [task_id])
+    : [];
+  const task = taskRows[0];
+
+  const requestedSkillIds = Array.isArray(skill_ids) && skill_ids.length
+    ? skill_ids
+    : skill_id
+      ? [skill_id]
+      : Array.isArray(task?.skill_ids) && task.skill_ids.length
+        ? task.skill_ids
+        : [];
+
+  if (!requestedSkillIds.length) {
+    return res.status(400).json({ error: 'skill_id is required' });
+  }
+
+  const availableSkills = await listSkillsFromDisk();
+  const outputs: any[] = [];
+  const scopedUserId = `automation:${id}:${task?.id || task_id || 'manual'}`;
+  const taskLabel = task?.title || task_title || 'Tarefa';
+  const taskNotes = task?.description || task_description || '';
+
+  for (const rawSkillId of requestedSkillIds) {
+    const normalizedSkillId = String(rawSkillId);
+    const skill = availableSkills.find((s: any) =>
+      s.slug === normalizedSkillId ||
+      s.id === normalizedSkillId ||
+      s.name === normalizedSkillId ||
+      s.title === normalizedSkillId
+    );
+
+    if (!skill) {
+      outputs.push({
+        skill_id: normalizedSkillId,
+        ok: false,
+        error: 'skill not found',
+      });
+      continue;
+    }
+
+    if (!hasLLMConfig()) {
+      outputs.push({
+        skill_id: normalizedSkillId,
+        ok: true,
+        offline: true,
+        reply: offlineFallbackMessage(),
+        skill: { id: skill.id, slug: skill.slug, title: skill.title },
+      });
+      continue;
+    }
+
+    const prompt = [
+      `Você é o agente "${agentRow.name || agentRow.title || 'Agente'}".`,
+      `Execute a skill "${skill.title}" com foco na tarefa concluída abaixo.`,
+      '',
+      `Tarefa: ${taskLabel}`,
+      taskNotes ? `Descrição: ${taskNotes}` : '',
+      '',
+      'Conteúdo da skill:',
+      skill.content,
+      '',
+      'Responda de forma objetiva com resultado, próximos passos e riscos.',
+    ].filter(Boolean).join('\n');
+
+    const reply = await agent.processInput(scopedUserId, prompt, {
+      source: 'task_done_automation',
+      agentId: id,
+      taskId: task?.id || task_id || null,
+      skillId: skill.slug,
+    });
+
+    outputs.push({
+      skill_id: normalizedSkillId,
+      ok: true,
+      reply,
+      skill: { id: skill.id, slug: skill.slug, title: skill.title },
+    });
+  }
+
+  res.json({
+    ok: true,
+    agent: { id: agentRow.id, name: agentRow.name, level: agentRow.level, status: agentRow.status },
+    task: task ? { id: task.id, title: task.title, status: task.status } : null,
+    items: outputs,
+    offline: !hasLLMConfig(),
+  });
+});
+
 router.get('/links', async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM page_links ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows });
@@ -1008,12 +1105,12 @@ ${inputData}`;
 });
 
 router.post('/tasks', async (req: Request, res: Response) => {
-  const { title, status = 'open', priority = 'normal', due_date, project_id, meeting_id } = req.body || {};
+  const { title, description, status = 'open', priority = 'normal', due_date, project_id, meeting_id, agent_id, skill_ids = [] } = req.body || {};
   if (!title) return res.status(400).json({ error: 'title is required' });
   const rows = await query(
-    `INSERT INTO tasks (title, status, priority, due_date, project_id, meeting_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [title, status, priority, due_date || null, project_id || null, meeting_id || null]
+    `INSERT INTO tasks (title, description, status, priority, due_date, project_id, agent_id, skill_ids, meeting_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [title, description || null, status, priority, due_date || null, project_id || null, agent_id || null, skill_ids || [], meeting_id || null]
   );
 
   res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
@@ -1036,13 +1133,16 @@ router.get('/tasks', async (req: Request, res: Response) => {
 
 router.patch('/tasks/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { title, status, priority, due_date } = req.body || {};
+  const { title, description, status, priority, due_date, agent_id, skill_ids } = req.body || {};
   const updates: string[] = [];
   const params: any[] = [];
   if (title !== undefined)    { params.push(title);    updates.push(`title = $${params.length}`); }
+  if (description !== undefined) { params.push(description || null); updates.push(`description = $${params.length}`); }
   if (status !== undefined)   { params.push(status);   updates.push(`status = $${params.length}`); }
   if (priority !== undefined) { params.push(priority); updates.push(`priority = $${params.length}`); }
   if (due_date !== undefined) { params.push(due_date || null); updates.push(`due_date = $${params.length}`); }
+  if (agent_id !== undefined) { params.push(agent_id || null); updates.push(`agent_id = $${params.length}`); }
+  if (skill_ids !== undefined) { params.push(skill_ids || []); updates.push(`skill_ids = $${params.length}`); }
   if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
   params.push(id);
   const rows = await query<any>(`UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);

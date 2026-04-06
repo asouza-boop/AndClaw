@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
+import { toast } from '@/stores/toastStore';
+import { useNotificationStore } from '@/stores/notificationStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -125,8 +127,52 @@ export default function ProjectsPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setProjectDialog(false); setNewProject({ color: PROJECT_COLORS[0] }); },
   });
 
+  const executeSkillsMut = useMutation({
+    mutationFn: async ({ task, agentName, skillNames }: { task: Task; agentName: string; skillNames: string[] }) => {
+      const skillIds = task.skill_ids || [];
+      const results = await Promise.allSettled(
+        skillIds.map(skillId =>
+          apiFetch(`/api/agents/${task.agent_id}/execute`, {
+            method: 'POST',
+            body: JSON.stringify({
+              skill_id: skillId,
+              task_id: task.id,
+              task_title: task.title,
+              task_description: task.description || '',
+            }),
+          })
+        )
+      );
+      return { results, agentName, skillNames };
+    },
+    onSuccess: ({ agentName, skillNames }) => {
+      const skillLabel = skillNames.length === 1 ? 'skill' : 'skills';
+      toast(`Agente "${agentName}" executou ${skillNames.length} ${skillLabel}: ${skillNames.join(', ')}`, 'success', '⚡ Automação');
+      useNotificationStore.getState().addNotification({
+        title: 'Automação executada',
+        body: `${agentName} executou: ${skillNames.join(', ')}`,
+        type: 'agent',
+      });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: () => {
+      toast('Falha ao executar automação de skills', 'error', 'Erro');
+    },
+  });
+
   const moveTask = (taskId: string, newStatus: Task['status']) => {
-    saveMut.mutate({ id: taskId, status: newStatus });
+    const task = tasks.find(t => t.id === taskId);
+    saveMut.mutate({ id: taskId, status: newStatus }, {
+      onSuccess: () => {
+        if (newStatus === 'done' && task?.agent_id && task.skill_ids?.length) {
+          const agent = agents.find(a => a.id === task.agent_id);
+          const taskSkills = skills.filter(s => task.skill_ids?.includes(s.id));
+          const agentName = agent?.name || agent?.title || 'Agente';
+          const skillNames = taskSkills.map(s => s.name || s.title || s.slug || 'skill');
+          executeSkillsMut.mutate({ task, agentName, skillNames });
+        }
+      },
+    });
   };
 
   /* filtered tasks */
