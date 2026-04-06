@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { config } from '../config/env';
+import { sendApiError } from './http';
 
 const MIN_TOKEN_LEN = 24;
 
@@ -16,9 +17,15 @@ export function bootstrapGuard(req: Request, res: Response, next: () => void) {
     return next();
   }
 
-  return res.status(409).json({
-    error: 'bootstrap_required',
-    message: 'System not initialized. POST /api/auth/bootstrap to set admin password.',
-    docs: 'POST /api/auth/bootstrap with { "password": "string (min 8)", "tokenSecret": "string (min 24)" }'
-  });
+  return sendApiError(
+    res,
+    409,
+    'bootstrap_required',
+    'System not initialized. POST /api/auth/bootstrap to set admin password.',
+    {
+      docs: 'POST /api/auth/bootstrap with { "password": "string (min 8)", "tokenSecret": "string (min 24)" }',
+      retryable: true,
+      retryAfterMs: 30000,
+    }
+  );
 }

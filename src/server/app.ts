@@ -5,6 +5,7 @@ import path from 'path';
 import routes from './routes';
 import { authMiddleware } from './auth';
 import { bootstrapGuard } from './admin';
+import { attachRequestContext } from './http';
 import { config } from '../config/env';
 
 export function createApp() {
@@ -23,10 +24,12 @@ export function createApp() {
       return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
+    exposedHeaders: ['X-Request-Id', 'X-Retryable', 'Retry-After'],
   };
   app.use(cors(corsOptions));
   app.options('*', cors(corsOptions));
   app.use(express.json({ limit: '5mb' }));
+  app.use(attachRequestContext);
 
   const frontendDistDir = path.join(process.cwd(), 'frontend', 'dist');
   if (!fs.existsSync(frontendDistDir)) {
@@ -35,7 +38,7 @@ export function createApp() {
   app.use(express.static(frontendDistDir));
 
   app.use('/api', (req, res, next) => {
-    const openPaths = ['/health', '/health/db', '/auth/login', '/auth/bootstrap', '/google/oauth/callback'];
+    const openPaths = ['/health', '/health/db', '/health/runtime', '/auth/login', '/auth/bootstrap', '/google/oauth/callback'];
     if (openPaths.includes(req.path)) return next();
 
     return bootstrapGuard(req, res, () => authMiddleware(req, res, next));

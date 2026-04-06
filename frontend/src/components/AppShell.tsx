@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { Topbar } from './Topbar';
+import { BackendRetryBanner } from './BackendRetryBanner';
 import { useEffect } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 
@@ -39,6 +40,7 @@ export function AppShell() {
       </div>
       <AppSidebar />
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
+        <BackendRetryBanner />
         <Topbar title={title} />
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />

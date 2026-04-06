@@ -19,6 +19,7 @@ import { issueToken, verifyLoginPassword } from './auth';
 import { config } from '../config/env';
 import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './settings';
 import { hashPassword, randomSecret } from './crypto';
+import { getRequestId, sendApiError, setRetryHeaders } from './http';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -198,6 +199,35 @@ async function setEntityTags(entityType: string, entityId: string, tagNames: str
   }
 }
 
+async function collectRuntimeStatus() {
+  const bootstrapped = Boolean(config.auth.password && config.auth.tokenSecret);
+  const db = { ok: false, latencyMs: null as number | null, error: '' };
+  try {
+    await ensureSchema();
+    const start = Date.now();
+    await query('SELECT 1 as ok');
+    db.ok = true;
+    db.latencyMs = Date.now() - start;
+  } catch (error: any) {
+    db.error = error?.message || 'database_unavailable';
+  }
+
+  const settings = db.ok ? await loadAppSettings() : {};
+  const ready = bootstrapped && db.ok;
+  const retryable = !ready;
+  const retryAfterMs = ready ? 0 : 30000;
+  return {
+    ok: ready,
+    bootstrapped,
+    ready,
+    retryable,
+    retryAfterMs,
+    db,
+    lastDeploy: settings.LAST_DEPLOY_AT || null,
+    requestId: undefined as string | undefined,
+  };
+}
+
 router.get('/health', async (_req: Request, res: Response) => {
   try {
     await ensureSchema();
@@ -219,54 +249,92 @@ router.get('/health/db', async (_req: Request, res: Response) => {
   }
 });
 
+router.get('/health/runtime', async (_req: Request, res: Response) => {
+  const runtime = await collectRuntimeStatus();
+  setRetryHeaders(res, runtime.retryable, runtime.retryAfterMs || undefined);
+  res.json({
+    ok: runtime.ok,
+    bootstrapped: runtime.bootstrapped,
+    ready: runtime.ready,
+    retryable: runtime.retryable,
+    retryAfterMs: runtime.retryAfterMs,
+    db: runtime.db,
+    lastDeploy: runtime.lastDeploy,
+    requestId: getRequestId(res),
+  });
+});
+
 router.get('/status', async (_req: Request, res: Response) => {
-  await ensureSchema();
-  const db = { ok: false };
   try {
+    await ensureSchema();
+    const db: { ok: boolean; latencyMs?: number } = { ok: false };
+    const start = Date.now();
     await query('SELECT 1 as ok');
     db.ok = true;
-  } catch {}
+    (db as any).latencyMs = Date.now() - start;
 
-  const settings = await loadAppSettings();
-  const googleAccounts = await listConnectedAccounts().catch(() => []);
-  const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
-  const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
-  const raindrop = Boolean(config.raindrop.token);
-  const googleConfigured = Boolean(
-    config.google.oauthClientId &&
-    config.google.oauthClientSecret &&
-    config.google.oauthRedirectUri
-  );
-  const pushCountRow = await query<{ count: string }>('SELECT COUNT(*)::text as count FROM push_subscriptions');
-  const pushSubscriptions = parseInt(pushCountRow[0]?.count || '0', 10);
-  const llmConfigured = Boolean(config.llm.geminiKey || config.llm.openrouterKey || config.llm.deepseekKey);
-  const llm = {
-    gemini: Boolean(config.llm.geminiKey),
-    openrouter: Boolean(config.llm.openrouterKey),
-    deepseek: Boolean(config.llm.deepseekKey),
-  };
-  const recentEvents = [
-    ...(await query<any>(`SELECT 'task' as type, title as message, created_at as timestamp FROM tasks ORDER BY created_at DESC LIMIT 3`)),
-    ...(await query<any>(`SELECT 'meeting' as type, title as message, created_at as timestamp FROM meetings ORDER BY created_at DESC LIMIT 3`)),
-    ...(await query<any>(`SELECT 'capture' as type, content as message, created_at as timestamp FROM captures ORDER BY created_at DESC LIMIT 3`)),
-  ]
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 8);
+    const settings = await loadAppSettings();
+    const googleAccounts = await listConnectedAccounts().catch(() => []);
+    const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
+    const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
+    const raindrop = Boolean(config.raindrop.token);
+    const googleConfigured = Boolean(
+      config.google.oauthClientId &&
+      config.google.oauthClientSecret &&
+      config.google.oauthRedirectUri
+    );
+    const pushCountRow = await query<{ count: string }>('SELECT COUNT(*)::text as count FROM push_subscriptions');
+    const pushSubscriptions = parseInt(pushCountRow[0]?.count || '0', 10);
+    const llmConfigured = Boolean(config.llm.geminiKey || config.llm.openrouterKey || config.llm.deepseekKey);
+    const llm = {
+      gemini: Boolean(config.llm.geminiKey),
+      openrouter: Boolean(config.llm.openrouterKey),
+      deepseek: Boolean(config.llm.deepseekKey),
+    };
+    const recentEvents = [
+      ...(await query<any>(`SELECT 'task' as type, title as message, created_at as timestamp FROM tasks ORDER BY created_at DESC LIMIT 3`)),
+      ...(await query<any>(`SELECT 'meeting' as type, title as message, created_at as timestamp FROM meetings ORDER BY created_at DESC LIMIT 3`)),
+      ...(await query<any>(`SELECT 'capture' as type, content as message, created_at as timestamp FROM captures ORDER BY created_at DESC LIMIT 3`)),
+    ]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 8);
 
-  res.json({
-    ok: true,
-    db,
-    google: { configured: googleConfigured, connectedAccounts: googleAccounts },
-    gitvault,
-    push,
-    raindrop,
-    llm,
-    llmConfigured,
-    pushSubscriptions,
-    deploy: { last: settings.LAST_DEPLOY_AT || null },
-    lastDeploy: settings.LAST_DEPLOY_AT || null,
-    recentEvents,
-  });
+    const bootstrapped = Boolean(config.auth.password && config.auth.tokenSecret);
+    const ready = bootstrapped && db.ok;
+    const retryable = !ready;
+    const retryAfterMs = ready ? 0 : 30000;
+    setRetryHeaders(res, retryable, retryAfterMs || undefined);
+
+    res.json({
+      ok: ready,
+      db,
+      google: { configured: googleConfigured, connectedAccounts: googleAccounts },
+      gitvault,
+      push,
+      raindrop,
+      llm,
+      llmConfigured,
+      pushSubscriptions,
+      deploy: { last: settings.LAST_DEPLOY_AT || null },
+      lastDeploy: settings.LAST_DEPLOY_AT || null,
+      recentEvents,
+      runtime: {
+        bootstrapped,
+        ready,
+        retryable,
+        retryAfterMs,
+        requestId: getRequestId(res),
+      },
+    });
+  } catch (error: any) {
+    sendApiError(
+      res,
+      503,
+      'runtime_unavailable',
+      error?.message || 'Runtime information unavailable',
+      { retryable: true, retryAfterMs: 30000 }
+    );
+  }
 });
 
 router.get('/notifications', async (_req: Request, res: Response) => {
@@ -621,7 +689,13 @@ router.post('/auth/login', async (req: Request, res: Response) => {
   const { password } = req.body || {};
   await loadAuthFromDb();
   if (!config.auth.password || !config.auth.tokenSecret) {
-    return res.status(500).json({ error: 'auth not configured' });
+    return sendApiError(
+      res,
+      503,
+      'auth_not_configured',
+      'Authentication is not configured yet.',
+      { retryable: true, retryAfterMs: 30000 }
+    );
   }
   if (!password || !verifyLoginPassword(password)) {
     return res.status(401).json({ error: 'invalid password' });

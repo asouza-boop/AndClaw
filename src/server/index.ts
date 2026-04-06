@@ -5,10 +5,27 @@ import { loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './set
 import { startSchedulers } from '../jobs/scheduler';
 
 export async function startServer() {
-  await ensureSchema();
-  await loadAuthFromDb();
-  const settings = await loadAppSettings();
-  applyAppSettingsToConfig(settings);
+  let schemaReady = false;
+  try {
+    await ensureSchema();
+    schemaReady = true;
+  } catch (error) {
+    console.error('[Server] Failed to ensure schema during startup', error);
+  }
+
+  try {
+    await loadAuthFromDb();
+  } catch (error) {
+    console.warn('[Server] Failed to load auth from database during startup', error);
+  }
+
+  try {
+    const settings = schemaReady ? await loadAppSettings() : {};
+    applyAppSettingsToConfig(settings);
+  } catch (error) {
+    console.warn('[Server] Failed to load app settings during startup', error);
+  }
+
   const app = createApp();
   const port = config.server.port;
 
