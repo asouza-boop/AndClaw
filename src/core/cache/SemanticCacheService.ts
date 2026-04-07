@@ -2,6 +2,7 @@ import { config } from '@/config/env';
 import { query as defaultQuery } from '@/db/postgres';
 import { toVectorLiteral } from '@/infra/db/vector';
 import { logger } from '@/infra/logger';
+import { metrics } from '@/infra/metrics/MetricsService';
 import { z } from 'zod';
 
 const SemanticCacheSaveSchema = z.object({
@@ -59,6 +60,7 @@ export class SemanticCacheService {
 
     const row = rows[0];
     if (!row) {
+      metrics.increment('cache.miss');
       logger.info('cache.miss', {
         reason: 'empty',
         threshold: parsed.threshold,
@@ -71,6 +73,7 @@ export class SemanticCacheService {
     const distance = Number(row.distance ?? Number.POSITIVE_INFINITY);
     const similarity = Number.isFinite(distance) ? Math.max(0, 1 - distance) : 0;
     if (distance > parsed.threshold) {
+      metrics.increment('cache.miss');
       logger.info('cache.miss', {
         reason: 'threshold',
         distance,
@@ -82,6 +85,7 @@ export class SemanticCacheService {
       return null;
     }
 
+    metrics.increment('cache.hit');
     logger.info('cache.hit', {
       distance,
       similarity,
@@ -111,6 +115,7 @@ export class SemanticCacheService {
       latencyMs: Date.now() - startedAt,
       requestId: context.requestId,
     });
+    metrics.increment('cache.save');
 
     return rows[0] || null;
   }

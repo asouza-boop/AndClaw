@@ -3,6 +3,7 @@ import { query } from '@/db/postgres';
 import { EmbeddingService } from '@/core/embedding/EmbeddingService';
 import { toVectorLiteral } from '@/infra/db/vector';
 import { logger } from '@/infra/logger';
+import { metrics } from '@/infra/metrics/MetricsService';
 import { MemorySaveSchema, MemorySearchSchema } from '@/contracts/memory';
 import { rankSemanticMemories } from '@/core/memory/ranking';
 
@@ -57,6 +58,7 @@ export class MemoryService {
     const parsed = MemorySearchSchema.parse({ embedding, limit });
     if (!config.db.url) return [];
     const start = Date.now();
+    metrics.increment('memory.search.count');
     const fetchLimit = Math.max(parsed.limit * 3, parsed.limit);
     const rows = await query<SemanticMemoryRecord>(
       `SELECT *, (embedding <-> $1::vector) AS distance
@@ -73,6 +75,7 @@ export class MemoryService {
       returned: ranked.length,
       latencyMs: Date.now() - start,
     });
+    metrics.observe('memory.search.latency', Date.now() - start);
     return ranked;
   }
 

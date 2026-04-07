@@ -11,6 +11,7 @@ import { ContextBuilder } from '@/core/ContextBuilder';
 import { AgentRunInputSchema } from '@/contracts/agent';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
+import { metrics } from '@/infra/metrics/MetricsService';
 import { z } from 'zod';
 
 type AgentLoopDeps = {
@@ -63,6 +64,7 @@ export class AgentLoop {
     ): Promise<string> {
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
         const requestId = typeof parsed.options?.requestId === 'string' ? parsed.options.requestId : undefined;
+        const startedAt = Date.now();
         logger.info('agent.run.start', {
           provider: this.providerName,
           historyLength: parsed.history.length,
@@ -89,6 +91,8 @@ export class AgentLoop {
             requestId,
             cache: 'hit',
           });
+          metrics.increment('agent.run.success');
+          metrics.observe('agent.latency', Date.now() - startedAt);
           return cacheHit.output;
         }
         const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
@@ -149,9 +153,11 @@ export class AgentLoop {
                                   : z.object({}).passthrough().parse(normalizedArgs);
                                 observation = await tool.execute(toolArgs);
                                 ToolExecutionResultSchema.parse(observation);
+                                metrics.increment('tool.execution.count');
                             } catch (e: any) {
                                 observation = `Falha ao executar ${call.name}: ${e.message}`;
                                 logger.warn('agent.tool.error', { tool: call.name, error: e.message });
+                                metrics.increment('tool.execution.error');
                             }
                         }
 
@@ -189,14 +195,20 @@ export class AgentLoop {
                   answerLength: response.text.length,
                   requestId,
                 });
+                metrics.increment('agent.run.success');
+                metrics.observe('agent.latency', Date.now() - startedAt);
                 return response.text;
 
             } catch (e: any) {
                 logger.error('agent.run.crash', { provider: this.providerName, error: e.message, requestId });
+                metrics.increment('agent.run.error');
+                metrics.observe('agent.latency', Date.now() - startedAt);
                 return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
             }
         }
 
+        metrics.increment('agent.run.error');
+        metrics.observe('agent.latency', Date.now() - startedAt);
         return `[Sistema] Limite de iterações atingido (${this.maxIterations}). Operação abortada por segurança.`;
     }
 

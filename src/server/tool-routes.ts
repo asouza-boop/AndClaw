@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { ToolRegistry } from '@/core/ToolRegistry';
 import { ToolInvokeRequestSchema } from '@/contracts/api';
 import { ToolExecutionResultSchema } from '@/contracts/tool';
+import { metrics } from '@/infra/metrics/MetricsService';
 import { z } from 'zod';
 
 export type ToolRouteDeps = {
@@ -47,9 +48,11 @@ export function createToolRoutes(overrides: Partial<ToolRouteDeps> = {}) {
         : z.object({}).passthrough().parse(normalizedArgs);
       const output = await tool.execute(input);
       ToolExecutionResultSchema.parse(output);
+      metrics.increment('tool.execution.count');
 
       return res.json({ ok: true, output });
     } catch (error) {
+      metrics.increment('tool.execution.error');
       return next(error);
     }
   });

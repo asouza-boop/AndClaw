@@ -17,6 +17,7 @@ import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { config } from '@/config/env';
 import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/server/settings';
 import { getRequestId, sendApiError, setRetryHeaders } from '@/server/http';
+import { metrics } from '@/infra/metrics/MetricsService';
 import fs from 'fs/promises';
 import path from 'path';
 import authRoutes from '@/server/auth-routes';
@@ -84,6 +85,10 @@ router.use(systemRoutes);
 router.use(agentRoutes);
 router.use(memoryRoutes);
 router.use(toolRoutes);
+
+router.get('/admin/metrics', async (_req: Request, res: Response) => {
+  res.json({ ok: true, metrics: metrics.getMetrics() });
+});
 
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
