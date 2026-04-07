@@ -18,6 +18,11 @@ export default function SettingsPage() {
   const qc = useQueryClient();
   const { data: status } = useQuery({ queryKey: ['status'], queryFn: () => apiFetch<any>('/api/status').catch(() => null) });
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: () => apiFetch<any>('/api/settings').catch(() => null) });
+  const { data: metricsData, isFetching: metricsLoading, refetch: refetchMetrics } = useQuery({
+    queryKey: ['admin-metrics'],
+    queryFn: () => apiFetch<any>('/admin/metrics').catch(() => null),
+    refetchInterval: 30000,
+  });
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [configValue, setConfigValue] = useState('');
   const [saving, setSaving] = useState(false);
@@ -51,6 +56,23 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const metrics = metricsData?.metrics || {};
+  const metricValue = (key: string) => {
+    const entry = metrics[key];
+    if (!entry) return null;
+    if (typeof entry.value === 'number') return entry.value;
+    if (typeof entry.count === 'number') return entry.count;
+    return null;
+  };
+  const metricAvg = (key: string) => {
+    const entry = metrics[key];
+    return typeof entry?.average === 'number' ? entry.average : null;
+  };
+  const metricCount = (key: string) => {
+    const entry = metrics[key];
+    return typeof entry?.count === 'number' ? entry.count : null;
   };
 
   return (
@@ -117,6 +139,50 @@ export default function SettingsPage() {
           {(!status?.recentEvents || status.recentEvents.length === 0) && (
             <p className="text-sm text-muted-foreground">Nenhum evento recente</p>
           )}
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="rounded-xl bg-surface glow-border p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Métricas</h3>
+            <p className="text-xs text-muted-foreground">Visão leve de cache, agente, memória e ferramentas.</p>
+          </div>
+          <button
+            onClick={() => refetchMetrics()}
+            className="px-3 py-2 rounded-md text-xs border border-white/[0.08] text-foreground hover:bg-surface-2 transition-colors disabled:opacity-50"
+            disabled={metricsLoading}
+          >
+            {metricsLoading ? 'Atualizando...' : 'Atualizar'}
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          {[
+            { label: 'Cache Hit', key: 'cache.hit', kind: 'count' as const },
+            { label: 'Cache Miss', key: 'cache.miss', kind: 'count' as const },
+            { label: 'Agent Latency', key: 'agent.latency', kind: 'avg' as const, suffix: 'ms' },
+            { label: 'Memory Search', key: 'memory.search.count', kind: 'count' as const },
+            { label: 'Tool Exec', key: 'tool.execution.count', kind: 'count' as const },
+            { label: 'Tool Errors', key: 'tool.execution.error', kind: 'count' as const },
+            { label: 'Memory Latency', key: 'memory.search.latency', kind: 'avg' as const, suffix: 'ms' },
+            { label: 'Cache Save', key: 'cache.save', kind: 'count' as const },
+          ].map((item) => {
+            const value = item.kind === 'avg' ? metricAvg(item.key) : metricValue(item.key);
+            const count = metricCount(item.key);
+            return (
+              <div key={item.key} className="rounded-lg bg-surface-2 border border-white/[0.06] p-4">
+                <div className="text-xs text-muted-foreground">{item.label}</div>
+                <div className="mt-2 text-xl font-semibold">
+                  {value ?? '—'}
+                  {item.suffix ? <span className="text-sm text-muted-foreground ml-1">{item.suffix}</span> : null}
+                </div>
+                {item.kind === 'avg' && count !== null && (
+                  <div className="mt-1 text-[11px] text-muted-foreground">n={count}</div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
