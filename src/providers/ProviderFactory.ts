@@ -3,7 +3,7 @@ import { GeminiProvider } from './GeminiProvider';
 import { DeepSeekProvider } from './DeepSeekProvider';
 import { OpenRouterProvider } from './OpenRouterProvider';
 import { ProviderChain } from './ProviderChain';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 import { LocalOllamaProvider } from './LocalOllamaProvider';
 
 export class ProviderFactory {

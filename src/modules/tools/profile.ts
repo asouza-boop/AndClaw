@@ -1,5 +1,5 @@
 import { Tool } from './Tool';
-import { ProfileRepository } from '../../memory/repositories/ProfileRepository';
+import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
 
 export class UpdateProfileTool implements Tool {
   name = 'update_user_profile';

@@ -1,4 +1,4 @@
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 export function hasLLMConfig(): boolean {
   return Boolean(

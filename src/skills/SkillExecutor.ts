@@ -1,6 +1,6 @@
 import { Skill } from './SkillLoader';
-import { AgentLoop } from '../core/AgentLoop';
-import { ToolRegistry } from '../core/ToolRegistry';
+import { AgentLoop } from '@/core/AgentLoop';
+import { ToolRegistry } from '@/core/ToolRegistry';
 
 export class SkillExecutor {
     private registry: ToolRegistry;

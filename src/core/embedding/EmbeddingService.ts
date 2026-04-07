@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { normalizeVector, VECTOR_DIMENSIONS } from '../../infra/db/vector';
+import { normalizeVector, VECTOR_DIMENSIONS } from '@/infra/db/vector';
 
 type EmbeddingOptions = {
   provider?: 'openai-compatible' | 'local';

@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import { exportDailyGitVault } from '../integrations/gitvault';
-import { syncGoogleCalendars } from '../integrations/googleCalendar';
-import { sendDailyTaskAlerts } from '../integrations/push';
+import { exportDailyGitVault } from '@/integrations/gitvault';
+import { syncGoogleCalendars } from '@/integrations/googleCalendar';
+import { sendDailyTaskAlerts } from '@/integrations/push';
 
 export function startSchedulers() {
   const calendarSyncInterval = process.env.CALENDAR_SYNC_INTERVAL_MIN || '30';

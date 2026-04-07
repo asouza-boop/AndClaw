@@ -1,7 +1,7 @@
 import { google } from 'googleapis';
-import { config } from '../config/env';
-import { ensureSchema } from '../db/schema';
-import { query } from '../db/postgres';
+import { config } from '@/config/env';
+import { ensureSchema } from '@/db/schema';
+import { query } from '@/db/postgres';
 
 interface GoogleAccountConfig {
   email: string;

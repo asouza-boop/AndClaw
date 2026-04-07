@@ -1,5 +1,5 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 /**
  * OpenRouter provider - free tier supports Llama, Mistral, Gemma, etc.

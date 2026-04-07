@@ -1,5 +1,5 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 export class DeepSeekProvider implements ILLMProvider {
   private apiKey: string;

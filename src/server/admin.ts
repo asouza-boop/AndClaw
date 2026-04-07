@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { config } from '../config/env';
-import { sendApiError } from './http';
+import { config } from '@/config/env';
+import { sendApiError } from '@/server/http';
 
 const MIN_TOKEN_LEN = 24;
 

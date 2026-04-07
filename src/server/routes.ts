@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { query } from '../db/postgres';
-import { ensureSchema } from '../db/schema';
+import { query } from '@/db/postgres';
+import { ensureSchema } from '@/db/schema';
 import {
   syncGoogleCalendars,
   exportTasksToGoogle,
@@ -9,22 +9,22 @@ import {
   getGoogleAuthUrl,
   handleGoogleOAuthCallback,
   listConnectedAccounts,
-} from '../integrations/googleCalendar';
-import { exportDailyGitVault } from '../integrations/gitvault';
-import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '../integrations/push';
-import { listRaindropCollections, listRaindrops } from '../integrations/raindrop';
-import { AgentController } from '../core/AgentController';
-import { hasLLMConfig, offlineFallbackMessage } from './llm';
-import { config } from '../config/env';
-import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './settings';
-import { getRequestId, sendApiError, setRetryHeaders } from './http';
+} from '@/integrations/googleCalendar';
+import { exportDailyGitVault } from '@/integrations/gitvault';
+import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '@/integrations/push';
+import { listRaindropCollections, listRaindrops } from '@/integrations/raindrop';
+import { AgentController } from '@/core/AgentController';
+import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
+import { config } from '@/config/env';
+import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/server/settings';
+import { getRequestId, sendApiError, setRetryHeaders } from '@/server/http';
 import fs from 'fs/promises';
 import path from 'path';
-import authRoutes from './auth-routes';
+import authRoutes from '@/server/auth-routes';
+import systemRoutes from '@/server/system-routes';
 
 const router = Router();
 const agent = new AgentController();
-router.use(authRoutes);
 
 type SkillDiskRecord = {
   slug: string;
@@ -84,6 +84,9 @@ const agentLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Muitas requisições. Aguarde um momento.' },
 });
+
+router.use(authRoutes);
+router.use(systemRoutes);
 
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
@@ -172,144 +175,6 @@ async function setEntityTags(entityType: string, entityId: string, tagNames: str
     );
   }
 }
-
-async function collectRuntimeStatus() {
-  const bootstrapped = Boolean(config.auth.password && config.auth.tokenSecret);
-  const db = { ok: false, latencyMs: null as number | null, error: '' };
-  try {
-    await ensureSchema();
-    const start = Date.now();
-    await query('SELECT 1 as ok');
-    db.ok = true;
-    db.latencyMs = Date.now() - start;
-  } catch (error: any) {
-    db.error = error?.message || 'database_unavailable';
-  }
-
-  const settings = db.ok ? await loadAppSettings() : {};
-  const ready = bootstrapped && db.ok;
-  const retryable = !ready;
-  const retryAfterMs = ready ? 0 : 30000;
-  return {
-    ok: ready,
-    bootstrapped,
-    ready,
-    retryable,
-    retryAfterMs,
-    db,
-    lastDeploy: settings.LAST_DEPLOY_AT || null,
-    requestId: undefined as string | undefined,
-  };
-}
-
-router.get('/health', async (_req: Request, res: Response) => {
-  try {
-    await ensureSchema();
-    await query('SELECT 1 as ok');
-    res.json({ ok: true });
-  } catch (error: any) {
-    res.status(500).json({ ok: false, error: error.message });
-  }
-});
-
-router.get('/health/db', async (_req: Request, res: Response) => {
-  try {
-    const start = Date.now();
-    await query('SELECT 1 as ok');
-    const latencyMs = Date.now() - start;
-    res.json({ ok: true, latency_ms: latencyMs, database: 'postgresql' });
-  } catch (error: any) {
-    res.status(503).json({ ok: false, error: error.message, database: 'postgresql' });
-  }
-});
-
-router.get('/health/runtime', async (_req: Request, res: Response) => {
-  const runtime = await collectRuntimeStatus();
-  setRetryHeaders(res, runtime.retryable, runtime.retryAfterMs || undefined);
-  res.json({
-    ok: runtime.ok,
-    bootstrapped: runtime.bootstrapped,
-    ready: runtime.ready,
-    retryable: runtime.retryable,
-    retryAfterMs: runtime.retryAfterMs,
-    db: runtime.db,
-    lastDeploy: runtime.lastDeploy,
-    requestId: getRequestId(res),
-  });
-});
-
-router.get('/status', async (_req: Request, res: Response) => {
-  try {
-    await ensureSchema();
-    const db: { ok: boolean; latencyMs?: number } = { ok: false };
-    const start = Date.now();
-    await query('SELECT 1 as ok');
-    db.ok = true;
-    (db as any).latencyMs = Date.now() - start;
-
-    const settings = await loadAppSettings();
-    const googleAccounts = await listConnectedAccounts().catch(() => []);
-    const gitvault = Boolean(config.gitvault.repo && config.gitvault.token);
-    const push = Boolean(config.push.vapidPublicKey && config.push.vapidPrivateKey);
-    const raindrop = Boolean(config.raindrop.token);
-    const googleConfigured = Boolean(
-      config.google.oauthClientId &&
-      config.google.oauthClientSecret &&
-      config.google.oauthRedirectUri
-    );
-    const pushCountRow = await query<{ count: string }>('SELECT COUNT(*)::text as count FROM push_subscriptions');
-    const pushSubscriptions = parseInt(pushCountRow[0]?.count || '0', 10);
-    const llmConfigured = Boolean(config.llm.geminiKey || config.llm.openrouterKey || config.llm.deepseekKey);
-    const llm = {
-      gemini: Boolean(config.llm.geminiKey),
-      openrouter: Boolean(config.llm.openrouterKey),
-      deepseek: Boolean(config.llm.deepseekKey),
-    };
-    const recentEvents = [
-      ...(await query<any>(`SELECT 'task' as type, title as message, created_at as timestamp FROM tasks ORDER BY created_at DESC LIMIT 3`)),
-      ...(await query<any>(`SELECT 'meeting' as type, title as message, created_at as timestamp FROM meetings ORDER BY created_at DESC LIMIT 3`)),
-      ...(await query<any>(`SELECT 'capture' as type, content as message, created_at as timestamp FROM captures ORDER BY created_at DESC LIMIT 3`)),
-    ]
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 8);
-
-    const bootstrapped = Boolean(config.auth.password && config.auth.tokenSecret);
-    const ready = bootstrapped && db.ok;
-    const retryable = !ready;
-    const retryAfterMs = ready ? 0 : 30000;
-    setRetryHeaders(res, retryable, retryAfterMs || undefined);
-
-    res.json({
-      ok: ready,
-      db,
-      google: { configured: googleConfigured, connectedAccounts: googleAccounts },
-      gitvault,
-      push,
-      raindrop,
-      llm,
-      llmConfigured,
-      pushSubscriptions,
-      deploy: { last: settings.LAST_DEPLOY_AT || null },
-      lastDeploy: settings.LAST_DEPLOY_AT || null,
-      recentEvents,
-      runtime: {
-        bootstrapped,
-        ready,
-        retryable,
-        retryAfterMs,
-        requestId: getRequestId(res),
-      },
-    });
-  } catch (error: any) {
-    sendApiError(
-      res,
-      503,
-      'runtime_unavailable',
-      error?.message || 'Runtime information unavailable',
-      { retryable: true, retryAfterMs: 30000 }
-    );
-  }
-});
 
 router.get('/notifications', async (_req: Request, res: Response) => {
   await ensureSchema();

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { query } from '../db/postgres';
-import { config } from '../config/env';
-import { issueToken, verifyLoginPassword } from './auth';
-import { loadAuthFromDb, setSetting } from './settings';
-import { hashPassword, randomSecret } from './crypto';
-import { sendApiError } from './http';
+import { query } from '@/db/postgres';
+import { config } from '@/config/env';
+import { issueToken, verifyLoginPassword } from '@/server/auth';
+import { loadAuthFromDb, setSetting } from '@/server/settings';
+import { hashPassword, randomSecret } from '@/server/crypto';
+import { sendApiError } from '@/server/http';
 
 const authRoutes = Router();
 

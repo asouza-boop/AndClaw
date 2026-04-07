@@ -1,6 +1,6 @@
 import { Bot, Context } from 'grammy';
-import { AgentController } from '../core/AgentController';
-import { config } from '../config/env';
+import { AgentController } from '@/core/AgentController';
+import { config } from '@/config/env';
 import fs from 'fs';
 import path from 'path';
 const pdf = require('pdf-parse');

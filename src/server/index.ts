@@ -1,8 +1,8 @@
 import { createApp } from './app';
-import { config } from '../config/env';
-import { ensureSchema } from '../db/schema';
-import { loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from './settings';
-import { startSchedulers } from '../jobs/scheduler';
+import { config } from '@/config/env';
+import { ensureSchema } from '@/db/schema';
+import { loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/server/settings';
+import { startSchedulers } from '@/jobs/scheduler';
 
 export async function startServer() {
   let schemaReady = false;

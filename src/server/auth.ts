@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import { verifyPassword } from './crypto';
-import { config } from '../config/env';
+import { verifyPassword } from '@/server/crypto';
+import { config } from '@/config/env';
 import { Request, Response, NextFunction } from 'express';
 
 function base64UrlEncode(input: Buffer | string) {

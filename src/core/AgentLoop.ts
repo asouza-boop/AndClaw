@@ -1,10 +1,10 @@
-import { ProviderFactory } from '../providers/ProviderFactory';
-import { ToolRegistry } from './ToolRegistry';
-import { config } from '../config/env';
-import { ProfileRepository } from '../memory/repositories/ProfileRepository';
-import { EmbeddingService } from './embedding/EmbeddingService';
-import { MemoryService } from './memory/MemoryService';
-import { MemoryManager } from '../memory/MemoryManager';
+import { ProviderFactory } from '@/providers/ProviderFactory';
+import { ToolRegistry } from '@/core/ToolRegistry';
+import { config } from '@/config/env';
+import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
+import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { MemoryService } from '@/core/memory/MemoryService';
+import { MemoryManager } from '@/memory/MemoryManager';
 
 export class AgentLoop {
     private providerName: string;

@@ -1,7 +1,7 @@
-import { config } from '../../config/env';
-import { query } from '../../db/postgres';
-import { EmbeddingService } from '../embedding/EmbeddingService';
-import { toVectorLiteral } from '../../infra/db/vector';
+import { config } from '@/config/env';
+import { query } from '@/db/postgres';
+import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { toVectorLiteral } from '@/infra/db/vector';
 
 export interface SemanticMemoryRecord {
   id?: number;

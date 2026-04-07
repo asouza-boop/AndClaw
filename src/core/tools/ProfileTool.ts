@@ -1,1 +1,1 @@
-export { UpdateProfileTool, DeleteProfileTool } from '../../modules/tools/profile';
+export { UpdateProfileTool, DeleteProfileTool } from '@/modules/tools/profile';

@@ -1,6 +1,6 @@
-import { Tool } from '../modules/tools/Tool';
-import { UpdateProfileTool, DeleteProfileTool } from '../modules/tools/profile';
-import { NotionTool } from './tools/NotionTool';
+import { Tool } from '@/modules/tools/Tool';
+import { UpdateProfileTool, DeleteProfileTool } from '@/modules/tools/profile';
+import { NotionTool } from '@/core/tools/NotionTool';
 
 export interface Initializer {
     execute(args: any): Promise<string>;
@@ -42,7 +42,7 @@ export class ToolRegistry {
 import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 class FileSystemReadTool implements ITool {
     name = "read_file";

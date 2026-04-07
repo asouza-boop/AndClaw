@@ -1,6 +1,6 @@
-import { ProviderFactory } from '../providers/ProviderFactory';
+import { ProviderFactory } from '@/providers/ProviderFactory';
 import { Skill } from './SkillLoader';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 export class SkillRouter {
   

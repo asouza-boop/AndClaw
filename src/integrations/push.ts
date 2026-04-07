@@ -1,7 +1,7 @@
 import webpush from 'web-push';
-import { config } from '../config/env';
-import { ensureSchema } from '../db/schema';
-import { query } from '../db/postgres';
+import { config } from '@/config/env';
+import { ensureSchema } from '@/db/schema';
+import { query } from '@/db/postgres';
 
 function ensureVapid() {
   if (!config.push.vapidPublicKey || !config.push.vapidPrivateKey) {

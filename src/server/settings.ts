@@ -1,6 +1,6 @@
-import { query } from '../db/postgres';
-import { ensureSchema } from '../db/schema';
-import { config } from '../config/env';
+import { query } from '@/db/postgres';
+import { ensureSchema } from '@/db/schema';
+import { config } from '@/config/env';
 
 export async function getSetting(key: string): Promise<string | null> {
   await ensureSchema();
@@ -25,7 +25,7 @@ export async function loadAuthFromDb(): Promise<void> {
   const tokenSecret = await getSetting('auth_token_secret');
 
   if (config.auth.password && !config.auth.password.startsWith('scrypt$')) {
-    const { hashPassword } = await import('./crypto');
+    const { hashPassword } = await import('@/server/crypto');
     config.auth.password = hashPassword(config.auth.password);
   }
 

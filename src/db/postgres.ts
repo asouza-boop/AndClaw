@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 let pool: Pool | null = null;
 

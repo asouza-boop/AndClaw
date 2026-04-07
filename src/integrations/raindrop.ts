@@ -1,4 +1,4 @@
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 const BASE_URL = 'https://api.raindrop.io/rest/v1';
 

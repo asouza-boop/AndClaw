@@ -1,6 +1,6 @@
-import { config } from '../config/env';
-import { query } from '../db/postgres';
-import { ensureSchema } from '../db/schema';
+import { config } from '@/config/env';
+import { query } from '@/db/postgres';
+import { ensureSchema } from '@/db/schema';
 
 function requireGitVaultConfig() {
   if (!config.gitvault.repo || !config.gitvault.token) {

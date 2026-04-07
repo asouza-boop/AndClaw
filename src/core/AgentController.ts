@@ -1,8 +1,8 @@
-import { MemoryManager } from '../memory/MemoryManager';
-import { SkillLoader } from '../skills/SkillLoader';
-import { SkillRouter } from '../skills/SkillRouter';
-import { SkillExecutor } from '../skills/SkillExecutor';
-import { config } from '../config/env';
+import { MemoryManager } from '@/memory/MemoryManager';
+import { SkillLoader } from '@/skills/SkillLoader';
+import { SkillRouter } from '@/skills/SkillRouter';
+import { SkillExecutor } from '@/skills/SkillExecutor';
+import { config } from '@/config/env';
 
 export class AgentController {
     private memoryManager: MemoryManager;

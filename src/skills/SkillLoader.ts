@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { config } from '../config/env';
+import { config } from '@/config/env';
 
 export interface SkillMetadata {
   name: string;

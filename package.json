@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm run frontend:install && npm run frontend:build && npm run frontend:sync-public && tsc",
+    "build": "npm run frontend:install && npm run frontend:build && npm run frontend:sync-public && tsc && tsc-alias -p tsconfig.json",
     "start": "node dist/index.js",
     "db:init": "tsx scripts/db-init.ts",
     "watch:transcripts": "tsx scripts/watch-transcripts.ts",
@@ -54,6 +54,7 @@
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
     "@types/web-push": "^3.6.4",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }

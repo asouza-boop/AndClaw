@@ -2,11 +2,11 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
-import routes from './routes';
-import { authMiddleware } from './auth';
-import { bootstrapGuard } from './admin';
-import { attachRequestContext } from './http';
-import { config } from '../config/env';
+import routes from '@/server/routes';
+import { authMiddleware } from '@/server/auth';
+import { bootstrapGuard } from '@/server/admin';
+import { attachRequestContext } from '@/server/http';
+import { config } from '@/config/env';
 
 export function createApp() {
   const app = express();

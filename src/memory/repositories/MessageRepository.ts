@@ -1,5 +1,5 @@
-import { config } from '../../config/env';
-import { query } from '../../db/postgres';
+import { config } from '@/config/env';
+import { query } from '@/db/postgres';
 
 export interface Message {
   id?: number;

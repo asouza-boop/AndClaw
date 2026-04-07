@@ -1,8 +1,8 @@
 import crypto from 'crypto';
-import { ConversationRepository } from './repositories/ConversationRepository';
-import { MessageRepository, Message } from './repositories/MessageRepository';
-import { EmbeddingService } from '../core/embedding/EmbeddingService';
-import { MemoryService, SemanticMemoryRecord } from '../core/memory/MemoryService';
+import { ConversationRepository } from '@/memory/repositories/ConversationRepository';
+import { MessageRepository, Message } from '@/memory/repositories/MessageRepository';
+import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { MemoryService, SemanticMemoryRecord } from '@/core/memory/MemoryService';
 
 export class MemoryManager {
   private conversationRepo: ConversationRepository;

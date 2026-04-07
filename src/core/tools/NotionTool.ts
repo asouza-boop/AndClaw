@@ -1,5 +1,5 @@
-import { Tool } from '../../modules/tools/Tool';
-import { config } from '../../config/env';
+import { Tool } from '@/modules/tools/Tool';
+import { config } from '@/config/env';
 
 export class NotionTool implements Tool {
     name = "notion_api";
