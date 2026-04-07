@@ -25,6 +25,7 @@ test('metrics service tracks counters and observations', async () => {
   assert.equal(snapshot['agent.latency']?.min, 10);
   assert.equal(snapshot['agent.latency']?.max, 30);
   assert.equal(snapshot['agent.latency']?.last, 30);
+  assert.ok(metrics.getHistory().length >= 4);
 });
 
 test('admin metrics endpoint is protected and returns snapshot', async () => {
@@ -57,6 +58,8 @@ test('admin metrics endpoint is protected and returns snapshot', async () => {
     assert.equal(authorized.body.metrics['cache.hit'].value, 1);
     assert.equal(authorized.body.metrics['agent.latency'].count, 1);
     assert.equal(authorized.body.metrics['agent.latency'].average, 12);
+    assert.ok(Array.isArray(authorized.body.history));
+    assert.ok(authorized.body.history.length >= 2);
     assert.ok(authorized.headers['x-request-id']);
   } finally {
     globalConfig.auth.password = originalAuth.password;

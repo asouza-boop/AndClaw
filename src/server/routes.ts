@@ -87,7 +87,7 @@ router.use(memoryRoutes);
 router.use(toolRoutes);
 
 router.get('/admin/metrics', async (_req: Request, res: Response) => {
-  res.json({ ok: true, metrics: metrics.getMetrics() });
+  res.json({ ok: true, metrics: metrics.getMetrics(), history: metrics.getHistory() });
 });
 
 async function listSkillsFromDisk() {

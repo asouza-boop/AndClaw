@@ -65,7 +65,7 @@ export function createApp() {
   app.get('/admin/metrics', (req, res, next) => {
     bootstrapGuard(req, res, () => authMiddleware(req, res, next));
   }, (_req, res) => {
-    res.json({ ok: true, metrics: metrics.getMetrics() });
+    res.json({ ok: true, metrics: metrics.getMetrics(), history: metrics.getHistory() });
   });
   app.use(errorHandler);
 

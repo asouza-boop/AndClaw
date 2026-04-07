@@ -59,6 +59,7 @@ export default function SettingsPage() {
   };
 
   const metrics = metricsData?.metrics || {};
+  const history = Array.isArray(metricsData?.history) ? metricsData.history : [];
   const metricValue = (key: string) => {
     const entry = metrics[key];
     if (!entry) return null;
@@ -183,6 +184,39 @@ export default function SettingsPage() {
               </div>
             );
           })}
+        </div>
+        <div className="pt-2 border-t border-white/[0.06]">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Histórico recente</p>
+              <p className="text-xs text-muted-foreground">Últimos snapshots em memória para depuração rápida.</p>
+            </div>
+            <span className="text-[11px] text-muted-foreground">{history.length} snapshots</span>
+          </div>
+          <div className="space-y-2">
+            {history.slice(0, 5).map((entry: any) => {
+              const cacheHits = entry.metrics?.['cache.hit']?.value ?? 0;
+              const agentLatency = entry.metrics?.['agent.latency']?.average ?? 0;
+              const memorySearch = entry.metrics?.['memory.search.count']?.value ?? 0;
+              return (
+                <div key={`${entry.capturedAt}-${entry.mutationCount}`} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-lg bg-surface-2 border border-white/[0.06] px-3 py-2">
+                  <div className="text-xs text-muted-foreground">
+                    {new Date(entry.capturedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    <span className="mx-2 text-white/30">•</span>
+                    mutação #{entry.mutationCount}
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">cache.hit {cacheHits}</span>
+                    <span className="px-2 py-1 rounded-full bg-accent/10 text-accent">agent.latency {Math.round(agentLatency)}ms</span>
+                    <span className="px-2 py-1 rounded-full bg-white/[0.04] text-muted-foreground">memory.search {memorySearch}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {history.length === 0 && (
+              <p className="text-sm text-muted-foreground">Histórico ainda vazio.</p>
+            )}
+          </div>
         </div>
       </div>
 

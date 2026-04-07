@@ -27,9 +27,17 @@ type MetricsSnapshot = Record<string, {
   last?: number;
 }>;
 
+type MetricsHistoryEntry = {
+  capturedAt: string;
+  mutationCount: number;
+  metrics: MetricsSnapshot;
+};
+
 class MetricsServiceImpl {
   private store = new Map<string, MetricState>();
   private mutationCount = 0;
+  private history: MetricsHistoryEntry[] = [];
+  private readonly historyLimit = 10;
   private readonly snapshotEvery = 100;
 
   public increment(metric: string): void {
@@ -85,13 +93,28 @@ class MetricsServiceImpl {
     return snapshot;
   }
 
+  public getHistory(): MetricsHistoryEntry[] {
+    return this.history.map((entry) => ({
+      capturedAt: entry.capturedAt,
+      mutationCount: entry.mutationCount,
+      metrics: structuredClone(entry.metrics),
+    }));
+  }
+
   public reset(): void {
     this.store.clear();
     this.mutationCount = 0;
+    this.history = [];
   }
 
   private bump(): void {
     this.mutationCount += 1;
+    this.history.unshift({
+      capturedAt: new Date().toISOString(),
+      mutationCount: this.mutationCount,
+      metrics: this.getMetrics(),
+    });
+    this.history = this.history.slice(0, this.historyLimit);
     if (this.mutationCount % this.snapshotEvery === 0) {
       logger.info('metrics.snapshot', {
         mutationCount: this.mutationCount,
