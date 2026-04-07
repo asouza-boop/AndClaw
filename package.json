@@ -54,7 +54,9 @@
     "@types/node": "^25.5.0",
     "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.18.0",
+    "@types/supertest": "^7.2.0",
     "@types/web-push": "^3.6.4",
+    "supertest": "^7.2.2",
     "tsc-alias": "^1.8.16",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"

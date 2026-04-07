@@ -1,5 +1,4 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
 import { query } from '@/db/postgres';
 import { ensureSchema } from '@/db/schema';
 import {
@@ -22,6 +21,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import authRoutes from '@/server/auth-routes';
 import systemRoutes from '@/server/system-routes';
+import agentRoutes from '@/server/agent-routes';
+import memoryRoutes from '@/server/memory-routes';
+import toolRoutes from '@/server/tool-routes';
 
 const router = Router();
 const agent = new AgentController();
@@ -77,16 +79,11 @@ function mapMeetingRow(meeting: any) {
   };
 }
 
-const agentLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Muitas requisições. Aguarde um momento.' },
-});
-
 router.use(authRoutes);
 router.use(systemRoutes);
+router.use(agentRoutes);
+router.use(memoryRoutes);
+router.use(toolRoutes);
 
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
@@ -681,30 +678,6 @@ router.post('/skill-chat', async (req: Request, res: Response) => {
   }
 });
 
-router.post('/ag', agentLimiter, async (req: Request, res: Response) => {
-  const { input, message, options = {} } = req.body || {};
-  const userId = (req as any).user?.sub || 'pwa-user';
-  const resolvedInput = input || message;
-  if (!resolvedInput) return res.status(400).json({ error: 'input is required' });
-  if (!hasLLMConfig()) {
-    return res.json({ ok: true, reply: offlineFallbackMessage() });
-  }
-  const reply = await agent.processInput(userId, resolvedInput, options);
-  res.json({ ok: true, reply });
-});
-
-router.post('/agent', agentLimiter, async (req: Request, res: Response) => {
-  const { input, message, options = {} } = req.body || {};
-  const userId = (req as any).user?.sub || 'pwa-user';
-  const resolvedInput = input || message;
-  if (!resolvedInput) return res.status(400).json({ error: 'input is required' });
-  if (!hasLLMConfig()) {
-    return res.json({ ok: true, reply: offlineFallbackMessage() });
-  }
-  const reply = await agent.processInput(userId, resolvedInput, options);
-  res.json({ ok: true, reply });
-});
-
 router.post('/captures', async (req: Request, res: Response) => {
   const body = req.body || {};
   // Accept 'title' as alias for 'content' (REST convention compatibility)
@@ -1047,60 +1020,6 @@ router.post('/meetings/:id/process', async (req: Request, res: Response) => {
 router.get('/meetings', async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM meetings ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows.map(mapMeetingRow) });
-});
-
-router.post('/memory', async (req: Request, res: Response) => {
-  const { type, content, source_type, source_id } = req.body || {};
-  if (!type || !content) return res.status(400).json({ error: 'type and content are required' });
-  const rows = await query(
-    `INSERT INTO memory_items (type, content, source_type, source_id)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [type, content, source_type || null, source_id || null]
-  );
-  res.json({ ok: true, item: rows[0] });
-});
-
-router.get('/memory', async (_req: Request, res: Response) => {
-  const rows = await query(`SELECT * FROM memory_items ORDER BY created_at DESC LIMIT 200`);
-  res.json({ ok: true, items: rows });
-});
-
-// Knowledge API aliases (Lovable compatibility)
-router.get('/knowledge', async (_req: Request, res: Response) => {
-  const rows = await query(`SELECT * FROM memory_items ORDER BY created_at DESC LIMIT 200`);
-  res.json({ ok: true, items: rows });
-});
-
-router.post('/knowledge', async (req: Request, res: Response) => {
-  const { type, content, source_type, source_id, title } = req.body || {};
-  const actualContent = content || title;
-  if (!type || !actualContent) return res.status(400).json({ error: 'type and content are required' });
-  const rows = await query(
-    `INSERT INTO memory_items (type, content, source_type, source_id)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [type, actualContent, source_type || null, source_id || null]
-  );
-  res.json({ ok: true, item: rows[0] });
-});
-
-router.patch('/knowledge/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { content, type, title } = req.body || {};
-  const actualContent = content || title;
-  const updates: string[] = [];
-  const params: any[] = [];
-  if (actualContent !== undefined) { params.push(actualContent); updates.push(`content = $${params.length}`); }
-  if (type !== undefined) { params.push(type); updates.push(`type = $${params.length}`); }
-  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
-  params.push(id);
-  const rows = await query(`UPDATE memory_items SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
-  res.json({ ok: true, item: rows[0] });
-});
-
-router.delete('/knowledge/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  await query(`DELETE FROM memory_items WHERE id = $1`, [id]);
-  res.json({ ok: true });
 });
 
 router.post('/projects', async (req: Request, res: Response) => {

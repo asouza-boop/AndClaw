@@ -58,10 +58,12 @@ export class AgentLoop {
         options: any = {}
     ): Promise<string> {
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
+        const requestId = parsed.options?.requestId;
         logger.info('agent.run.start', {
           provider: this.providerName,
           historyLength: parsed.history.length,
           userInputLength: parsed.userInput.length,
+          requestId,
         });
 
         const profile = await this.profileRepo.getAll();
@@ -95,7 +97,7 @@ export class AgentLoop {
 
         while (iterations < this.maxIterations) {
             iterations++;
-            logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations });
+            logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
 
             try {
                 const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
@@ -103,7 +105,7 @@ export class AgentLoop {
                 // Thought -> Action -> Observation
                 if (response.toolCalls && response.toolCalls.length > 0) {
                     for (const call of response.toolCalls) {
-                        logger.info('agent.tool.call', { tool: call.name });
+                        logger.info('agent.tool.call', { tool: call.name, requestId });
                         
                         const tool = this.registry.getTool(call.name);
                         let observation = "";
@@ -148,6 +150,7 @@ export class AgentLoop {
                         logger.info('agent.tool.observation', {
                           tool: call.name,
                           observationLength: observation.length,
+                          requestId,
                         });
                     }
                     // Loop volta pro início (Thought) com mensagens novas no buffer.
@@ -162,11 +165,12 @@ export class AgentLoop {
                 logger.info('agent.run.complete', {
                   provider: this.providerName,
                   answerLength: response.text.length,
+                  requestId,
                 });
                 return response.text;
 
             } catch (e: any) {
-                logger.error('agent.run.crash', { provider: this.providerName, error: e.message });
+                logger.error('agent.run.crash', { provider: this.providerName, error: e.message, requestId });
                 return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
             }
         }

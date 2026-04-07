@@ -1,8 +1,19 @@
 import { randomUUID } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
 
+declare global {
+  namespace Express {
+    interface Request {
+      context?: {
+        requestId: string;
+      };
+    }
+  }
+}
+
 export function attachRequestContext(_req: Request, res: Response, next: NextFunction) {
   const requestId = randomUUID();
+  _req.context = { requestId };
   res.locals.requestId = requestId;
   res.setHeader('X-Request-Id', requestId);
   next();
@@ -40,4 +51,3 @@ export function sendApiError(
     ...extras,
   });
 }
-
