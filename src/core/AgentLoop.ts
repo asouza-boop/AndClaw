@@ -5,6 +5,18 @@ import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
 import { EmbeddingService } from '@/core/embedding/EmbeddingService';
 import { MemoryService } from '@/core/memory/MemoryService';
 import { MemoryManager } from '@/memory/MemoryManager';
+import { ILLMProvider } from '@/providers/ILLMProvider';
+import { ContextBuilder } from '@/core/ContextBuilder';
+import { AgentRunInputSchema } from '@/contracts/agent';
+import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
+import { logger } from '@/infra/logger';
+import { z } from 'zod';
+
+type AgentLoopDeps = {
+    provider?: ILLMProvider;
+    profileRepo?: ProfileRepository;
+    contextBuilder?: ContextBuilder;
+};
 
 export class AgentLoop {
     private providerName: string;
@@ -14,6 +26,8 @@ export class AgentLoop {
     private embeddingService: EmbeddingService;
     private memoryService: MemoryService;
     private memoryManager: MemoryManager;
+    private providerOverride?: ILLMProvider;
+    private contextBuilder: ContextBuilder;
 
     constructor(
       providerName: string,
@@ -21,14 +35,17 @@ export class AgentLoop {
       embeddingService = new EmbeddingService(),
       memoryService = new MemoryService(embeddingService),
       memoryManager = new MemoryManager(embeddingService, memoryService),
+      deps: AgentLoopDeps = {},
     ) {
         this.providerName = providerName;
         this.registry = registry;
         this.maxIterations = config.llm.maxIterations || 5;
-        this.profileRepo = new ProfileRepository();
+        this.profileRepo = deps.profileRepo || new ProfileRepository();
         this.embeddingService = embeddingService;
         this.memoryService = memoryService;
         this.memoryManager = memoryManager;
+        this.providerOverride = deps.provider;
+        this.contextBuilder = deps.contextBuilder || new ContextBuilder();
     }
 
     /**
@@ -40,28 +57,31 @@ export class AgentLoop {
         userInput: string,
         options: any = {}
     ): Promise<string> {
-        
-        // Fetch User Profile and inject into system prompt
+        const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
+        logger.info('agent.run.start', {
+          provider: this.providerName,
+          historyLength: parsed.history.length,
+          userInputLength: parsed.userInput.length,
+        });
+
         const profile = await this.profileRepo.getAll();
-        if (profile.length > 0) {
-            const profileText = profile.map(p => `- ${p.key}: ${p.value}`).join('\n');
-            systemPrompt = `${systemPrompt}\n\n[MEMÓRIA DE PERFIL DO USUÁRIO]\n${profileText}\n[FIM DA MEMÓRIA]`;
-        }
 
-        const provider = ProviderFactory.getChain();
-        const userId = options.userId || 'pwa-user';
-        const semanticContext = await this.memoryManager.buildSemanticContext(userInput, options.memoryLimit || 5);
-        if (semanticContext) {
-            systemPrompt = `${systemPrompt}\n\n${semanticContext}`;
-        }
+        const provider = this.providerOverride || ProviderFactory.getChain();
+        const userId = parsed.options.userId || 'pwa-user';
+        const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
+        const composedSystemPrompt = this.contextBuilder.build({
+          systemPrompt: parsed.systemPrompt,
+          profile,
+          semanticContext,
+        });
 
-        const messages = [...history];
-        const lastUserMessage = { role: 'user', content: userInput } as any;
+        const messages = this.contextBuilder.formatHistory(parsed.history);
+        const lastUserMessage = { role: 'user', content: parsed.userInput } as any;
 
         // Se houver áudio nas opções, injeta na última mensagem do usuário (ou na atual)
-        if (options.audioData) {
-            lastUserMessage.audioData = options.audioData;
-            lastUserMessage.mimeType = options.mimeType;
+        if (parsed.options.audioData) {
+            lastUserMessage.audioData = parsed.options.audioData;
+            lastUserMessage.mimeType = parsed.options.mimeType;
         }
         
         messages.push(lastUserMessage);
@@ -75,15 +95,15 @@ export class AgentLoop {
 
         while (iterations < this.maxIterations) {
             iterations++;
-            console.log(`[AgentLoop] Iteração ${iterations}/${this.maxIterations}`);
+            logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations });
 
             try {
-                const response = await provider.generateResponse(systemPrompt, messages, availableTools);
+                const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
 
                 // Thought -> Action -> Observation
                 if (response.toolCalls && response.toolCalls.length > 0) {
                     for (const call of response.toolCalls) {
-                        console.log(`[AgentLoop] Tool Call -> ${call.name}`);
+                        logger.info('agent.tool.call', { tool: call.name });
                         
                         const tool = this.registry.getTool(call.name);
                         let observation = "";
@@ -92,9 +112,23 @@ export class AgentLoop {
                             observation = `Erro: Ferramenta '${call.name}' não existe no ToolRegistry local.`;
                         } else {
                             try {
-                                observation = await tool.execute(call.arguments);
+                                const normalizedCall = ToolInputSchema.safeParse({
+                                  name: call.name,
+                                  arguments: call.arguments,
+                                });
+                                if (!normalizedCall.success) {
+                                  throw new Error(normalizedCall.error.message);
+                                }
+
+                                const normalizedArgs = this.normalizeToolArguments(normalizedCall.data.arguments);
+                                const toolArgs = tool.inputSchema
+                                  ? tool.inputSchema.parse(normalizedArgs)
+                                  : z.object({}).passthrough().parse(normalizedArgs);
+                                observation = await tool.execute(toolArgs);
+                                ToolExecutionResultSchema.parse(observation);
                             } catch (e: any) {
                                 observation = `Falha ao executar ${call.name}: ${e.message}`;
+                                logger.warn('agent.tool.error', { tool: call.name, error: e.message });
                             }
                         }
 
@@ -111,25 +145,51 @@ export class AgentLoop {
                             role: 'user', 
                             content: `Resultado da Ferramenta (Observation): ${observation}` 
                         });
-                        console.log(`[AgentLoop] Observation -> ${observation.substring(0, 100)}...`);
+                        logger.info('agent.tool.observation', {
+                          tool: call.name,
+                          observationLength: observation.length,
+                        });
                     }
                     // Loop volta pro início (Thought) com mensagens novas no buffer.
                     continue; 
                 }
 
                 // If no tool calls -> Answer phase reached
-                await this.memoryManager.persistTurn(userId, this.providerName, userInput, response.text, {
+                await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
                   source: 'agent-loop',
                   provider: this.providerName,
+                });
+                logger.info('agent.run.complete', {
+                  provider: this.providerName,
+                  answerLength: response.text.length,
                 });
                 return response.text;
 
             } catch (e: any) {
-                console.error(`[AgentLoop] Loop crash, falling back.`, e);
+                logger.error('agent.run.crash', { provider: this.providerName, error: e.message });
                 return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
             }
         }
 
         return `[Sistema] Limite de iterações atingido (${this.maxIterations}). Operação abortada por segurança.`;
+    }
+
+    private normalizeToolArguments(argumentsValue: unknown): Record<string, unknown> {
+      if (argumentsValue && typeof argumentsValue === 'object' && !Array.isArray(argumentsValue)) {
+        return argumentsValue as Record<string, unknown>;
+      }
+
+      if (typeof argumentsValue === 'string') {
+        try {
+          const parsed = JSON.parse(argumentsValue);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed as Record<string, unknown>;
+          }
+        } catch {
+          return { value: argumentsValue };
+        }
+      }
+
+      return {};
     }
 }

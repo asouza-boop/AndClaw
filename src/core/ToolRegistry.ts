@@ -1,6 +1,7 @@
 import { Tool } from '@/modules/tools/Tool';
 import { UpdateProfileTool, DeleteProfileTool } from '@/modules/tools/profile';
 import { NotionTool } from '@/core/tools/NotionTool';
+import { z } from 'zod';
 
 export interface Initializer {
     execute(args: any): Promise<string>;
@@ -47,6 +48,9 @@ import { config } from '@/config/env';
 class FileSystemReadTool implements ITool {
     name = "read_file";
     description = "Lê o conteúdo de um arquivo baseado no caminho (path).";
+    inputSchema = z.object({
+        path: z.string().min(1),
+    });
     parameters = {
         type: "object",
         properties: { path: { type: "string" } },
@@ -65,6 +69,10 @@ class FileSystemReadTool implements ITool {
 class FileSystemWriteTool implements ITool {
     name = "write_file";
     description = "Escreve ou sobrescreve conteúdo em um arquivo. Útil para gerar scripts e respostas.";
+    inputSchema = z.object({
+        path: z.string().min(1),
+        content: z.string(),
+    });
     parameters = {
         type: "object",
         properties: { path: { type: "string" }, content: { type: "string" } },
@@ -86,6 +94,9 @@ class FileSystemWriteTool implements ITool {
 class LSTool implements ITool {
     name = "ls";
     description = "Lista o conteúdo de um diretório.";
+    inputSchema = z.object({
+        path: z.string().default('.').optional(),
+    });
     parameters = {
         type: "object",
         properties: { 
@@ -107,6 +118,9 @@ class LSTool implements ITool {
 class GlobTool implements ITool {
     name = "glob";
     description = "Busca arquivos usando padrões glob (ex: **/*.ts).";
+    inputSchema = z.object({
+        pattern: z.string().min(1),
+    });
     parameters = {
         type: "object",
         properties: { 
@@ -128,6 +142,10 @@ class GlobTool implements ITool {
 class GrepTool implements ITool {
     name = "grep";
     description = "Procura por um padrão de texto dentro de arquivos.";
+    inputSchema = z.object({
+        pattern: z.string().min(1),
+        path: z.string().min(1),
+    });
     parameters = {
         type: "object",
         properties: { 

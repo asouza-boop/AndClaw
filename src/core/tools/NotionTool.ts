@@ -1,9 +1,16 @@
 import { Tool } from '@/modules/tools/Tool';
 import { config } from '@/config/env';
+import { z } from 'zod';
 
 export class NotionTool implements Tool {
     name = "notion_api";
     description = "Interage com o Notion para criar páginas, listar bancos de dados ou atualizar conteúdo.";
+    inputSchema = z.object({
+        action: z.enum(["create_page", "append_block", "list_pages"]),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        parentId: z.string().optional(),
+    });
     parameters = {
         type: "object",
         properties: {

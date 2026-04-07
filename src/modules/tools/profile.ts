@@ -1,9 +1,14 @@
 import { Tool } from './Tool';
 import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
+import { z } from 'zod';
 
 export class UpdateProfileTool implements Tool {
   name = 'update_user_profile';
   description = 'Atualiza ou adiciona uma preferência/informação ao perfil de longo prazo do usuário.';
+  inputSchema = z.object({
+    key: z.string().min(1),
+    value: z.string(),
+  });
   parameters = {
     type: 'object',
     properties: {
@@ -28,6 +33,9 @@ export class UpdateProfileTool implements Tool {
 export class DeleteProfileTool implements Tool {
   name = 'delete_user_profile';
   description = 'Remove uma informação do perfil do usuário.';
+  inputSchema = z.object({
+    key: z.string().min(1),
+  });
   parameters = {
     type: 'object',
     properties: {
