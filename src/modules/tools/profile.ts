@@ -5,6 +5,7 @@ import { z } from 'zod';
 export class UpdateProfileTool implements Tool {
   name = 'update_user_profile';
   description = 'Atualiza ou adiciona uma preferência/informação ao perfil de longo prazo do usuário.';
+  category = 'cognitive' as const;
   inputSchema = z.object({
     key: z.string().min(1),
     value: z.string(),
@@ -33,6 +34,7 @@ export class UpdateProfileTool implements Tool {
 export class DeleteProfileTool implements Tool {
   name = 'delete_user_profile';
   description = 'Remove uma informação do perfil do usuário.';
+  category = 'cognitive' as const;
   inputSchema = z.object({
     key: z.string().min(1),
   });

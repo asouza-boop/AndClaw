@@ -28,6 +28,7 @@ export function createToolRoutes(overrides: Partial<ToolRouteDeps> = {}) {
     const items = deps.registry.getAllTools().map((tool) => ({
       name: tool.name,
       description: tool.description,
+      category: tool.category,
       parameters: tool.parameters,
     }));
     res.json({ ok: true, items });

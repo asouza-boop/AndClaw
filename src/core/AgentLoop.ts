@@ -8,6 +8,8 @@ import { SemanticCacheService } from '@/core/cache/SemanticCacheService';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { ContextBuilder } from '@/core/ContextBuilder';
+import { IntentDetector, DetectedIntent } from '@/core/planner/IntentDetector';
+import { ActionPlanner, ActionPlan, ActionPlanStep } from '@/core/planner/ActionPlanner';
 import { AgentRunInputSchema } from '@/contracts/agent';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
@@ -19,6 +21,8 @@ type AgentLoopDeps = {
     profileRepo?: ProfileRepository;
     contextBuilder?: ContextBuilder;
     cacheService?: SemanticCacheService;
+    intentDetector?: IntentDetector;
+    actionPlanner?: ActionPlanner;
 };
 
 export class AgentLoop {
@@ -32,6 +36,8 @@ export class AgentLoop {
     private cacheService: SemanticCacheService;
     private providerOverride?: ILLMProvider;
     private contextBuilder: ContextBuilder;
+    private intentDetector: IntentDetector;
+    private actionPlanner: ActionPlanner;
 
     constructor(
       providerName: string,
@@ -51,6 +57,8 @@ export class AgentLoop {
         this.cacheService = deps.cacheService || new SemanticCacheService();
         this.providerOverride = deps.provider;
         this.contextBuilder = deps.contextBuilder || new ContextBuilder();
+        this.intentDetector = deps.intentDetector || new IntentDetector();
+        this.actionPlanner = deps.actionPlanner || new ActionPlanner();
     }
 
     /**
@@ -73,9 +81,110 @@ export class AgentLoop {
         });
 
         const profile = await this.profileRepo.getAll();
+        const userId = parsed.options.userId || 'pwa-user';
+        const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
+        const availableTools = this.registry.getAllTools().map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            category: tool.category,
+            parameters: tool.parameters,
+        }));
+
+        if (intent) {
+          logger.info('agent.intent.detected', {
+            requestId,
+            intent: intent.name,
+            confidence: intent.confidence,
+            reason: intent.reason,
+          });
+
+          const plan = this.actionPlanner.plan(intent, this.registry.getAllTools());
+          if (plan) {
+            logger.info('agent.plan.created', {
+              requestId,
+              intent: plan.intent,
+              steps: plan.steps.map((step) => ({
+                tool: step.tool,
+                inputKey: step.inputKey,
+                outputKey: step.outputKey,
+              })),
+            });
+
+            const actionResult = await this.executeActionPlan({
+              parsed,
+              intent,
+              plan,
+              requestId,
+            });
+
+            if (actionResult.ok && actionResult.output) {
+              await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, actionResult.output, {
+                source: 'action-plan',
+                provider: this.providerName,
+                intent: intent.name,
+                planSteps: plan.steps.length,
+              });
+              logger.info('agent.run.complete', {
+                provider: this.providerName,
+                answerLength: actionResult.output.length,
+                requestId,
+                mode: 'action-plan',
+              });
+              metrics.increment('agent.run.success');
+              metrics.observe('agent.latency', Date.now() - startedAt);
+              return actionResult.output;
+            }
+
+            logger.info('agent.plan.fallback', {
+              requestId,
+              intent: intent.name,
+              reason: actionResult.reason || 'plan_failed',
+            });
+            const provider = this.providerOverride || ProviderFactory.getChain();
+            const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
+            const composedSystemPrompt = this.contextBuilder.build({
+              systemPrompt: parsed.systemPrompt,
+              profile,
+              semanticContext,
+            });
+            const fallbackReply = await this.executeLLMFlow({
+              provider,
+              composedSystemPrompt,
+              initialMessages: actionResult.messages,
+              availableTools,
+              userId,
+              parsed,
+              requestId,
+              startedAt,
+            });
+            return fallbackReply;
+          }
+
+          logger.info('agent.plan.fallback', {
+            requestId,
+            intent: intent.name,
+            reason: 'no_plan',
+          });
+
+          const provider = this.providerOverride || ProviderFactory.getChain();
+          const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
+          const composedSystemPrompt = this.contextBuilder.build({
+            systemPrompt: parsed.systemPrompt,
+            profile,
+            semanticContext,
+          });
+          return this.executeLLMFlow({
+            provider,
+            composedSystemPrompt,
+            availableTools,
+            userId,
+            parsed,
+            requestId,
+            startedAt,
+          });
+        }
 
         const provider = this.providerOverride || ProviderFactory.getChain();
-        const userId = parsed.options.userId || 'pwa-user';
         const cacheInput = this.buildCacheInput(parsed.systemPrompt, parsed.history, parsed.userInput, profile, userId, parsed.options);
         const cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
         const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
@@ -95,6 +204,7 @@ export class AgentLoop {
           metrics.observe('agent.latency', Date.now() - startedAt);
           return cacheHit.output;
         }
+
         const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
         const composedSystemPrompt = this.contextBuilder.build({
           systemPrompt: parsed.systemPrompt,
@@ -102,114 +212,322 @@ export class AgentLoop {
           semanticContext,
         });
 
-        const messages = this.contextBuilder.formatHistory(parsed.history);
-        const lastUserMessage = { role: 'user', content: parsed.userInput } as any;
+        return this.executeLLMFlow({
+            provider,
+            composedSystemPrompt,
+            availableTools,
+            userId,
+            parsed,
+            requestId,
+            startedAt,
+            cacheContext: { cacheInput, cacheEmbedding },
+        });
+    }
 
-        // Se houver áudio nas opções, injeta na última mensagem do usuário (ou na atual)
-        if (parsed.options.audioData) {
-            lastUserMessage.audioData = parsed.options.audioData;
-            lastUserMessage.mimeType = parsed.options.mimeType;
-        }
-        
-        messages.push(lastUserMessage);
-        const availableTools = this.registry.getAllTools().map(t => ({
-            name: t.name,
-            description: t.description,
-            parameters: t.parameters
-        }));
+    private async executeLLMFlow(params: {
+      provider: ILLMProvider;
+      composedSystemPrompt: string;
+      availableTools: Array<{ name: string; description: string; category: string; parameters: any }>;
+      userId: string;
+      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
+      requestId?: string;
+      startedAt: number;
+      cacheContext?: { cacheInput: string; cacheEmbedding: number[] };
+      initialMessages?: Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
+    }): Promise<string> {
+      const {
+        provider,
+        composedSystemPrompt,
+        availableTools,
+        userId,
+        parsed,
+        requestId,
+        startedAt,
+        cacheContext,
+        initialMessages,
+      } = params;
 
-        let iterations = 0;
+      const messages = initialMessages
+        ? initialMessages.map((message) => ({ ...message }))
+        : this.buildInitialMessages(parsed);
+      let iterations = 0;
 
-        while (iterations < this.maxIterations) {
-            iterations++;
-            logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
+      while (iterations < this.maxIterations) {
+        iterations++;
+        logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
 
-            try {
-                const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
+        try {
+          const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
 
-                // Thought -> Action -> Observation
-                if (response.toolCalls && response.toolCalls.length > 0) {
-                    for (const call of response.toolCalls) {
-                        logger.info('agent.tool.call', { tool: call.name, requestId });
-                        
-                        const tool = this.registry.getTool(call.name);
-                        let observation = "";
+          if (response.toolCalls && response.toolCalls.length > 0) {
+            for (const call of response.toolCalls) {
+              logger.info('agent.tool.call', { tool: call.name, requestId });
 
-                        if (!tool) {
-                            observation = `Erro: Ferramenta '${call.name}' não existe no ToolRegistry local.`;
-                        } else {
-                            try {
-                                const normalizedCall = ToolInputSchema.safeParse({
-                                  name: call.name,
-                                  arguments: call.arguments,
-                                });
-                                if (!normalizedCall.success) {
-                                  throw new Error(normalizedCall.error.message);
-                                }
+              const tool = this.registry.getTool(call.name);
+              let observation = '';
 
-                                const normalizedArgs = this.normalizeToolArguments(normalizedCall.data.arguments);
-                                const toolArgs = tool.inputSchema
-                                  ? tool.inputSchema.parse(normalizedArgs)
-                                  : z.object({}).passthrough().parse(normalizedArgs);
-                                observation = await tool.execute(toolArgs);
-                                ToolExecutionResultSchema.parse(observation);
-                                metrics.increment('tool.execution.count');
-                            } catch (e: any) {
-                                observation = `Falha ao executar ${call.name}: ${e.message}`;
-                                logger.warn('agent.tool.error', { tool: call.name, error: e.message });
-                                metrics.increment('tool.execution.error');
-                            }
-                        }
+              if (!tool) {
+                observation = `Erro: Ferramenta '${call.name}' não existe no ToolRegistry local.`;
+              } else {
+                try {
+                  const normalizedCall = ToolInputSchema.safeParse({
+                    name: call.name,
+                    arguments: call.arguments,
+                  });
+                  if (!normalizedCall.success) {
+                    throw new Error(normalizedCall.error.message);
+                  }
 
-                        // Append tool call intent and the observation back to the LLM
-                        const stringifiedArgs = typeof call.arguments === 'string' 
-                                                ? call.arguments 
-                                                : JSON.stringify(call.arguments);
-                                                
-                        messages.push({ 
-                            role: 'assistant', 
-                            content: `Eu decidi usar a ferramenta ${call.name} com os argumentos: ${stringifiedArgs}` 
-                        });
-                        messages.push({ 
-                            role: 'user', 
-                            content: `Resultado da Ferramenta (Observation): ${observation}` 
-                        });
-                        logger.info('agent.tool.observation', {
-                          tool: call.name,
-                          observationLength: observation.length,
-                          requestId,
-                        });
-                    }
-                    // Loop volta pro início (Thought) com mensagens novas no buffer.
-                    continue; 
+                  const normalizedArgs = this.normalizeToolArguments(normalizedCall.data.arguments);
+                  const toolArgs = tool.inputSchema
+                    ? tool.inputSchema.parse(normalizedArgs)
+                    : z.object({}).passthrough().parse(normalizedArgs);
+                  observation = await tool.execute(toolArgs);
+                  ToolExecutionResultSchema.parse(observation);
+                  metrics.increment('tool.execution.count');
+                } catch (e: any) {
+                  observation = `Falha ao executar ${call.name}: ${e.message}`;
+                  logger.warn('agent.tool.error', { tool: call.name, error: e.message, requestId });
+                  metrics.increment('tool.execution.error');
                 }
+              }
 
-                // If no tool calls -> Answer phase reached
-                await this.cacheService.set(cacheInput, cacheEmbedding, response.text, { requestId });
-                await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
-                  source: 'agent-loop',
-                  provider: this.providerName,
-                });
-                logger.info('agent.run.complete', {
-                  provider: this.providerName,
-                  answerLength: response.text.length,
-                  requestId,
-                });
-                metrics.increment('agent.run.success');
-                metrics.observe('agent.latency', Date.now() - startedAt);
-                return response.text;
+              const stringifiedArgs = typeof call.arguments === 'string'
+                ? call.arguments
+                : JSON.stringify(call.arguments);
 
-            } catch (e: any) {
-                logger.error('agent.run.crash', { provider: this.providerName, error: e.message, requestId });
-                metrics.increment('agent.run.error');
-                metrics.observe('agent.latency', Date.now() - startedAt);
-                return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
+              messages.push({
+                role: 'assistant',
+                content: `Eu decidi usar a ferramenta ${call.name} com os argumentos: ${stringifiedArgs}`,
+              });
+              messages.push({
+                role: 'user',
+                content: `Resultado da Ferramenta (Observation): ${observation}`,
+              });
+              logger.info('agent.tool.observation', {
+                tool: call.name,
+                observationLength: observation.length,
+                requestId,
+              });
             }
+            continue;
+          }
+
+          if (cacheContext) {
+            await this.cacheService.set(cacheContext.cacheInput, cacheContext.cacheEmbedding, response.text, { requestId });
+          }
+
+          await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
+            source: cacheContext ? 'agent-loop' : 'agent-loop',
+            provider: this.providerName,
+          });
+          logger.info('agent.run.complete', {
+            provider: this.providerName,
+            answerLength: response.text.length,
+            requestId,
+          });
+          metrics.increment('agent.run.success');
+          metrics.observe('agent.latency', Date.now() - startedAt);
+          return response.text;
+        } catch (e: any) {
+          logger.error('agent.run.crash', { provider: this.providerName, error: e.message, requestId });
+          metrics.increment('agent.run.error');
+          metrics.observe('agent.latency', Date.now() - startedAt);
+          return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
+        }
+      }
+
+      metrics.increment('agent.run.error');
+      metrics.observe('agent.latency', Date.now() - startedAt);
+      return `[Sistema] Limite de iterações atingido (${this.maxIterations}). Operação abortada por segurança.`;
+    }
+
+    private async executeActionPlan(params: {
+      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
+      intent: DetectedIntent;
+      plan: ActionPlan;
+      requestId?: string;
+    }): Promise<{ ok: boolean; output?: string; messages: Array<{ role: string; content: string }>; reason?: string }> {
+      const { parsed, intent, plan, requestId } = params;
+      const messages = this.buildInitialMessages(parsed);
+      const state: Record<string, any> = {
+        input: parsed.userInput,
+        ...intent.slots,
+      };
+      const outputs: string[] = [];
+
+      for (const step of plan.steps) {
+        const tool = this.registry.getTool(step.tool);
+        if (!tool) {
+          logger.warn('agent.plan.step.end', {
+            requestId,
+            tool: step.tool,
+            status: 'missing_tool',
+          });
+          return { ok: false, reason: `tool_missing:${step.tool}`, messages };
         }
 
-        metrics.increment('agent.run.error');
-        metrics.observe('agent.latency', Date.now() - startedAt);
-        return `[Sistema] Limite de iterações atingido (${this.maxIterations}). Operação abortada por segurança.`;
+        const startedAt = Date.now();
+        logger.info('agent.plan.step.start', {
+          requestId,
+          tool: step.tool,
+          inputKey: step.inputKey,
+          outputKey: step.outputKey,
+        });
+
+        const rawArgs = this.resolvePlannedToolInput(step, intent, state);
+        if (!rawArgs) {
+          logger.warn('agent.plan.step.end', {
+            requestId,
+            tool: step.tool,
+            status: 'invalid_input',
+            latencyMs: Date.now() - startedAt,
+          });
+          return { ok: false, reason: `invalid_input:${step.tool}`, messages };
+        }
+
+        try {
+          const validated = tool.inputSchema
+            ? tool.inputSchema.parse(rawArgs)
+            : z.object({}).passthrough().parse(rawArgs);
+          const output = await tool.execute(validated);
+          ToolExecutionResultSchema.parse(output);
+          if (this.isFailureObservation(output)) {
+            throw new Error(typeof output === 'string' ? output : 'Tool returned failure observation');
+          }
+          state[step.outputKey] = output;
+          outputs.push(output);
+          messages.push({ role: 'assistant', content: `Resultado da ferramenta ${step.tool}: ${output}` });
+          messages.push({ role: 'user', content: `Resultado da Ferramenta (Observation): ${output}` });
+          logger.info('agent.plan.step.end', {
+            requestId,
+            tool: step.tool,
+            outputKey: step.outputKey,
+            latencyMs: Date.now() - startedAt,
+          });
+          metrics.increment('tool.execution.count');
+        } catch (error: any) {
+          logger.warn('agent.plan.step.end', {
+            requestId,
+            tool: step.tool,
+            status: 'failed',
+            error: error.message,
+            latencyMs: Date.now() - startedAt,
+          });
+          metrics.increment('tool.execution.error');
+          return { ok: false, reason: `step_failed:${step.tool}:${error.message}`, messages };
+        }
+      }
+
+      const summary = outputs.length === 1
+        ? outputs[0]
+        : ['[Ação executada]', ...outputs.map((output, index) => `${index + 1}. ${output}`)].join('\n');
+
+      logger.info('agent.plan.result', {
+        requestId,
+        intent: intent.name,
+        stepCount: plan.steps.length,
+        outputLength: summary.length,
+      });
+
+      return { ok: true, output: summary, messages };
+    }
+
+    private isFailureObservation(output: unknown): boolean {
+      if (typeof output === 'string') {
+        return /^(erro|falha|failed|error)\b/i.test(output.trim());
+      }
+
+      if (output && typeof output === 'object') {
+        const value = output as Record<string, unknown>;
+        return typeof value.error === 'string' && value.error.trim().length > 0;
+      }
+
+      return false;
+    }
+
+    private resolvePlannedToolInput(
+      step: ActionPlanStep,
+      intent: DetectedIntent,
+      state: Record<string, unknown>,
+    ): Record<string, unknown> | null {
+      const slots = intent.slots || {};
+
+      switch (step.tool) {
+        case 'update_user_profile':
+          return {
+            key: String(slots.key || '').trim(),
+            value: String(slots.value || '').trim(),
+          };
+        case 'delete_user_profile':
+          return {
+            key: String(slots.key || '').trim(),
+          };
+        case 'ls':
+          return {
+            path: String(state[step.inputKey] || slots.path || '.').trim() || '.',
+          };
+        case 'read_file': {
+          const raw = state[step.inputKey] ?? slots.path;
+          const normalized = this.resolveFirstPathLikeValue(raw);
+          if (!normalized) return null;
+          return {
+            path: normalized,
+          };
+        }
+        case 'write_file':
+          return {
+            path: String(slots.path || '').trim(),
+            content: String(slots.content || '').trim(),
+          };
+        case 'glob':
+          return {
+            pattern: String(state[step.inputKey] || slots.pattern || slots.path || '').trim(),
+          };
+        case 'grep':
+          return {
+            pattern: String(slots.pattern || '').trim(),
+            path: String(slots.path || '').trim(),
+          };
+        case 'notion_api':
+          return {
+            action: String(slots.action || 'create_page'),
+            title: String(slots.title || '').trim() || undefined,
+            content: String(slots.content || '').trim() || undefined,
+            parentId: String(slots.parentId || '').trim() || undefined,
+          };
+        default:
+          const direct = state[step.inputKey];
+          if (direct && typeof direct === 'object') {
+            return direct as Record<string, unknown>;
+          }
+          if (typeof direct === 'string') {
+            return { value: direct };
+          }
+          return null;
+      }
+    }
+
+    private resolveFirstPathLikeValue(value: unknown): string | null {
+      if (typeof value !== 'string') return null;
+      const candidate = value
+        .split('\n')
+        .map((line) => line.trim())
+        .find(Boolean);
+      return candidate || null;
+    }
+
+    private buildInitialMessages(parsed: ReturnType<typeof AgentRunInputSchema.parse>): Array<{ role: string; content: string; audioData?: string; mimeType?: string }> {
+      const messages = this.contextBuilder.formatHistory(parsed.history) as Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
+      const lastUserMessage: { role: string; content: string; audioData?: string; mimeType?: string } = { role: 'user', content: parsed.userInput };
+
+      if (parsed.options.audioData) {
+        lastUserMessage.audioData = parsed.options.audioData;
+        lastUserMessage.mimeType = parsed.options.mimeType;
+      }
+
+      messages.push(lastUserMessage);
+      return messages;
     }
 
     private normalizeToolArguments(argumentsValue: unknown): Record<string, unknown> {

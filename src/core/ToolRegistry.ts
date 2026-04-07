@@ -48,6 +48,7 @@ import { config } from '@/config/env';
 class FileSystemReadTool implements ITool {
     name = "read_file";
     description = "Lê o conteúdo de um arquivo baseado no caminho (path).";
+    category = 'system' as const;
     inputSchema = z.object({
         path: z.string().min(1),
     });
@@ -69,6 +70,7 @@ class FileSystemReadTool implements ITool {
 class FileSystemWriteTool implements ITool {
     name = "write_file";
     description = "Escreve ou sobrescreve conteúdo em um arquivo. Útil para gerar scripts e respostas.";
+    category = 'system' as const;
     inputSchema = z.object({
         path: z.string().min(1),
         content: z.string(),
@@ -94,6 +96,7 @@ class FileSystemWriteTool implements ITool {
 class LSTool implements ITool {
     name = "ls";
     description = "Lista o conteúdo de um diretório.";
+    category = 'system' as const;
     inputSchema = z.object({
         path: z.string().default('.').optional(),
     });
@@ -118,6 +121,7 @@ class LSTool implements ITool {
 class GlobTool implements ITool {
     name = "glob";
     description = "Busca arquivos usando padrões glob (ex: **/*.ts).";
+    category = 'system' as const;
     inputSchema = z.object({
         pattern: z.string().min(1),
     });
@@ -142,6 +146,7 @@ class GlobTool implements ITool {
 class GrepTool implements ITool {
     name = "grep";
     description = "Procura por um padrão de texto dentro de arquivos.";
+    category = 'system' as const;
     inputSchema = z.object({
         pattern: z.string().min(1),
         path: z.string().min(1),

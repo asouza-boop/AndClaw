@@ -17,6 +17,7 @@ import { z } from 'zod';
 class EchoTool implements Tool {
   name = 'echo';
   description = 'Echo tool for API integration testing.';
+  category = 'cognitive' as const;
   parameters = { type: 'object' };
   inputSchema = z.object({ message: z.string().min(1) });
 
@@ -166,7 +167,7 @@ test('API routes validate inputs, authorize requests and stay observable', async
       .get('/api/tools')
       .set('Authorization', `Bearer ${token}`);
     assert.equal(toolsList.status, 200);
-    assert.ok(toolsList.body.items.some((tool: any) => tool.name === 'echo'));
+    assert.ok(toolsList.body.items.some((tool: any) => tool.name === 'echo' && tool.category === 'cognitive'));
 
     const invalidTool = await request(app)
       .post('/api/tools/echo')
@@ -188,4 +189,3 @@ test('API routes validate inputs, authorize requests and stay observable', async
     globalConfig.llm.openrouterKey = originalLlm.openrouterKey;
   }
 });
-

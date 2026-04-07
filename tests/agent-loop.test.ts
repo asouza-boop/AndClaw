@@ -27,6 +27,7 @@ class FakeProvider implements ILLMProvider {
 class EchoTool implements Tool {
   name = 'test_echo';
   description = 'Echo tool for agent flow testing.';
+  category = 'cognitive' as const;
   parameters = { type: 'object' };
   inputSchema = z.object({
     message: z.string().min(1),
