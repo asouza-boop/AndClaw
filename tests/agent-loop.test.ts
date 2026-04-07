@@ -87,3 +87,59 @@ test('AgentLoop runs input -> memory -> tool execution -> persistence', async ()
   ]);
   assert.equal(provider.calls, 2);
 });
+
+test('AgentLoop returns semantic cache hits without calling the provider', async () => {
+  const registry = new ToolRegistry();
+  const provider = new FakeProvider();
+  const cacheService = {
+    get: async () => ({
+      id: 1,
+      input: 'cached prompt',
+      output: 'cached answer',
+      created_at: new Date().toISOString(),
+      distance: 0.02,
+    }),
+    set: async () => null,
+  } as any;
+
+  let semanticContextBuilt = false;
+  let persisted = false;
+  const memoryManager = {
+    buildSemanticContext: async () => {
+      semanticContextBuilt = true;
+      return '';
+    },
+    persistTurn: async () => {
+      persisted = true;
+    },
+  } as any;
+  const profileRepo = {
+    getAll: async () => [],
+  } as any;
+
+  const loop = new AgentLoop(
+    'fake-provider',
+    registry,
+    undefined as any,
+    undefined as any,
+    memoryManager,
+    {
+      provider,
+      profileRepo,
+      contextBuilder: new ContextBuilder(),
+      cacheService,
+    }
+  );
+
+  const result = await loop.run(
+    'Base prompt',
+    [{ role: 'user', content: 'previous turn' }],
+    'plan the next step',
+    { userId: 'user-1', memoryLimit: 2, requestId: 'req-123' }
+  );
+
+  assert.equal(result, 'cached answer');
+  assert.equal(provider.calls, 0);
+  assert.equal(semanticContextBuilt, false);
+  assert.equal(persisted, true);
+});

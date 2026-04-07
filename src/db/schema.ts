@@ -102,6 +102,18 @@ export async function ensureSchema(): Promise<void> {
   `);
 
   await query(`
+    CREATE TABLE IF NOT EXISTS cache (
+      id BIGSERIAL PRIMARY KEY,
+      input TEXT NOT NULL,
+      embedding vector(1536) NOT NULL,
+      output TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`CREATE INDEX IF NOT EXISTS idx_cache_created_at ON cache(created_at DESC)`);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS calendar_events (
       id BIGSERIAL PRIMARY KEY,
       account_email TEXT NOT NULL,

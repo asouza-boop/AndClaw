@@ -4,6 +4,7 @@ import { config } from '@/config/env';
 import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
 import { EmbeddingService } from '@/core/embedding/EmbeddingService';
 import { MemoryService } from '@/core/memory/MemoryService';
+import { SemanticCacheService } from '@/core/cache/SemanticCacheService';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { ContextBuilder } from '@/core/ContextBuilder';
@@ -16,6 +17,7 @@ type AgentLoopDeps = {
     provider?: ILLMProvider;
     profileRepo?: ProfileRepository;
     contextBuilder?: ContextBuilder;
+    cacheService?: SemanticCacheService;
 };
 
 export class AgentLoop {
@@ -26,6 +28,7 @@ export class AgentLoop {
     private embeddingService: EmbeddingService;
     private memoryService: MemoryService;
     private memoryManager: MemoryManager;
+    private cacheService: SemanticCacheService;
     private providerOverride?: ILLMProvider;
     private contextBuilder: ContextBuilder;
 
@@ -44,6 +47,7 @@ export class AgentLoop {
         this.embeddingService = embeddingService;
         this.memoryService = memoryService;
         this.memoryManager = memoryManager;
+        this.cacheService = deps.cacheService || new SemanticCacheService();
         this.providerOverride = deps.provider;
         this.contextBuilder = deps.contextBuilder || new ContextBuilder();
     }
@@ -58,7 +62,7 @@ export class AgentLoop {
         options: any = {}
     ): Promise<string> {
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
-        const requestId = parsed.options?.requestId;
+        const requestId = typeof parsed.options?.requestId === 'string' ? parsed.options.requestId : undefined;
         logger.info('agent.run.start', {
           provider: this.providerName,
           historyLength: parsed.history.length,
@@ -70,6 +74,23 @@ export class AgentLoop {
 
         const provider = this.providerOverride || ProviderFactory.getChain();
         const userId = parsed.options.userId || 'pwa-user';
+        const cacheInput = this.buildCacheInput(parsed.systemPrompt, parsed.history, parsed.userInput, profile, userId, parsed.options);
+        const cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
+        const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
+        if (cacheHit) {
+          await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, cacheHit.output, {
+            source: 'semantic-cache',
+            provider: this.providerName,
+            cacheHit: true,
+          });
+          logger.info('agent.run.complete', {
+            provider: this.providerName,
+            answerLength: cacheHit.output.length,
+            requestId,
+            cache: 'hit',
+          });
+          return cacheHit.output;
+        }
         const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
         const composedSystemPrompt = this.contextBuilder.build({
           systemPrompt: parsed.systemPrompt,
@@ -158,6 +179,7 @@ export class AgentLoop {
                 }
 
                 // If no tool calls -> Answer phase reached
+                await this.cacheService.set(cacheInput, cacheEmbedding, response.text, { requestId });
                 await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
                   source: 'agent-loop',
                   provider: this.providerName,
@@ -195,5 +217,26 @@ export class AgentLoop {
       }
 
       return {};
+    }
+
+    private buildCacheInput(
+      systemPrompt: string,
+      history: Array<{ role: string; content: string }>,
+      userInput: string,
+      profile: Array<{ key?: string; value?: string }>,
+      userId: string,
+      options: Record<string, any>,
+    ): string {
+      return JSON.stringify({
+        systemPrompt,
+        history,
+        userInput,
+        profile,
+        userId,
+        options: {
+          audioData: Boolean(options.audioData),
+          mimeType: options.mimeType || null,
+        },
+      });
     }
 }
