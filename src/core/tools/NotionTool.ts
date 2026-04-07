@@ -1,7 +1,7 @@
-import { ITool } from '../ToolRegistry';
+import { Tool } from '../../modules/tools/Tool';
 import { config } from '../../config/env';
 
-export class NotionTool implements ITool {
+export class NotionTool implements Tool {
     name = "notion_api";
     description = "Interage com o Notion para criar páginas, listar bancos de dados ou atualizar conteúdo.";
     parameters = {

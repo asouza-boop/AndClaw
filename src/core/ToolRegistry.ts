@@ -1,19 +1,15 @@
+import { Tool } from '../modules/tools/Tool';
+import { UpdateProfileTool, DeleteProfileTool } from '../modules/tools/profile';
+import { NotionTool } from './tools/NotionTool';
+
 export interface Initializer {
     execute(args: any): Promise<string>;
 }
 
-export interface ITool {
-    name: string;
-    description: string;
-    parameters: any; // JSON Schema for arguments
-    execute(args: any): Promise<string>;
-}
-
-import { UpdateProfileTool, DeleteProfileTool } from './tools/ProfileTool';
-import { NotionTool } from './tools/NotionTool';
+export type ITool = Tool;
 
 export class ToolRegistry {
-    private tools: Map<string, ITool> = new Map();
+    private tools: Map<string, Tool> = new Map();
 
     constructor() {
         // Register default base tools
@@ -29,15 +25,15 @@ export class ToolRegistry {
         this.registerTool(new NotionTool());
     }
 
-    public registerTool(tool: ITool) {
+    public registerTool(tool: Tool) {
         this.tools.set(tool.name, tool);
     }
 
-    public getTool(name: string): ITool | undefined {
+    public getTool(name: string): Tool | undefined {
         return this.tools.get(name);
     }
 
-    public getAllTools(): ITool[] {
+    public getAllTools(): Tool[] {
         return Array.from(this.tools.values());
     }
 }

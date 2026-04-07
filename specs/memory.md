@@ -1,142 +1,142 @@
-# Spec: Memory Module (SQLite Persistence)
+# Spec: Memory Module (Postgres + pgvector)
 
-**Versão:** 1.0
-**Status:** Aprovada
-**Autor:** AndClaw Agent
-**Data:** 2026-03-06
+**Versão:** 2.0  
+**Status:** Aprovada  
+**Autor:** AndClaw Agent  
+**Data:** 2026-04-06
 
 ---
 
 ## 1. Resumo
 
-O módulo de persistência de estado do AndClaw gerencia tanto as conversas de longo prazo em banco de dados SQLite (`better-sqlite3`) quanto atua como manager da janela de contexto para impedir que o limite maximo do envelope de tokens da IA (Context Window) estoure.
+O módulo de memória do AndClaw passou a atuar como uma camada híbrida:
+
+- histórico conversacional persistente em Postgres
+- memória semântica com `pgvector`
+- janela de contexto gerenciada pelo `MemoryManager`
+
+O objetivo é manter o agente útil em sessões longas sem depender apenas do histórico recente em RAM.
 
 ---
 
 ## 2. Contexto e Motivação
 
-**Problema:**
-LLMs são stateless - eles esquecem tudo que foi dito na interação anterior de uma API REST call.
-Sem armazenamento persistente, o robô perde a utilidade primária de um "Agente Pessoal".
+LLMs são stateless. Sem persistência, o agente perde continuidade, decisões e referências anteriores.
 
-**Evidências:**
-Tentativas de armazenar arrays in-memory no Node.js funcionam apenas até o app ser encerrado/reiniciado (hot-reload da infra ou npm dev reload). O histórico vaporizava.
+O modelo antigo de apenas truncar histórico continua válido, mas agora é insuficiente para:
 
-**Por que agora:**
-A adoção do SQLite é veloz, serverless (um arquivo físico único), suporta chamadas síncronas rápidas (bloqueios impercetiveis para volumes unicos de acesso Telegram) e não consome infra adicional. 
+- recuperar decisões antigas
+- localizar reuniões e insights semelhantes
+- reutilizar contexto entre sessões
+- consolidar conhecimento de longo prazo
 
 ---
 
 ## 3. Goals (Objetivos)
 
-- [ ] G-01: Prover Storage fixo e rápido de mensagens do Telegram para recriar as conversas ativas.
-- [ ] G-02: Possuir um `MemoryManager` central (Facade) que decide automaticamente quando as mensagens velhas deverão ser ignoradas (Truncamento nativo) sem apagar sua versão persistente histórica.
-- [ ] G-03: Ranquear requisições de SQLite usando Repository Pattern, desacoplando SQL views puro do Agent Loop principal.
+- G-01: Persistir conversas, mensagens e memórias semânticas de forma confiável.
+- G-02: Permitir recuperação por similaridade vetorial com `pgvector`.
+- G-03: Manter o `MemoryManager` como fachada de orquestração do contexto.
+- G-04: Evitar que o `AgentLoop` carregue lógica de storage diretamente.
 
 **Métricas de sucesso:**
-| Métrica | Baseline atual | Target | Prazo |
-|---------|---------------|--------|-------|
-| Tempo de Write Sync | N/A | < 10ms | Constante |
-| Limite de Arquivo DB | 0.0 MB | Manter sob 500 MB (Vacuum ocasional) | 1 Ano |
+
+| Métrica | Baseline | Target |
+|---------|----------|--------|
+| Persistência de memória | Apenas histórico recente | Histórico + semântica recuperável |
+| Recuperação contextual | LIMIT puro | LIMIT + busca por similaridade |
+| Acoplamento ao loop | Alto | Baixo |
 
 ---
 
-## 4. Non-Goals (Fora do Escopo)
+## 4. Non-Goals
 
-- NG-01: Não criará banco distribuído de Grafos ou Chroma Vector Database. A intenção é ter memória conversacional direta, sem Sematic Search Complexo inicialmente.
-- NG-02: ORMs como Prisma, TypeORM etc. Usaremos SQL nativo `better-sqlite3` por leveza e clareza. 
-
----
-
-## 5. Usuários e Personas
-
-**Módulos primários:** 
-- O arquivo `DocumentHandler` (grava input principal).
-- A Classe `TelegramBot` via `AgentLoop` (lê e grava answers).
-- A Ferramenta Genérica de Sistema (apenas lê seu próprio histórico pra sumarização futura).
+- NG-01: Não substituir o Postgres por um banco de grafos nesta fase.
+- NG-02: Não tornar a memória semântica obrigatória para todo fluxo; ela é complementar ao histórico.
+- NG-03: Não acoplar o provider de embedding a um fornecedor específico.
 
 ---
 
-## 6. Requisitos Funcionais
+## 5. Requisitos Funcionais
 
-### 6.1 Requisitos Principais
+### 5.1 Requisitos Principais
 
 | ID | Requisito | Prioridade | Critério de Aceite |
 |----|-----------|-----------|-------------------|
-| RF-01 | O Singleton de DB deve criar a tabela de histórico (`conversations` e `messages`) sozinho no startup se não existirem. | Must | Excluir db antigo; reiniciar app; arquivo data/ db.sqlite reaparece limpo. |
-| RF-02 | O Storage deve usar WAL (Write-Ahead Logging) ativo pra manter leitura sem block | Must | Múltiplas msgs via Telegram não congelam o bot por locks do sqlite3 nativo. |
-| RF-03 | A classe abstrata repassará ao Agent Loop somente o número `MEMORY_WINDOW_SIZE` de mensagens recentes. | Must | Uma chamada REST pro Gemini não falhará por estouro de token via histórico inchado (1M text words). |
+| RF-01 | O sistema deve persistir conversas e mensagens em Postgres. | Must | Reiniciar o app não perde histórico. |
+| RF-02 | O sistema deve persistir memória semântica com embedding vetorial. | Must | Um item salvo pode ser recuperado por similaridade. |
+| RF-03 | O `MemoryManager` deve orquestrar persistência e recuperação sem expor SQL ao loop. | Must | `AgentLoop` não acessa SQL diretamente. |
+| RF-04 | O contexto do agente deve combinar histórico recente com memória semântica relevante. | Must | Respostas mantêm continuidade entre sessões. |
 
-### 6.2 Fluxo Principal (Happy Path)
+### 5.2 Fluxo Principal
 
-1. Usuário envia "Oi agente".
-2. `ConversationRepository` localiza UUID conversacional ativo do User_ID.
-3. `MessageRepository` persiste a nova mensagem `role="user"` com texto associado ao ID.
-4. `MemoryManager` extrai da DB as últimas "N" conversas usando LIMIT.
-5. Devolve array `[]` filtrado para AgentLoop atuar.
-6. A resposta do bot com `role="assistant"` ou `role="tool"` é persistida analogamente pelas mesmas classes.
-
-### 6.3 Fluxos Alternativos
-
-Falhas de Banco - Vide [11. Edge Cases e Tratamento de Erros](#11-edge-cases-e-tratamento-de-erros)
+1. Usuário envia uma entrada.
+2. O sistema gera embedding do texto.
+3. O `MemoryService` busca memórias próximas por similaridade.
+4. O `MemoryManager` monta o contexto para o `AgentLoop`.
+5. A resposta final do agente é persistida como conversa e memória semântica.
 
 ---
 
-## 7. Requisitos Não-Funcionais
+## 6. Requisitos Não-Funcionais
 
 | ID | Requisito | Valor alvo | Observação |
 |----|-----------|-----------|------------|
-| RNF-01 | Transações Seguras | Auto-commit nativo | WAL ativo resolve concorrencia Single thread node. |
+| RNF-01 | Recuperação semântica | Determinística e indexável | Usar `ORDER BY embedding <-> $1` |
+| RNF-02 | Resiliência a ausência de provider | Fallback local | O sistema continua operando |
+| RNF-03 | Baixo acoplamento | Alto | Serviço de embedding e storage separados |
 
 ---
 
-## 8. Design e Interface
+## 7. Modelo de Dados
 
-Pura estrutura sem interface visual (ver `sqlite-viewer` VSCode extensão para debbug interno).
+### 7.1 Tabelas principais
+
+- `conversations`
+- `messages`
+- `memory_items`
+
+### 7.2 `memory_items`
+
+Campos esperados:
+
+- `type`
+- `content`
+- `source_type`
+- `source_id`
+- `metadata`
+- `embedding`
+- `created_at`
+
+`embedding` deve ser compatível com `pgvector`.
 
 ---
 
-## 9. Modelo de Dados
-
-`conversations`
-`messages`
-
-Sem foreign keys restritas ativadas com pragma foreign_keys=ON pra priorizar inserts mais leves sem checks, apenas referências programáticas via Node.
-
----
-
-## 10. Integrações e Dependências
+## 8. Integrações e Dependências
 
 | Dependência | Tipo | Impacto se indisponível |
 |-------------|------|------------------------|
-| `better-sqlite3` | Obrigatória | O agente vai quebrar a Main.ts na instancialização. |
-| Filesystem (`fs`) | Obrigatório | DB path tem que ser gerido e gravado via Node FS Perms. |
+| Postgres | Obrigatória | Histórico e memória falham |
+| `pgvector` | Obrigatória | Busca semântica falha |
+| Provider de embedding | Opcional | Fallback local é usado |
+| `MemoryManager` | Obrigatória | Loop perde contexto agregado |
 
 ---
 
-## 11. Edge Cases e Tratamento de Erros
+## 9. Edge Cases
 
 | Cenário | Trigger | Comportamento esperado |
 |---------|---------|----------------------|
-| EC-01: Arquivo Lock file corrupto | Desligamento forçado de energia no Write SQLite local. | SQLite reabre do journaling automático e read de forma íntegra sem interrupções maiores. |
-| EC-02: Null Bytes na Mensagem do Usuário | Receber bytes invisíveis no TG causando Erro de syntax DB. | Stripping na entrada `content.replace(/\u0000/g, '')`. O DB não engole a query suja. |
-| EC-03: Memória Enorme de Resposta de LLM | O modelo decide cuspir 16k tokens em Output. | Limite o SQLite max text de String e truncate se estourar Max Byte (fallback). |
+| Embedding provider indisponível | API externa falha | Fallback local determinístico |
+| Base sem `pgvector` | Extensão ausente | Falha explícita na inicialização |
+| Memória vazia | Primeira execução | Contexto semântico retorna vazio |
 
 ---
 
-## 12. Segurança e Privacidade
+## 10. Rollout
 
-- **Arquivos DB Sensíveis:** O `andclaw.db` jamais pode ir pro Git (Adicionar no `.gitignore` /data).
-- **Sem senhas cruas no prompt:** O DB grava as msgs do usuário. Não logaremos APIs ali como System Prompts secretos pra evitar persistencia indevida.
+1. Ativar extensão `vector` no banco.
+2. Validar schema.
+3. Liberar geração e busca vetorial.
+4. Observar qualidade de recuperação semântica.
 
----
-
-## 13. Plano de Rollout
-
-Rollout instantâneo para DB Version 1. Scripts de Migration explícitos não são escopo inicial, pra reset bastando apagar e reinjetar no DB_PATH local de DEV.
-
----
-
-## 14. Open Questions
-
-N/A
