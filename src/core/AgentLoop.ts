@@ -17,6 +17,14 @@ import { metrics } from '@/infra/metrics/MetricsService';
 import { SkillLoader, Skill } from '@/skills/SkillLoader';
 import { z } from 'zod';
 
+import { PromptInjectionDetector } from '../modules/tools/security/promptInjectionDetector';
+import { ExecutionOrchestrator } from './execution/ExecutionOrchestrator';
+import { SpecService } from './spec/SpecService';
+import { AgentEvaluator } from './evaluation/AgentEvaluator';
+import { TaskDecomposer } from './agent/TaskDecomposer';
+import { SubAgentSpawner } from './agent/SubAgentSpawner';
+import { ResultAggregator } from './agent/ResultAggregator';
+
 type AgentLoopDeps = {
     provider?: ILLMProvider;
     profileRepo?: ProfileRepository;
@@ -74,9 +82,16 @@ export class AgentLoop {
         userInput: string,
         options: any = {}
     ): Promise<string> {
+        const evaluationStartTime = Date.now();
+        let toolUsageCount = 0;
+        let errorCount = 0;
+        let success = false;
+        let iterations_count = 0; // Avoid conflict with local variables if any
+
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
         const requestId = typeof parsed.options?.requestId === 'string' ? parsed.options.requestId : undefined;
         const startedAt = Date.now();
+        
         logger.info('agent.run.start', {
           provider: this.providerName,
           historyLength: parsed.history.length,
@@ -84,7 +99,33 @@ export class AgentLoop {
           requestId,
         });
 
-        const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
+        // --- 1. Security Check: Prompt Injection ---
+        const injectionCheck = PromptInjectionDetector.analyze(parsed.userInput);
+        if (!injectionCheck.isSafe) {
+            return `[Erro de Segurança] ${injectionCheck.reason || 'Sua solicitação foi bloqueada por motivos de segurança.'}`;
+        }
+
+        // --- 2. Multi-Agent Decomposition Check ---
+        const decomposition = await TaskDecomposer.decompose(parsed.userInput);
+        if (decomposition.isComplex && decomposition.subTasks.length > 1) {
+            console.log(`[AgentLoop] Complex task detected. Spawning ${decomposition.subTasks.length} sub-agents.`);
+            const spawner = new SubAgentSpawner(this.providerName, this.registry);
+            const subResults = await spawner.spawnAll(decomposition.subTasks);
+            
+            // Track metrics for sub-agents
+            AgentEvaluator.evaluateRun({
+                success: subResults.every(r => r.success),
+                latencyMs: Date.now() - startedAt,
+                toolUsageCount: subResults.length,
+                errorCount: subResults.filter(r => !r.success).length,
+                totalIterations: 1
+            });
+
+            return ResultAggregator.aggregate(subResults);
+        }
+
+        try {
+            const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
         const userId = parsed.options.userId || 'pwa-user';
         const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
         const availableSkills = this.skillLoader.fetchSkills();
@@ -121,10 +162,6 @@ export class AgentLoop {
             if (plan.type === 'skill') {
               const skill = availableSkills.find((item) => item.metadata.name === plan.skill) || null;
               if (skill) {
-                logger.info('agent.skill.selected', {
-                  requestId,
-                  intent: intent.name,
-                  skill: skill.metadata.name,
                 });
 
                 const skillResult = await this.executeSkillPlan({
@@ -273,16 +310,29 @@ export class AgentLoop {
           semanticContext,
         });
 
-        return this.executeLLMFlow({
-            provider,
-            composedSystemPrompt,
-            availableTools,
-            userId,
-            parsed,
-            requestId,
-            startedAt,
-            cacheContext: { cacheInput, cacheEmbedding },
-        });
+          return this.executeLLMFlow({
+              provider,
+              composedSystemPrompt,
+              availableTools,
+              userId,
+              parsed,
+              requestId,
+              startedAt,
+              cacheContext: { cacheInput, cacheEmbedding },
+          });
+        } catch (error) {
+          errorCount++;
+          throw error;
+        } finally {
+          success = errorCount === 0;
+          AgentEvaluator.evaluateRun({
+              success,
+              latencyMs: Date.now() - evaluationStartTime,
+              toolUsageCount,
+              errorCount,
+              totalIterations: iterations_count || 1
+          });
+        }
     }
 
     private async executeSkillPlan(params: {
@@ -392,6 +442,13 @@ export class AgentLoop {
           const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
 
           if (response.toolCalls && response.toolCalls.length > 0) {
+            // --- 3. Spec Governance Verification ---
+            const planValidation = SpecService.validatePlan(response.toolCalls);
+            if (!planValidation.isValid) {
+                logger.warn('agent.spec.violation', { reason: planValidation.reason, requestId });
+                return `[Bloqueio de Governança] ${planValidation.reason}`;
+            }
+
             for (const call of response.toolCalls) {
               logger.info('agent.tool.call', { tool: call.name, requestId });
 
@@ -680,8 +737,6 @@ export class AgentLoop {
 
       messages.push(lastUserMessage);
       return messages;
-    }
-
     private normalizeToolArguments(argumentsValue: unknown): Record<string, unknown> {
       if (argumentsValue && typeof argumentsValue === 'object' && !Array.isArray(argumentsValue)) {
         return argumentsValue as Record<string, unknown>;
@@ -699,6 +754,8 @@ export class AgentLoop {
       }
 
       return {};
+    }
+
     }
 
     private buildCacheInput(
