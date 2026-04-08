@@ -1,20 +1,18 @@
+import { AgentLoop } from '@/core/AgentLoop';
+import { ToolRegistry } from '@/core/ToolRegistry';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { SkillLoader } from '@/skills/SkillLoader';
-import { SkillRouter } from '@/skills/SkillRouter';
-import { SkillExecutor } from '@/skills/SkillExecutor';
 import { config } from '@/config/env';
 
 export class AgentController {
     private memoryManager: MemoryManager;
     private skillLoader: SkillLoader;
-    private router: SkillRouter;
-    private executor: SkillExecutor;
+    private registry: ToolRegistry;
 
     constructor() {
         this.memoryManager = new MemoryManager();
         this.skillLoader = new SkillLoader();
-        this.router = new SkillRouter();
-        this.executor = new SkillExecutor();
+        this.registry = new ToolRegistry();
     }
 
     /**
@@ -28,26 +26,24 @@ export class AgentController {
             const availableSkills = this.skillLoader.fetchSkills();
             console.log(`[Controller] ${availableSkills.length} skills carregadas do sistema.`);
 
-            // 2. Routing: Descobrir se Input precisa de alguma Skill "Passo Zero"
-            const skill = await this.router.route(input, availableSkills);
-            if (skill) {
-                console.log(`[Controller] Intent resolvido para a Skill: ${skill.metadata.name}`);
-            } else {
-                console.log(`[Controller] Nenhuma skill detectada. Agente em modo casual.`);
-            }
-
-            // 3. Pegar Histórico da Conversa Ativa
+            // 2. Pegar Histórico da Conversa Ativa
             const providerName = config.llm.defaultProvider;
             const history = await this.memoryManager.getHistory(userId, providerName);
 
-            // 4. Salvar query atual
+            // 3. Salvar query atual
             const conversationId = await this.memoryManager.getOrCreateActiveConversation(userId, providerName);
             await this.memoryManager.addMessage(conversationId, 'user', input);
 
-            // 5. Executar Agent Loop
-            const result = await this.executor.execute(input, skill, history, providerName, { ...options, userId });
+            // 4. Executar Agent Loop unificado
+            const loop = new AgentLoop(providerName, this.registry);
+            const result = await loop.run(
+              options.systemPrompt || `Você é o AndClaw, um agente assistente inteligente projetado para ${process.env.AGENT_USER_NAME || 'usuário'}. Você tem acesso a ferramentas locais.`,
+              history,
+              input,
+              { ...options, userId }
+            );
 
-            // 6. Salvar e retornar output
+            // 5. Salvar e retornar output
             await this.memoryManager.addMessage(conversationId, 'assistant', result);
             return result;
         } catch (e: any) {

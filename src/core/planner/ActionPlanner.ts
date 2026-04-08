@@ -1,5 +1,6 @@
 import type { Tool } from '@/modules/tools/Tool';
 import type { DetectedIntent, IntentName } from './IntentDetector';
+import type { Skill } from '@/skills/SkillLoader';
 
 export type ActionPlanStep = {
   tool: string;
@@ -7,10 +8,19 @@ export type ActionPlanStep = {
   outputKey: string;
 };
 
-export type ActionPlan = {
+export type SkillActionPlan = {
+  type: 'skill';
+  intent: IntentName;
+  skill: string;
+};
+
+export type ToolActionPlan = {
+  type: 'tool';
   intent: IntentName;
   steps: ActionPlanStep[];
 };
+
+export type ActionPlan = SkillActionPlan | ToolActionPlan;
 
 function hasTool(tools: Tool[], name: string): boolean {
   return tools.some((tool) => tool.name === name);
@@ -23,15 +33,42 @@ function truthy(value: unknown): boolean {
   return Boolean(value);
 }
 
+const INTENT_TO_SKILL: Partial<Record<IntentName, string>> = {
+  'profile.upsert': 'user-profiling',
+  'profile.delete': 'user-profiling',
+  'notion.create_page': 'notion-sync',
+  'notion.append_block': 'notion-sync',
+};
+
 export class ActionPlanner {
-  public plan(intent: DetectedIntent, tools: Tool[]): ActionPlan | null {
+  public plan(intent: DetectedIntent, tools: Tool[], skills: Skill[] = []): ActionPlan | null {
     const toolList = Array.isArray(tools) ? tools : [];
+    const skillList = Array.isArray(skills) ? skills : [];
+    const matchedSkillName = this.resolveSkill(intent, skillList);
+
+    if (matchedSkillName) {
+      return {
+        type: 'skill',
+        intent: intent.name,
+        skill: matchedSkillName,
+      };
+    }
+
     const steps = this.buildSteps(intent, toolList);
     if (!steps.length || steps.length > 2) return null;
     return {
+      type: 'tool',
       intent: intent.name,
       steps,
     };
+  }
+
+  private resolveSkill(intent: DetectedIntent, skills: Skill[]): string | null {
+    const desiredSkillName = INTENT_TO_SKILL[intent.name];
+    if (!desiredSkillName) return null;
+
+    const matchedSkill = skills.find((skill) => skill.metadata.name === desiredSkillName);
+    return matchedSkill?.metadata.name || null;
   }
 
   private buildSteps(intent: DetectedIntent, tools: Tool[]): ActionPlanStep[] {
@@ -135,4 +172,3 @@ export class ActionPlanner {
     }
   }
 }
-

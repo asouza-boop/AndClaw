@@ -10,6 +10,7 @@ import { IntentDetector } from '@/core/planner/IntentDetector';
 import { ActionPlanner } from '@/core/planner/ActionPlanner';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { Tool } from '@/modules/tools/Tool';
+import type { Skill } from '@/skills/SkillLoader';
 import { z } from 'zod';
 
 class StaticProvider implements ILLMProvider {
@@ -58,16 +59,53 @@ test('ActionPlanner keeps plans linear and bounded', () => {
   const detector = new IntentDetector();
   const planner = new ActionPlanner();
   const registry = new ToolRegistry();
+  const skills: Skill[] = [
+    {
+      metadata: {
+        name: 'user-profiling',
+        description: 'Perfil do usuário.',
+      },
+      content: 'skill content',
+      folderName: 'user-profiling',
+    },
+  ];
 
   const intent = detector.detect('procure o arquivo source.ts e leia seu conteúdo');
   assert.ok(intent);
 
-  const plan = planner.plan(intent!, registry.getAllTools());
+  const plan = planner.plan(intent!, registry.getAllTools(), skills);
   assert.ok(plan);
+  assert.equal(plan!.type, 'tool');
   assert.ok(plan!.steps.length <= 2);
   assert.deepEqual(plan!.steps.map((step) => step.tool), ['glob', 'read_file']);
   assert.equal(plan!.steps[0].outputKey, 'matches');
   assert.equal(plan!.steps[1].inputKey, 'matches');
+});
+
+test('ActionPlanner prefers skills when available', () => {
+  const detector = new IntentDetector();
+  const planner = new ActionPlanner();
+  const registry = new ToolRegistry();
+  const skills: Skill[] = [
+    {
+      metadata: {
+        name: 'user-profiling',
+        description: 'Perfil do usuário.',
+      },
+      content: 'skill content',
+      folderName: 'user-profiling',
+    },
+  ];
+
+  const intent = detector.detect('atualize meu perfil com linguagem TypeScript');
+  assert.ok(intent);
+
+  const plan = planner.plan(intent!, registry.getAllTools(), skills);
+  assert.ok(plan);
+  assert.equal(plan!.type, 'skill');
+  if (plan!.type === 'skill') {
+    assert.equal(plan!.skill, 'user-profiling');
+  }
 });
 
 test('AgentLoop executes a planned read action without calling the LLM', async () => {

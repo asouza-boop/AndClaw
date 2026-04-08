@@ -9,11 +9,12 @@ import { MemoryManager } from '@/memory/MemoryManager';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { ContextBuilder } from '@/core/ContextBuilder';
 import { IntentDetector, DetectedIntent } from '@/core/planner/IntentDetector';
-import { ActionPlanner, ActionPlan, ActionPlanStep } from '@/core/planner/ActionPlanner';
+import { ActionPlanner, ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 import { AgentRunInputSchema } from '@/contracts/agent';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
+import { SkillLoader, Skill } from '@/skills/SkillLoader';
 import { z } from 'zod';
 
 type AgentLoopDeps = {
@@ -23,6 +24,7 @@ type AgentLoopDeps = {
     cacheService?: SemanticCacheService;
     intentDetector?: IntentDetector;
     actionPlanner?: ActionPlanner;
+    skillLoader?: SkillLoader;
 };
 
 export class AgentLoop {
@@ -38,6 +40,7 @@ export class AgentLoop {
     private contextBuilder: ContextBuilder;
     private intentDetector: IntentDetector;
     private actionPlanner: ActionPlanner;
+    private skillLoader: SkillLoader;
 
     constructor(
       providerName: string,
@@ -59,6 +62,7 @@ export class AgentLoop {
         this.contextBuilder = deps.contextBuilder || new ContextBuilder();
         this.intentDetector = deps.intentDetector || new IntentDetector();
         this.actionPlanner = deps.actionPlanner || new ActionPlanner();
+        this.skillLoader = deps.skillLoader || new SkillLoader();
     }
 
     /**
@@ -80,9 +84,10 @@ export class AgentLoop {
           requestId,
         });
 
-        const profile = await this.profileRepo.getAll();
+        const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
         const userId = parsed.options.userId || 'pwa-user';
         const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
+        const availableSkills = this.skillLoader.fetchSkills();
         const availableTools = this.registry.getAllTools().map((tool) => ({
             name: tool.name,
             description: tool.description,
@@ -98,66 +103,122 @@ export class AgentLoop {
             reason: intent.reason,
           });
 
-          const plan = this.actionPlanner.plan(intent, this.registry.getAllTools());
+          const plan = this.actionPlanner.plan(intent, this.registry.getAllTools(), availableSkills);
           if (plan) {
             logger.info('agent.plan.created', {
               requestId,
               intent: plan.intent,
-              steps: plan.steps.map((step) => ({
-                tool: step.tool,
-                inputKey: step.inputKey,
-                outputKey: step.outputKey,
-              })),
+              type: plan.type,
+              ...(plan.type === 'skill'
+                ? { skill: plan.skill }
+                : { steps: plan.steps.map((step) => ({
+                    tool: step.tool,
+                    inputKey: step.inputKey,
+                    outputKey: step.outputKey,
+                  })) }),
             });
 
-            const actionResult = await this.executeActionPlan({
-              parsed,
-              intent,
-              plan,
-              requestId,
-            });
+            if (plan.type === 'skill') {
+              const skill = availableSkills.find((item) => item.metadata.name === plan.skill) || null;
+              if (skill) {
+                logger.info('agent.skill.selected', {
+                  requestId,
+                  intent: intent.name,
+                  skill: skill.metadata.name,
+                });
 
-            if (actionResult.ok && actionResult.output) {
-              await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, actionResult.output, {
-                source: 'action-plan',
-                provider: this.providerName,
-                intent: intent.name,
-                planSteps: plan.steps.length,
-              });
-              logger.info('agent.run.complete', {
-                provider: this.providerName,
-                answerLength: actionResult.output.length,
+                const skillResult = await this.executeSkillPlan({
+                  parsed,
+                  intent,
+                  skill,
+                  profile,
+                  userId,
+                  availableTools,
+                  requestId,
+                  startedAt,
+                });
+
+                if (skillResult.ok && skillResult.output) {
+                  logger.info('agent.skill.executed', {
+                    requestId,
+                    intent: intent.name,
+                    skill: skill.metadata.name,
+                    answerLength: skillResult.output.length,
+                  });
+                  await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, skillResult.output, {
+                    source: 'skill-plan',
+                    provider: this.providerName,
+                    intent: intent.name,
+                    skill: skill.metadata.name,
+                  });
+                  logger.info('agent.run.complete', {
+                    provider: this.providerName,
+                    answerLength: skillResult.output.length,
+                    requestId,
+                    mode: 'skill-plan',
+                  });
+                  metrics.increment('agent.run.success');
+                  metrics.observe('agent.latency', Date.now() - startedAt);
+                  return skillResult.output;
+                }
+              }
+
+              logger.info('agent.skill.fallback', {
                 requestId,
-                mode: 'action-plan',
+                intent: intent.name,
+                skill: plan.skill,
+                reason: 'skill_missing_or_failed',
               });
-              metrics.increment('agent.run.success');
-              metrics.observe('agent.latency', Date.now() - startedAt);
-              return actionResult.output;
-            }
+            } else {
+              const actionResult = await this.executeActionPlan({
+                parsed,
+                intent,
+                plan,
+                requestId,
+              });
 
-            logger.info('agent.plan.fallback', {
-              requestId,
-              intent: intent.name,
-              reason: actionResult.reason || 'plan_failed',
-            });
-            const provider = this.providerOverride || ProviderFactory.getChain();
-            const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
-            const composedSystemPrompt = this.contextBuilder.build({
-              systemPrompt: parsed.systemPrompt,
-              profile,
-              semanticContext,
-            });
-            const fallbackReply = await this.executeLLMFlow({
-              provider,
-              composedSystemPrompt,
-              initialMessages: actionResult.messages,
-              availableTools,
-              userId,
-              parsed,
-              requestId,
-              startedAt,
-            });
-            return fallbackReply;
+              if (actionResult.ok && actionResult.output) {
+                await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, actionResult.output, {
+                  source: 'action-plan',
+                  provider: this.providerName,
+                  intent: intent.name,
+                  planSteps: plan.steps.length,
+                });
+                logger.info('agent.run.complete', {
+                  provider: this.providerName,
+                  answerLength: actionResult.output.length,
+                  requestId,
+                  mode: 'action-plan',
+                });
+                metrics.increment('agent.run.success');
+                metrics.observe('agent.latency', Date.now() - startedAt);
+                return actionResult.output;
+              }
+
+              logger.info('agent.plan.fallback', {
+                requestId,
+                intent: intent.name,
+                reason: actionResult.reason || 'plan_failed',
+              });
+              const provider = this.providerOverride || ProviderFactory.getChain();
+              const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
+              const composedSystemPrompt = this.contextBuilder.build({
+                systemPrompt: parsed.systemPrompt,
+                profile,
+                semanticContext,
+              });
+              const fallbackReply = await this.executeLLMFlow({
+                provider,
+                composedSystemPrompt,
+                initialMessages: actionResult.messages,
+                availableTools,
+                userId,
+                parsed,
+                requestId,
+                startedAt,
+              });
+              return fallbackReply;
+            }
           }
 
           logger.info('agent.plan.fallback', {
@@ -222,6 +283,77 @@ export class AgentLoop {
             startedAt,
             cacheContext: { cacheInput, cacheEmbedding },
         });
+    }
+
+    private async executeSkillPlan(params: {
+      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
+      intent: DetectedIntent;
+      skill: Skill;
+      profile: Array<{ key?: string; value?: string }>;
+      userId: string;
+      availableTools: Array<{ name: string; description: string; category: string; parameters: any }>;
+      requestId?: string;
+      startedAt: number;
+    }): Promise<{ ok: boolean; output?: string }> {
+      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt } = params;
+      const normalizedProfile = this.normalizeProfileEntries(profile);
+      const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
+      const composedSystemPrompt = this.contextBuilder.build({
+        systemPrompt: this.composeSkillSystemPrompt(parsed.systemPrompt, skill),
+        profile: normalizedProfile,
+        semanticContext,
+      });
+
+      const cacheInput = this.buildCacheInput(
+        composedSystemPrompt,
+        parsed.history,
+        parsed.userInput,
+        normalizedProfile,
+        userId,
+        parsed.options,
+      );
+      const cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
+      const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
+
+      if (cacheHit) {
+        logger.info('agent.skill.executed', {
+          requestId,
+          intent: intent.name,
+          skill: skill.metadata.name,
+          source: 'semantic-cache',
+          answerLength: cacheHit.output.length,
+        });
+        await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, cacheHit.output, {
+          source: 'skill-cache',
+          provider: this.providerName,
+          intent: intent.name,
+          skill: skill.metadata.name,
+          cacheHit: true,
+        });
+        logger.info('agent.run.complete', {
+          provider: this.providerName,
+          answerLength: cacheHit.output.length,
+          requestId,
+          mode: 'skill-cache',
+        });
+        metrics.increment('agent.run.success');
+        metrics.observe('agent.latency', Date.now() - startedAt);
+        return { ok: true, output: cacheHit.output };
+      }
+
+      const provider = this.providerOverride || ProviderFactory.getChain();
+      const output = await this.executeLLMFlow({
+        provider,
+        composedSystemPrompt,
+        availableTools,
+        userId,
+        parsed,
+        requestId,
+        startedAt,
+        cacheContext: { cacheInput, cacheEmbedding },
+      });
+
+      return { ok: true, output };
     }
 
     private async executeLLMFlow(params: {
@@ -345,7 +477,7 @@ export class AgentLoop {
     private async executeActionPlan(params: {
       parsed: ReturnType<typeof AgentRunInputSchema.parse>;
       intent: DetectedIntent;
-      plan: ActionPlan;
+      plan: ToolActionPlan;
       requestId?: string;
     }): Promise<{ ok: boolean; output?: string; messages: Array<{ role: string; content: string }>; reason?: string }> {
       const { parsed, intent, plan, requestId } = params;
@@ -444,6 +576,26 @@ export class AgentLoop {
       }
 
       return false;
+    }
+
+    private normalizeProfileEntries(profile: Array<{ key?: string; value?: string }>): Array<{ key: string; value: string }> {
+      return profile
+        .filter((item): item is { key: string; value: string } => Boolean(item?.key && item?.value))
+        .map((item) => ({
+          key: item.key.trim(),
+          value: item.value.trim(),
+        }))
+        .filter((item) => item.key.length > 0 && item.value.length > 0);
+    }
+
+    private composeSkillSystemPrompt(systemPrompt: string, skill: Skill): string {
+      const blocks = [
+        systemPrompt.trim(),
+        `[HABILIDADE ATIVA] ${skill.metadata.name}`,
+        skill.content.trim(),
+      ].filter(Boolean);
+
+      return blocks.join('\n\n');
     }
 
     private resolvePlannedToolInput(

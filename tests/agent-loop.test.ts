@@ -5,6 +5,7 @@ import { ToolRegistry } from '@/core/ToolRegistry';
 import { ContextBuilder } from '@/core/ContextBuilder';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { Tool } from '@/modules/tools/Tool';
+import type { Skill } from '@/skills/SkillLoader';
 import { z } from 'zod';
 
 class FakeProvider implements ILLMProvider {
@@ -38,6 +39,19 @@ class EchoTool implements Tool {
   async execute(args: { message: string }): Promise<string> {
     this.onExecute(args.message);
     return `echo:${args.message}`;
+  }
+}
+
+class SkillAwareProvider implements ILLMProvider {
+  public calls = 0;
+  public lastSystemPrompt = '';
+
+  async initialize(): Promise<void> {}
+
+  async generateResponse(systemPrompt: string) {
+    this.calls += 1;
+    this.lastSystemPrompt = systemPrompt;
+    return { text: 'skill answer' };
   }
 }
 
@@ -143,4 +157,47 @@ test('AgentLoop returns semantic cache hits without calling the provider', async
   assert.equal(provider.calls, 0);
   assert.equal(semanticContextBuilt, false);
   assert.equal(persisted, true);
+});
+
+test('AgentLoop executes skill-oriented flows with deterministic skill selection', async () => {
+  const registry = new ToolRegistry();
+  const provider = new SkillAwareProvider();
+  const skill: Skill = {
+    metadata: {
+      name: 'user-profiling',
+      description: 'Identifica e memoriza informações.',
+    },
+    content: 'Aplique o protocolo de perfil do usuário.',
+    folderName: 'user-profiling',
+  };
+
+  const loop = new AgentLoop(
+    'fake-provider',
+    registry,
+    undefined as any,
+    undefined as any,
+    {
+      buildSemanticContext: async () => '',
+      persistTurn: async () => undefined,
+    } as any,
+    {
+      provider,
+      profileRepo: { getAll: async () => [] } as any,
+      contextBuilder: new ContextBuilder(),
+      skillLoader: {
+        fetchSkills: () => [skill],
+      } as any,
+    }
+  );
+
+  const result = await loop.run(
+    'Base prompt',
+    [],
+    'atualize meu perfil com linguagem TypeScript',
+    { userId: 'user-1', requestId: 'req-skill' }
+  );
+
+  assert.equal(provider.calls, 1);
+  assert.match(provider.lastSystemPrompt, /Aplique o protocolo de perfil do usuário/);
+  assert.equal(result, 'skill answer');
 });
