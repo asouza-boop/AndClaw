@@ -10,10 +10,31 @@ export class SkillRouter {
   public async route(input: string, availableSkills: Skill[]): Promise<Skill | null> {
     if (availableSkills.length === 0) return null;
 
+    // 1. Only consider plannerEnabled = true
+    let validSkills = availableSkills.filter(s => s.metadata.plannerEnabled !== false);
+
+    if (validSkills.length === 0) return null;
+
+    // 2. Rank by priority (descending)
+    validSkills.sort((a, b) => (b.metadata.priority || 0) - (a.metadata.priority || 0));
+
+    // 3. Match by intentTriggers (Deterministic match first)
+    const normalizedInput = input.toLowerCase();
+    for (const skill of validSkills) {
+      const triggers = skill.metadata.intentTriggers || [];
+      for (const trigger of triggers) {
+        if (normalizedInput.includes(trigger.toLowerCase())) {
+          console.log(`[SkillRouter] Exact trigger match: '${trigger}' -> ${skill.metadata.name}`);
+          return skill;
+        }
+      }
+    }
+
+    // 4. Fallback to LLM Routing
     const provider = ProviderFactory.getChain();
     await provider.initialize();
 
-    const skillsPrompt = availableSkills.map(s => `- ${s.metadata.name}: ${s.metadata.description}`).join('\n');
+    const skillsPrompt = validSkills.map(s => `- ${s.metadata.name}: ${s.metadata.description}`).join('\n');
     
     const systemPrompt = `Você é um roteador de intenções (Router).
 Analise o input do usuário e decida qual das habilidades (skills) disponíveis é a melhor para tratar o problema.
@@ -37,7 +58,7 @@ ${skillsPrompt}
       const parsed = JSON.parse(jsonText);
       
       if (parsed.skillName) {
-        const matchedSkill = availableSkills.find(s => s.metadata.name === parsed.skillName);
+        const matchedSkill = validSkills.find(s => s.metadata.name === parsed.skillName);
         return matchedSkill || null;
       }
       return null;

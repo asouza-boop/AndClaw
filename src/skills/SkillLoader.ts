@@ -2,10 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 import { config } from '@/config/env';
+import { SkillValidator } from '../core/skills/SkillValidator';
 
 export interface SkillMetadata {
   name: string;
   description: string;
+  category?: 'integration' | 'cognitive' | 'meta';
+  capability?: string;
+  plannerEnabled?: boolean;
+  intentTriggers?: string[];
+  priority?: number;
+  riskLevel?: 'low' | 'medium' | 'high';
   [key: string]: any;
 }
 
@@ -61,18 +68,21 @@ export class SkillLoader {
               const fileContent = fs.readFileSync(mdPath, 'utf-8');
               const parsed = this.parseFrontmatter(fileContent);
               if (parsed) {
-                // Se já existe uma skill com o mesmo nome, removemos a anterior (Last match wins)
-                const existingIndex = skills.findIndex(s => s.metadata.name === parsed.metadata.name);
                 const skillData = {
                   metadata: parsed.metadata,
                   content: fileContent,
                   folderName: entry.name
                 };
 
-                if (existingIndex !== -1) {
-                  skills[existingIndex] = skillData;
-                } else {
-                  skills.push(skillData);
+                if (SkillValidator.validate(skillData, skills)) {
+                  // Se já existe uma skill com o mesmo nome, removemos a anterior (Last match wins)
+                  const existingIndex = skills.findIndex(s => s.metadata.name === parsed.metadata.name);
+
+                  if (existingIndex !== -1) {
+                    skills[existingIndex] = skillData;
+                  } else {
+                    skills.push(skillData);
+                  }
                 }
               }
             }
