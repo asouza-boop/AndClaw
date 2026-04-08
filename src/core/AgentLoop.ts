@@ -162,8 +162,6 @@ export class AgentLoop {
             if (plan.type === 'skill') {
               const skill = availableSkills.find((item) => item.metadata.name === plan.skill) || null;
               if (skill) {
-                });
-
                 const skillResult = await this.executeSkillPlan({
                   parsed,
                   intent,
