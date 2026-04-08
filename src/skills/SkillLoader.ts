@@ -13,6 +13,7 @@ export interface SkillMetadata {
   intentTriggers?: string[];
   priority?: number;
   riskLevel?: 'low' | 'medium' | 'high';
+  status?: 'experimental' | 'active' | 'deprecated';
   [key: string]: any;
 }
 
@@ -82,7 +83,10 @@ export class SkillLoader {
                     skills[existingIndex] = skillData;
                   } else {
                     skills.push(skillData);
+                    console.log(`[Observability] skill.created: '${skillData.metadata.name}' (Status: ${skillData.metadata.status})`);
                   }
+                } else {
+                   console.log(`[Observability] skill.rejected: '${parsed.metadata.name}'`);
                 }
               }
             }
@@ -96,6 +100,31 @@ export class SkillLoader {
     this.skillsCache = skills;
     this.cacheTimestamp = Date.now();
     return skills;
+  }
+
+  /**
+   * Promote an experimental skill to active
+   */
+  public promoteSkill(skillName: string): boolean {
+    if (!this.skillsCache) return false;
+    
+    const skillIndex = this.skillsCache.findIndex(s => s.metadata.name === skillName);
+    if (skillIndex !== -1) {
+      const skill = this.skillsCache[skillIndex];
+      skill.metadata.status = 'active';
+      skill.metadata.plannerEnabled = true;
+      console.log(`[Observability] skill.promoted: '${skillName}'`);
+      
+      // Attempt to rewrite frontmatter on disk for persistence
+      try {
+        // Simplified disk update: practically would parse string, update yaml and rewrite.
+        // For this step, we just update the cache and let future operations persist if needed.
+      } catch (e) {
+         console.warn(`[SkillLoader] Could not persist promotion for '${skillName}' to disk.`);
+      }
+      return true;
+    }
+    return false;
   }
 
   /**
