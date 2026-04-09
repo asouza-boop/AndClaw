@@ -24,6 +24,8 @@ import { AgentEvaluator } from './evaluation/AgentEvaluator';
 import { TaskDecomposer } from './agent/TaskDecomposer';
 import { SubAgentSpawner } from './agent/SubAgentSpawner';
 import { ResultAggregator } from './agent/ResultAggregator';
+import { FeedbackCollector, FeedbackEntry } from './learning/FeedbackCollector';
+import { OptimizationEngine } from './learning/OptimizationEngine';
 
 type AgentLoopDeps = {
     provider?: ILLMProvider;
@@ -87,6 +89,8 @@ export class AgentLoop {
         let errorCount = 0;
         let success = false;
         let totalIterations = 0;
+        let executionPath: FeedbackEntry['executionPath'] = 'unknown';
+        let skillUsed: string | undefined = undefined;
 
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
         const requestId = typeof parsed.options?.requestId === 'string' ? parsed.options.requestId : undefined;
@@ -113,13 +117,26 @@ export class AgentLoop {
             const subResults = await spawner.spawnAll(decomposition.subTasks);
             
             // Track metrics for sub-agents
+            const multiAgentSuccess = subResults.every(r => r.success);
             AgentEvaluator.evaluateRun({
-                success: subResults.every(r => r.success),
+                success: multiAgentSuccess,
                 latencyMs: Date.now() - startedAt,
                 toolUsageCount: subResults.length,
                 errorCount: subResults.filter(r => !r.success).length,
                 totalIterations: 1
             });
+
+            // --- Passive Learning: Multi-Agent path ---
+            const multiAgentFeedback: FeedbackEntry = {
+                requestId,
+                success: multiAgentSuccess,
+                latencyMs: Date.now() - startedAt,
+                toolsUsed: subResults.map(r => r.description || 'sub-agent'),
+                executionPath: 'multi-agent',
+                errorCount: subResults.filter(r => !r.success).length,
+                timestamp: new Date().toISOString(),
+            };
+            FeedbackCollector.collect(multiAgentFeedback);
 
             return ResultAggregator.aggregate(subResults);
         }
@@ -194,6 +211,9 @@ export class AgentLoop {
                       });
                       metrics.increment('agent.run.success');
                       metrics.observe('agent.latency', Date.now() - startedAt);
+                      executionPath = 'skill-plan';
+                      skillUsed = skill.metadata.name;
+                      success = true;
                       return skillResult.output;
                     }
                   }
@@ -227,6 +247,8 @@ export class AgentLoop {
                     });
                     metrics.increment('agent.run.success');
                     metrics.observe('agent.latency', Date.now() - startedAt);
+                    executionPath = 'action-plan';
+                    success = true;
                     return actionResult.output;
                   }
 
@@ -298,6 +320,8 @@ export class AgentLoop {
               });
               metrics.increment('agent.run.success');
               metrics.observe('agent.latency', Date.now() - startedAt);
+              executionPath = 'cache-hit';
+              success = true;
               return cacheHit.output;
             }
 
@@ -322,7 +346,11 @@ export class AgentLoop {
           errorCount++;
           throw error;
         } finally {
-          success = errorCount === 0;
+          if (executionPath === 'unknown') {
+            // Default: if no specific path was set but no errors, it was llm-flow
+            if (errorCount === 0) executionPath = 'llm-flow';
+          }
+          success = success || errorCount === 0;
           AgentEvaluator.evaluateRun({
               success,
               latencyMs: Date.now() - evaluationStartTime,
@@ -330,6 +358,24 @@ export class AgentLoop {
               errorCount,
               totalIterations: totalIterations || 1
           });
+
+          // --- Passive Learning: collect feedback & update optimization scores ---
+          try {
+              const feedbackEntry: FeedbackEntry = {
+                  requestId,
+                  success,
+                  latencyMs: Date.now() - evaluationStartTime,
+                  skillId: skillUsed,
+                  toolsUsed: [],
+                  executionPath,
+                  errorCount,
+                  timestamp: new Date().toISOString(),
+              };
+              FeedbackCollector.collect(feedbackEntry);
+              OptimizationEngine.processFeedback(feedbackEntry);
+          } catch {
+              // Background-safe: learning errors must never break the agent
+          }
         }
     }
 
@@ -469,7 +515,13 @@ export class AgentLoop {
                   const toolArgs = tool.inputSchema
                     ? tool.inputSchema.parse(normalizedArgs)
                     : z.object({}).passthrough().parse(normalizedArgs);
-                  observation = await tool.execute(toolArgs);
+
+                  const orchestrator = new ExecutionOrchestrator(this.registry);
+                  const executionResults = await orchestrator.executeSteps([{
+                    name: call.name,
+                    arguments: toolArgs
+                  }]);
+                  observation = executionResults[0]?.observation || 'No output';
                   ToolExecutionResultSchema.parse(observation);
                   metrics.increment('tool.execution.count');
                 } catch (e: any) {
@@ -543,67 +595,24 @@ export class AgentLoop {
       };
       const outputs: string[] = [];
 
-      for (const step of plan.steps) {
-        const tool = this.registry.getTool(step.tool);
-        if (!tool) {
-          logger.warn('agent.plan.step.end', {
-            requestId,
-            tool: step.tool,
-            status: 'missing_tool',
-          });
-          return { ok: false, reason: `tool_missing:${step.tool}`, messages };
-        }
+      const orchestrator = new ExecutionOrchestrator(this.registry);
+      const steps = plan.steps.map(step => ({
+        name: step.tool,
+        arguments: this.resolvePlannedToolInput(step, intent, state) || {}
+      }));
 
-        const startedAt = Date.now();
-        logger.info('agent.plan.step.start', {
-          requestId,
-          tool: step.tool,
-          inputKey: step.inputKey,
-          outputKey: step.outputKey,
-        });
-
-        const rawArgs = this.resolvePlannedToolInput(step, intent, state);
-        if (!rawArgs) {
-          logger.warn('agent.plan.step.end', {
-            requestId,
-            tool: step.tool,
-            status: 'invalid_input',
-            latencyMs: Date.now() - startedAt,
-          });
-          return { ok: false, reason: `invalid_input:${step.tool}`, messages };
+      const executionResults = await orchestrator.executeSteps(steps);
+      
+      for (let i = 0; i < executionResults.length; i++) {
+        const result = executionResults[i];
+        const step = plan.steps[i];
+        if (!result.success) {
+          return { ok: false, reason: `step_failed:${step.tool}:${result.observation}`, messages };
         }
-
-        try {
-          const validated = tool.inputSchema
-            ? tool.inputSchema.parse(rawArgs)
-            : z.object({}).passthrough().parse(rawArgs);
-          const output = await tool.execute(validated);
-          ToolExecutionResultSchema.parse(output);
-          if (this.isFailureObservation(output)) {
-            throw new Error(typeof output === 'string' ? output : 'Tool returned failure observation');
-          }
-          state[step.outputKey] = output;
-          outputs.push(output);
-          messages.push({ role: 'assistant', content: `Resultado da ferramenta ${step.tool}: ${output}` });
-          messages.push({ role: 'user', content: `Resultado da Ferramenta (Observation): ${output}` });
-          logger.info('agent.plan.step.end', {
-            requestId,
-            tool: step.tool,
-            outputKey: step.outputKey,
-            latencyMs: Date.now() - startedAt,
-          });
-          metrics.increment('tool.execution.count');
-        } catch (error: any) {
-          logger.warn('agent.plan.step.end', {
-            requestId,
-            tool: step.tool,
-            status: 'failed',
-            error: error.message,
-            latencyMs: Date.now() - startedAt,
-          });
-          metrics.increment('tool.execution.error');
-          return { ok: false, reason: `step_failed:${step.tool}:${error.message}`, messages };
-        }
+        state[step.outputKey] = result.observation;
+        outputs.push(result.observation);
+        messages.push({ role: 'assistant', content: `Resultado da ferramenta ${step.tool}: ${result.observation}` });
+        messages.push({ role: 'user', content: `Resultado da Ferramenta (Observation): ${result.observation}` });
       }
 
       const summary = outputs.length === 1
