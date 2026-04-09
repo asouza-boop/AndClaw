@@ -1,4 +1,5 @@
 import { Skill } from '../../skills/SkillLoader';
+import { SkillContract } from './SkillContract';
 
 export class SkillValidator {
   public static validate(skill: Skill, existingSkills: Skill[]): boolean {

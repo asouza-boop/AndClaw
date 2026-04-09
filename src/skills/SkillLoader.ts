@@ -3,19 +3,10 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { config } from '@/config/env';
 import { SkillValidator } from '../core/skills/SkillValidator';
+import { SkillContract } from '../core/skills/SkillContract';
 
-export interface SkillMetadata {
-  name: string;
-  description: string;
-  category?: 'integration' | 'cognitive' | 'meta';
-  capability?: string;
-  plannerEnabled?: boolean;
-  intentTriggers?: string[];
-  priority?: number;
-  riskLevel?: 'low' | 'medium' | 'high';
-  status?: 'experimental' | 'active' | 'deprecated';
-  [key: string]: any;
-}
+// Backward-compatible alias — all consumers importing SkillMetadata continue to work
+export type SkillMetadata = SkillContract;
 
 export interface Skill {
   metadata: SkillMetadata;
