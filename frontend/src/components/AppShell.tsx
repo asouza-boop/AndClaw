@@ -18,6 +18,8 @@ const titles: Record<string, string> = {
   '/favoritos': 'Favoritos',
   '/conhecimento': 'Conhecimento',
   '/arquivo': 'Arquivo',
+  '/evolucao': 'Evolução',
+  '/aprendizado': 'Inteligência',
   '/settings': 'Configurações',
 };
 

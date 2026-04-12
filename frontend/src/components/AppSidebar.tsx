@@ -25,6 +25,7 @@ const sections = [
       { icon: Bot, label: 'Agentes', to: '/agents' },
       { icon: Zap, label: 'Skills', to: '/skills' },
       { icon: Target, label: 'Reuniões', to: '/reunioes' },
+      { icon: Radio, label: 'Inteligência', to: '/aprendizado' },
     ],
   },
   {

@@ -24,6 +24,7 @@ import authRoutes from '@/server/auth-routes';
 import systemRoutes from '@/server/system-routes';
 import agentRoutes from '@/server/agent-routes';
 import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
+import { MetricsService } from '@/core/metrics/MetricsService';
 import memoryRoutes from '@/server/memory-routes';
 import toolRoutes from '@/server/tool-routes';
 import performanceRoutes from '@/server/performance-routes';
@@ -95,6 +96,15 @@ router.get('/admin/metrics', async (_req: Request, res: Response) => {
 
 router.get('/api/experiments', async (_req: Request, res: Response) => {
   res.json({ ok: true, ...AgentEvaluator.getExperimentStats() });
+});
+
+router.get('/api/learning/dashboard', async (_req: Request, res: Response) => {
+  try {
+    const data = await MetricsService.getDashboardSnapshot();
+    res.json({ ok: true, data });
+  } catch (error: any) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 async function listSkillsFromDisk() {
