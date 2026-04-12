@@ -4,9 +4,7 @@ import { useAgentStore } from '@/stores/agentStore';
 
 export function IntelligenceSidebar() {
   const [activeTab, setActiveTab] = useState<'why' | 'memory' | 'security'>('why');
-  const { currentTrace, uiMode } = useAgentStore();
-
-  if (uiMode !== 'debug') return null;
+  const { currentTrace } = useAgentStore();
 
   const steps = currentTrace?.steps || [];
   
@@ -29,7 +27,7 @@ export function IntelligenceSidebar() {
   );
 
   return (
-    <div className="w-80 h-full border-l border-white/5 bg-black/20 backdrop-blur-md flex flex-col animate-in slide-in-from-right">
+    <div className="w-full h-full flex flex-col animate-in fade-in duration-500">
       <div className="flex border-b border-white/5">
         <TabButton id="why" icon={Brain} label="Why" />
         <TabButton id="memory" icon={Database} label="Memory" />

@@ -56,22 +56,27 @@ const LearningDashboard: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                <div className="w-10 h-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             </div>
         );
     }
 
-    if (!data) return <div>Erro ao carregar métricas de inteligência.</div>;
+    if (!data) return <div className="p-8 text-white/40 italic">Erro ao carregar métricas de inteligência. Tente novamente mais tarde.</div>;
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
-            <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="space-y-10 animate-in fade-in duration-700">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-black text-white tracking-tight">System Intelligence</h1>
-                    <p className="text-white/50">Métricas de aprendizado e evolução do sistema AndClaw.</p>
+                  <h1 className="text-3xl font-black text-white tracking-tighter mb-1">System Intelligence</h1>
+                  <p className="text-sm text-white/40">Engenharia de métricas e evolução cognitiva AndClaw.</p>
                 </div>
-                <div className="px-4 py-2 bg-white/5 rounded-full border border-white/10 text-xs text-white/60">
-                    Sugerido: <span className="text-blue-400 font-bold">Variante {data.planner.suggestedWinner}</span>
+                <div className="flex items-center gap-3 p-1.5 bg-white/5 rounded-2xl border border-white/5">
+                  <div className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 border border-primary/20">
+                    Sugerido: Variante {data.planner.suggestedWinner}
+                  </div>
+                  <div className="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/30">
+                    Live Engine Trace
+                  </div>
                 </div>
             </header>
 
@@ -79,44 +84,47 @@ const LearningDashboard: React.FC = () => {
                 <EfficiencyMetricCard 
                     title="Economia Estimada"
                     value={`+${data.cache.efficiency.toFixed(0)}s`}
-                    subtitle="Tempo poupado via Cache"
+                    subtitle="Tempo via Cache"
                     trend="up"
                 />
                 <EfficiencyMetricCard 
-                    title="Taxa de Acerto (Cache)"
+                    title="Taxa de Acerto"
                     value={`${(data.cache.hitRate * 100).toFixed(1)}%`}
-                    subtitle={`${data.cache.hitCount} hits detectados`}
+                    subtitle="Indice de Cache"
                     trend="neutral"
                 />
                 <EfficiencyMetricCard 
-                    title="Volume de Memória"
+                    title="Neural Memory"
                     value={data.memory.totalRecords}
-                    subtitle="Itens semânticos persistidos"
+                    subtitle="Records via SQL"
                     trend="up"
                 />
                 <EfficiencyMetricCard 
                     title="Fallback Rate"
                     value={`${(data.planner.fallbackRate * 100).toFixed(1)}%`}
-                    subtitle="Aderência ao plano original"
+                    subtitle="Aderência"
                     trend={data.planner.fallbackRate < 0.2 ? 'down' : 'up'}
                 />
             </div>
 
             <IntelligenceInsights insights={data.insights} />
 
-            <section className="space-y-4">
-                <h2 className="text-2xl font-bold text-white px-2">Skill Intelligence</h2>
+            <section className="space-y-6">
+                <div className="flex items-center gap-3 px-2">
+                   <div className="w-1 h-6 bg-primary rounded-full transition-all group-hover:h-8" />
+                   <h2 className="text-xl font-black text-white tracking-tight uppercase">Skill Intelligence</h2>
+                </div>
                 <SkillPerformanceChart top={data.skills.top} worst={data.skills.worst} />
             </section>
 
-            <footer className="pt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="glass-card p-4 border border-white/5 rounded-xl text-center">
-                    <span className="block text-xs text-white/40 uppercase mb-1">Melhoria de Performance (A/B)</span>
-                    <span className="text-2xl font-black text-blue-400">{data.planner.improvement}</span>
+            <footer className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="glass-card p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-primary/5 to-transparent">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-4">A/B Performance Yield</span>
+                    <span className="text-4xl font-black text-primary tracking-tighter">{data.planner.improvement}</span>
                 </div>
-                <div className="glass-card p-4 border border-white/5 rounded-xl text-center">
-                    <span className="block text-xs text-white/40 uppercase mb-1">Média de Latência de Busca</span>
-                    <span className="text-2xl font-black text-purple-400">{data.memory.avgSearchLatency.toFixed(1)}ms</span>
+                <div className="glass-card p-8 flex flex-col items-center justify-center text-center bg-gradient-to-br from-accent/5 to-transparent">
+                    <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-4">Semantic Search Latency</span>
+                    <span className="text-4xl font-black text-accent tracking-tighter">{data.memory.avgSearchLatency.toFixed(1)}ms</span>
                 </div>
             </footer>
         </div>
