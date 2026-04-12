@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface SkillRecord {
+export interface PerformanceRecord {
     skillId: string;
     successCount: number;
     failureCount: number;
@@ -8,18 +8,25 @@ interface SkillRecord {
     avgLatencyMs: number;
 }
 
-interface Props {
-    top: SkillRecord[];
-    worst: SkillRecord[];
+interface PerformanceChartProps {
+    top: PerformanceRecord[];
+    worst: PerformanceRecord[];
+    topTitle?: string;
+    worstTitle?: string;
 }
 
-export const SkillPerformanceChart: React.FC<Props> = ({ top, worst }) => {
+export const PerformanceChart: React.FC<PerformanceChartProps> = ({ 
+    top, 
+    worst, 
+    topTitle = "Top Performing Skills", 
+    worstTitle = "Under Observation" 
+}) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="glass-card p-8 bg-gradient-to-br from-emerald-500/5 to-transparent">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/60 mb-6 flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 glass-glow-accent shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-                    Top Performing Skills
+                    {topTitle}
                 </h3>
                 <div className="space-y-3">
                     {top.map(skill => (
@@ -29,7 +36,7 @@ export const SkillPerformanceChart: React.FC<Props> = ({ top, worst }) => {
                                 <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{skill.usageCount} executions</span>
                             </div>
                             <div className="text-right">
-                                <span className="block text-emerald-400 font-black text-sm tracking-tighter">{((skill.successCount / skill.usageCount) * 100).toFixed(0)}%</span>
+                                <span className="block text-emerald-400 font-black text-sm tracking-tighter">{((skill.successCount / (skill.usageCount || 1)) * 100).toFixed(0)}%</span>
                                 <span className="text-[9px] font-mono text-white/20 uppercase tracking-tighter">{skill.avgLatencyMs}ms</span>
                             </div>
                         </div>
@@ -41,7 +48,7 @@ export const SkillPerformanceChart: React.FC<Props> = ({ top, worst }) => {
             <div className="glass-card p-8 bg-gradient-to-br from-rose-500/5 to-transparent">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-400/60 mb-6 flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-rose-400 glass-glow-accent shadow-[0_0_8px_rgba(251,113,133,0.5)]" />
-                    Skills Sob Observação
+                    {worstTitle}
                 </h3>
                 <div className="space-y-3">
                     {worst.map(skill => (
@@ -51,7 +58,7 @@ export const SkillPerformanceChart: React.FC<Props> = ({ top, worst }) => {
                                 <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">{skill.usageCount} executions</span>
                             </div>
                             <div className="text-right">
-                                <span className="block text-rose-400 font-black text-sm tracking-tighter">{((skill.successCount / skill.usageCount) * 100).toFixed(0)}%</span>
+                                <span className="block text-rose-400 font-black text-sm tracking-tighter">{((skill.successCount / (skill.usageCount || 1)) * 100).toFixed(0)}%</span>
                                 <span className="text-[9px] font-mono text-white/20 uppercase tracking-tighter">{skill.avgLatencyMs}ms</span>
                             </div>
                         </div>
