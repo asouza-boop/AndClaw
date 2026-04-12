@@ -1,6 +1,9 @@
 import { logger } from '@/infra/logger';
+import { config } from '@/config/env';
 import { FeedbackCollector, FeedbackEntry } from './FeedbackCollector';
 import { PerformanceStore } from './PerformanceStore';
+import { ParameterStore } from '../optimization/ParameterStore';
+import { AgentEvaluator } from '../evaluation/AgentEvaluator';
 
 /**
  * Skill score computed by the Optimization Engine.
@@ -29,6 +32,8 @@ export interface SkillScore {
  */
 export class OptimizationEngine {
     private static scores: Map<string, SkillScore> = new Map();
+    private static tuneCounter = 0;
+    private static readonly TUNE_EVERY = 10;
 
     /**
      * Process a feedback entry: update PerformanceStore and recompute the skill score.
@@ -69,6 +74,13 @@ export class OptimizationEngine {
                 usageCount: skillScore.usageCount,
                 requestId: entry.requestId,
             });
+
+            // 3. Trigger Auto-Tuning
+            this.tuneCounter += 1;
+            if (this.tuneCounter >= this.TUNE_EVERY) {
+                this.tuneCounter = 0;
+                this.tuneParameters();
+            }
         } catch (error: any) {
             // Background-safe: never throw from the optimization engine
             logger.warn('learning.optimization.error', {
@@ -113,6 +125,53 @@ export class OptimizationEngine {
         logger.info('learning.recompute.complete', {
             skillCount: skillIds.size,
         });
+    }
+
+    /**
+     * Self-tuning logic.
+     * Adjusts system parameters based on global performance trends.
+     */
+    private static tuneParameters(): void {
+        const isSafeMode = config.learning.enabled && config.learning.mode === 'safe';
+        if (!isSafeMode) return;
+
+        try {
+            const expStats = AgentEvaluator.getExperimentStats();
+            const { stats, summary } = expStats;
+            
+            // Analyze Strategy B performance vs Baseline A
+            const successDelta = stats.B.successRate - stats.A.successRate;
+            const latencyB = stats.B.avgLatencyMs;
+
+            logger.info('learning.autotune.eval', {
+                totalRuns: summary.totalRuns,
+                successDelta,
+                latencyB
+            });
+
+            // Rule 1: Performance Degradation -> Conservative Mode
+            if (successDelta < -0.05 && summary.totalRuns >= 10) {
+                logger.warn('learning.autotune.vulnerability_detected', { successDelta });
+                ParameterStore.update('plannerBias', -1); // Trust metadata more
+                ParameterStore.update('recencyWeight', -1); // Reduce recency risk
+                ParameterStore.update('cacheThreshold', -1); // Be more strict with cache
+            }
+
+            // Rule 2: Performance OK but Sluggish -> Efficiency Mode
+            if (successDelta >= 0 && latencyB > 3000 && summary.totalRuns >= 10) {
+                logger.info('learning.autotune.efficiency_mode', { latencyB });
+                ParameterStore.update('cacheThreshold', 1); // Allow fuzzier cache hits
+                ParameterStore.update('plannerBias', 1);   // Trust stats more (might be better now)
+            }
+
+            // Rule 3: High Success -> Exploration Mode
+            if (stats.B.successRate > 0.8 && summary.totalRuns >= 20) {
+                ParameterStore.update('memoryWeight', 1); // Scale up memory importance
+            }
+
+        } catch (error: any) {
+            logger.error('learning.autotune.failed', { error: error.message });
+        }
     }
 
     /**

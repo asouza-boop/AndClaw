@@ -6,6 +6,7 @@ import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
 import { MemorySaveSchema, MemorySearchSchema } from '@/contracts/memory';
 import { rankSemanticMemories } from '@/core/memory/ranking';
+import { ParameterStore } from '@/core/optimization/ParameterStore';
 
 export interface SemanticMemoryRecord {
   id?: number;
@@ -68,7 +69,11 @@ export class MemoryService {
        LIMIT $2`,
       [toVectorLiteral(parsed.embedding), fetchLimit]
     );
-    const ranked = rankSemanticMemories(rows, { limit: parsed.limit });
+    const ranked = rankSemanticMemories(rows, { 
+      limit: parsed.limit,
+      similarityWeight: ParameterStore.get('memoryWeight'),
+      recencyWeight: ParameterStore.get('recencyWeight')
+    });
     logger.info('memory.search', {
       requested: parsed.limit,
       scanned: rows.length,

@@ -25,6 +25,7 @@ import systemRoutes from '@/server/system-routes';
 import agentRoutes from '@/server/agent-routes';
 import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
 import { MetricsService } from '@/core/metrics/MetricsService';
+import { ParameterStore } from '@/core/optimization/ParameterStore';
 import memoryRoutes from '@/server/memory-routes';
 import toolRoutes from '@/server/tool-routes';
 import performanceRoutes from '@/server/performance-routes';
@@ -105,6 +106,15 @@ router.get('/api/learning/dashboard', async (_req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ ok: false, error: error.message });
   }
+});
+
+router.get('/api/learning/params', (_req: Request, res: Response) => {
+  res.json({ ok: true, params: ParameterStore.getAll() });
+});
+
+router.post('/api/learning/params/reset', (_req: Request, res: Response) => {
+  ParameterStore.resetAll();
+  res.json({ ok: true, message: 'Parâmetros resetados para padrões de fábrica.' });
 });
 
 async function listSkillsFromDisk() {

@@ -4,6 +4,7 @@ import type { Skill } from '@/skills/SkillLoader';
 import { config } from '@/config/env';
 import { logger } from '@/infra/logger';
 import { OptimizationEngine } from '../learning/OptimizationEngine';
+import { ParameterStore } from '../optimization/ParameterStore';
 import type { ExperimentVariant } from '../experiments/ExperimentEngine';
 
 export type ActionPlanStep = {
@@ -114,9 +115,10 @@ export class ActionPlanner {
       
       let finalScore = 0;
       if (hasEnoughData) {
-        // formula: score = successRate * 0.7 + (1 / (latency / 1000)) * 0.3
+        const successWeight = ParameterStore.get('plannerBias');
+        const latencyWeight = 1 - successWeight;
         const latencySec = Math.max(0.1, scoreData.avgLatencyMs / 1000);
-        finalScore = (scoreData.successRate * 0.7) + (0.3 * (1 / latencySec));
+        finalScore = (scoreData.successRate * successWeight) + (latencyWeight * (1 / latencySec));
       }
 
       return { name, score: finalScore, hasEnoughData };

@@ -3,6 +3,7 @@ import { query as defaultQuery } from '@/db/postgres';
 import { toVectorLiteral } from '@/infra/db/vector';
 import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
+import { ParameterStore } from '@/core/optimization/ParameterStore';
 import { z } from 'zod';
 
 const SemanticCacheSaveSchema = z.object({
@@ -45,7 +46,8 @@ export class SemanticCacheService {
   }
 
   public async get(embedding: number[], context: SemanticCacheContext = {}): Promise<SemanticCacheRecord | null> {
-    const parsed = SemanticCacheSearchSchema.parse({ embedding, threshold: context.threshold ?? this.similarityThreshold });
+    const threshold = context.threshold ?? ParameterStore.get('cacheThreshold');
+    const parsed = SemanticCacheSearchSchema.parse({ embedding, threshold });
     if (!config.db.url) return null;
 
     const startedAt = Date.now();
