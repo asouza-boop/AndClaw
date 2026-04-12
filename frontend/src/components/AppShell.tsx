@@ -36,24 +36,25 @@ export function AppShell() {
   }, [fetchNotifications]);
 
   return (
-    <div className="flex min-h-screen w-full bg-background relative overflow-hidden">
-      {/* Background gradients */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-primary/5 rounded-full blur-[120px]" />
-        <div className="absolute -top-32 -right-32 w-96 h-96 bg-accent/5 rounded-full blur-[120px]" />
-      </div>
+    <div className="flex h-screen w-full mesh-gradient relative overflow-hidden font-outfit select-none">
       <AppSidebar />
       
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10 p-4 md:p-6 lg:p-8 xl:p-10 transition-all duration-700">
         <BackendRetryBanner />
-        <Topbar title={title} />
-        <main className="flex-1 overflow-y-auto p-6 scrollbar-hide">
-          <Outlet />
-        </main>
+        <div className="flex-1 flex flex-col glass-panel-v2 border-white/5 overflow-hidden shadow-2xl relative">
+          <Topbar title={title} />
+          <main className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="max-w-[1600px] mx-auto w-full min-h-full">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
 
-      <div className="hidden xl:block w-80 shrink-0 relative z-10 glass-sidebar">
-        <IntelligenceSidebar />
+      <div className="hidden 2xl:block w-[380px] shrink-0 relative z-10 p-6 lg:p-8 xl:p-10 pl-0">
+        <div className="h-full glass-panel-v2 border-white/5 shadow-2xl overflow-hidden">
+          <IntelligenceSidebar />
+        </div>
       </div>
 
       <BackendRetryIndicator />

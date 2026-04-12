@@ -142,77 +142,65 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-5rem)] overflow-hidden">
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
-        {/* Header Controls */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-black/5">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary animate-pulse" />
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Glass Engine v1</span>
-          </div>
-          <button 
-            onClick={toggleDebug}
-            className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-all ${
-              uiMode === 'debug' ? 'bg-primary text-white' : 'bg-surface-3 text-muted-foreground'
-            }`}
-          >
-            {uiMode === 'debug' ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-            {uiMode === 'debug' ? 'DEBUG ACTIVE' : 'NORMAL VIEW'}
-          </button>
-        </div>
-
+    <div className="flex h-full overflow-hidden p-6 md:p-8 lg:p-10">
+      <div className="flex-1 flex flex-col max-w-5xl mx-auto w-full relative h-full">
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 p-4 scroll-smooth">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-8 p-6 scroll-smooth scrollbar-hide">
           {messages.map((m, i) => (
-            <div key={i} className={`flex gap-3 group ${m.role === 'user' ? 'justify-end' : ''}`}>
+            <div 
+              key={i} 
+              className={`flex gap-4 group animate-in fade-in slide-in-from-bottom-6 duration-700 ${m.role === 'user' ? 'justify-end' : ''}`}
+            >
               {m.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                  A
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-lg shadow-primary/20 interactive-scale transition-premium">
+                  AC
                 </div>
               )}
               <div
-                className={`max-w-[85%] px-4 py-3 rounded-xl text-sm relative ${
+                className={`max-w-[80%] px-6 py-4 rounded-3xl relative transition-premium ${
                   m.role === 'user'
-                    ? 'bg-primary/10 text-foreground rounded-br-sm border border-primary/20'
-                    : 'bg-surface-2 text-foreground rounded-bl-sm border border-white/5 shadow-sm'
+                    ? 'bg-primary/10 text-white rounded-tr-sm border border-primary/20 shadow-[0_4px_20px_-5px_rgba(168,85,247,0.15)]'
+                    : 'bg-white/5 backdrop-blur-md text-white/90 rounded-tl-sm border border-white/5 shadow-xl'
                 }`}
               >
                 {m.role === 'assistant' ? (
-                  <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-black/30">
+                  <div className="prose prose-sm prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-black/30 prose-pre:rounded-xl">
                     <ReactMarkdown>{m.content}</ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="leading-relaxed">{m.content}</p>
+                  <p className="leading-relaxed text-[15px] font-medium">{m.content}</p>
                 )}
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-3">
                   {m.role === 'assistant' && (m.trace || (loading && i === messages.length - 1)) && (
                     <button 
                       onClick={() => inspectTrace(m)}
-                      className="text-[9px] flex items-center gap-1 text-primary hover:underline font-bold"
+                      className="text-[10px] flex items-center gap-2 text-primary hover:text-accent font-black uppercase tracking-wider transition-colors"
                     >
-                      <Terminal className="w-3 h-3" /> INSPECT INTELLIGENCE
+                      <Terminal className="w-3.5 h-3.5" /> EXPLORE TRACE
                     </button>
                   )}
-                  <p className="text-[10px] text-muted-foreground ml-auto">{formatTime(m.timestamp)}</p>
+                  <p className="text-[10px] font-black text-white/20 ml-auto tracking-widest">{formatTime(m.timestamp)}</p>
                 </div>
               </div>
               {m.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-surface-3 flex items-center justify-center text-[10px] font-bold shrink-0 border border-white/5">
-                  U
+                <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[11px] font-black text-white/60 shrink-0 interactive-scale transition-premium">
+                  ME
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                A
+            <div className="flex gap-4 animate-in fade-in duration-500">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-lg shadow-primary/20">
+                AC
               </div>
-              <div className="space-y-2">
-                <TypingIndicator />
+              <div className="space-y-3">
+                <div className="bg-white/5 backdrop-blur-md p-4 rounded-3xl rounded-tl-sm border border-white/5 shadow-xl">
+                  <TypingIndicator />
+                </div>
                 {uiMode === 'debug' && currentTrace && (
-                  <div className="text-[10px] text-primary font-mono animate-pulse ml-4">
-                    {currentTrace.steps[currentTrace.steps.length - 1]?.type}...
+                  <div className="text-[10px] font-black text-primary uppercase tracking-[0.2em] animate-pulse px-4">
+                    {currentTrace.steps[currentTrace.steps.length - 1]?.type.split('.').pop()}...
                   </div>
                 )}
               </div>
@@ -221,32 +209,32 @@ export default function ChatPage() {
         </div>
 
         {/* HUD */}
-        <ExecutionHUD />
+        <div className="absolute top-4 right-4 z-50">
+          <ExecutionHUD />
+        </div>
 
-        {/* Input */}
-        <div className="p-4 border-t border-white/[0.07] bg-background/80 backdrop-blur-sm">
-          <div className="relative flex gap-2">
+        {/* Floating Input Area */}
+        <div className="p-6 md:p-8 pt-0">
+          <div className="relative group glass-panel-v2 border-white/10 shadow-2xl p-2 flex gap-2 overflow-hidden transition-premium focus-within:border-primary/40 focus-within:shadow-primary/10">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Pergunte algo ao motor de inteligência..."
+              placeholder="Pergunte ao motor cognitivo..."
               rows={1}
-              className="flex-1 px-4 py-3 rounded-xl bg-surface-2 border border-white/[0.07] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none"
+              className="flex-1 px-5 py-4 bg-transparent text-[15px] text-white placeholder:text-white/20 focus:outline-none resize-none font-medium"
             />
             <button
               onClick={send}
               disabled={loading || !input.trim()}
-              className="px-4 rounded-xl bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center shadow-lg shadow-primary/20"
+              className="w-14 h-14 rounded-2xl bg-primary text-white hover:bg-accent disabled:opacity-20 transition-all flex items-center justify-center shadow-lg shadow-primary/20 interactive-scale"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </button>
           </div>
+          <p className="text-[9px] text-center text-white/20 mt-4 font-black uppercase tracking-[0.3em]">Powered by AndClaw AI Architecture</p>
         </div>
       </div>
-
-      {/* Intelligence Sidebar */}
-      <IntelligenceSidebar />
     </div>
   );
 }
