@@ -91,4 +91,17 @@
     border-color: hsl(263 84% 66% / 0.3);
     box-shadow: 0 0 20px -5px hsl(263 84% 66% / 0.15);
   }
+
+  .glass-panel {
+    @apply bg-black/40 backdrop-blur-xl border border-white/10;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+
+  .animate-pulse-dot {
+    animation: pulse-dot 1.4s ease-in-out infinite;
+  }
 }

@@ -229,6 +229,7 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS provider TEXT`);
   await query(`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
   await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS role TEXT`);
+  await query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS trace JSONB DEFAULT '{}'::jsonb`);
 
   await query(`CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id)`);
 

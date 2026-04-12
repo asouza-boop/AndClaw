@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import FavoritesPage from "./pages/FavoritesPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import ArchivePage from "./pages/ArchivePage";
+import EvolutionDashboard from "./pages/EvolutionDashboard";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => {
               <Route path="favoritos" element={<FavoritesPage />} />
               <Route path="conhecimento" element={<KnowledgePage />} />
               <Route path="arquivo" element={<ArchivePage />} />
+              <Route path="evolucao" element={<EvolutionDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

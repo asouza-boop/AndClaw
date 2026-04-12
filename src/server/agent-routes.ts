@@ -4,6 +4,7 @@ import { AgentController } from '@/core/AgentController';
 import { config as defaultConfig } from '@/config/env';
 import { offlineFallbackMessage, hasLLMConfig as defaultHasLLMConfig } from '@/server/llm';
 import { AgentRunRequestSchema } from '@/contracts/api';
+import { AgentControlState } from '@/contracts/trace';
 
 export type AgentRouteDeps = {
   processInput: (userId: string, input: string, options?: any) => Promise<string>;
@@ -59,6 +60,20 @@ export function createAgentRoutes(overrides: Partial<AgentRouteDeps> = {}) {
   router.post('/ag', generalLimiter, handler);
   router.post('/agent', generalLimiter, handler);
   router.post('/agent/run', strictLimiter, handler);
+
+  router.post('/agent/pause', (req, res) => {
+    const { requestId } = req.body;
+    if (!requestId) return res.status(400).json({ error: 'requestId required' });
+    AgentControlState.pause(requestId);
+    res.json({ ok: true, paused: true });
+  });
+
+  router.post('/agent/resume', (req, res) => {
+    const { requestId } = req.body;
+    if (!requestId) return res.status(400).json({ error: 'requestId required' });
+    AgentControlState.resume(requestId);
+    res.json({ ok: true, paused: false });
+  });
 
   return router;
 }

@@ -23,8 +23,10 @@ import path from 'path';
 import authRoutes from '@/server/auth-routes';
 import systemRoutes from '@/server/system-routes';
 import agentRoutes from '@/server/agent-routes';
+import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
 import memoryRoutes from '@/server/memory-routes';
 import toolRoutes from '@/server/tool-routes';
+import performanceRoutes from '@/server/performance-routes';
 
 const router = Router();
 const agent = new AgentController();
@@ -85,9 +87,14 @@ router.use(systemRoutes);
 router.use(agentRoutes);
 router.use(memoryRoutes);
 router.use(toolRoutes);
+router.use('/learning', performanceRoutes);
 
 router.get('/admin/metrics', async (_req: Request, res: Response) => {
   res.json({ ok: true, metrics: metrics.getMetrics(), history: metrics.getHistory() });
+});
+
+router.get('/api/experiments', async (_req: Request, res: Response) => {
+  res.json({ ok: true, ...AgentEvaluator.getExperimentStats() });
 });
 
 async function listSkillsFromDisk() {
@@ -658,6 +665,24 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
     [conversationId, limit]
   );
   res.json({ ok: true, items: rows });
+
+router.get('/messages/:id/trace', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const rows = await query<any>(`SELECT trace FROM messages WHERE id = $1`, [id]);
+  if (!rows[0]) return res.status(404).json({ error: 'message not found' });
+  res.json({ ok: true, trace: rows[0].trace });
+});
+
+router.get('/conversations/:id/latest-trace', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const rows = await query<any>(
+    `SELECT trace FROM messages 
+     WHERE conversation_id = $1 AND role = 'assistant' 
+     ORDER BY created_at DESC LIMIT 1`, 
+    [id]
+  );
+  res.json({ ok: true, trace: rows[0]?.trace || null });
+});
 });
 
 router.post('/skill-chat', async (req: Request, res: Response) => {

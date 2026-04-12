@@ -15,6 +15,7 @@ export type DetectedIntent = {
   confidence: number;
   reason: string;
   slots: Record<string, string>;
+  requestId?: string;
 };
 
 type DetectorInput = {

@@ -26,6 +26,10 @@ import { SubAgentSpawner } from './agent/SubAgentSpawner';
 import { ResultAggregator } from './agent/ResultAggregator';
 import { FeedbackCollector, FeedbackEntry } from './learning/FeedbackCollector';
 import { OptimizationEngine } from './learning/OptimizationEngine';
+import { ExperimentEngine, ExperimentVariant } from './experiments/ExperimentEngine';
+import { ExecutionTrace, TraceStep, AgentControlState } from '@/contracts/trace';
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 type AgentLoopDeps = {
     provider?: ILLMProvider;
@@ -91,21 +95,64 @@ export class AgentLoop {
         let totalIterations = 0;
         let executionPath: FeedbackEntry['executionPath'] = 'unknown';
         let skillUsed: string | undefined = undefined;
+        let isFallback = false;
+        let variant: ExperimentVariant = 'A';
 
         const parsed = AgentRunInputSchema.parse({ systemPrompt, history, userInput, options });
         const requestId = typeof parsed.options?.requestId === 'string' ? parsed.options.requestId : undefined;
+        const userId = parsed.options.userId || 'pwa-user';
         const startedAt = Date.now();
+
+        variant = ExperimentEngine.getVariant(requestId || userId);
+
+        const trace: ExecutionTrace = {
+            version: 'v1',
+            steps: []
+        };
+
+        const addStep = (type: string, status: TraceStep['status'], data?: Record<string, any>) => {
+            trace.steps.push({
+                type,
+                timestamp: new Date().toISOString(),
+                status,
+                data: data ? this.sanitizeTraceData(data) : undefined
+            });
+        };
+
+        const checkpoint = async () => {
+            if (!requestId) return;
+            let pausedOnce = false;
+            while (AgentControlState.isPaused(requestId)) {
+                if (!pausedOnce) {
+                    addStep('agent.control.paused', 'pending', { requestId });
+                    pausedOnce = true;
+                }
+                await sleep(250);
+            }
+            if (pausedOnce) {
+                addStep('agent.control.resumed', 'success', { requestId });
+            }
+        };
+
+        addStep('agent.run.start', 'start', { 
+            provider: this.providerName,
+            variant,
+            userInput: parsed.userInput.length > 100 ? parsed.userInput.slice(0, 100) + '...' : parsed.userInput
+        });
         
         logger.info('agent.run.start', {
           provider: this.providerName,
+          variant,
           historyLength: parsed.history.length,
           userInputLength: parsed.userInput.length,
           requestId,
         });
 
         // --- 1. Security Check: Prompt Injection ---
+        await checkpoint();
         const injectionCheck = PromptInjectionDetector.analyze(parsed.userInput);
         if (!injectionCheck.isSafe) {
+            addStep('agent.security.blocked', 'blocked', { reason: injectionCheck.reason });
             return `[Erro de Segurança] ${injectionCheck.reason || 'Sua solicitação foi bloqueada por motivos de segurança.'}`;
         }
 
@@ -124,7 +171,7 @@ export class AgentLoop {
                 toolUsageCount: subResults.length,
                 errorCount: subResults.filter(r => !r.success).length,
                 totalIterations: 1
-            });
+            }, variant);
 
             // --- Passive Learning: Multi-Agent path ---
             const multiAgentFeedback: FeedbackEntry = {
@@ -143,8 +190,8 @@ export class AgentLoop {
 
         try {
             const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
-            const userId = parsed.options.userId || 'pwa-user';
             const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
+            if (intent) intent.requestId = requestId;
             const availableSkills = this.skillLoader.fetchSkills();
             const availableTools = this.registry.getAllTools().map((tool) => ({
                 name: tool.name,
@@ -154,6 +201,11 @@ export class AgentLoop {
             }));
 
             if (intent) {
+              addStep('agent.intent.detected', 'success', { 
+                name: intent.name, 
+                confidence: intent.confidence,
+                slots: intent.slots 
+              });
               logger.info('agent.intent.detected', {
                 requestId,
                 intent: intent.name,
@@ -161,14 +213,22 @@ export class AgentLoop {
                 reason: intent.reason,
               });
 
-              const plan = this.actionPlanner.plan(intent, this.registry.getAllTools(), availableSkills);
-              if (plan) {
+              const plan = this.actionPlanner.plan(intent, this.registry.getAllTools(), availableSkills, variant);
+              if (!plan) {
+                  logger.warn('agent.plan.failed', { requestId, intent: intent.name });
+                  addStep('agent.plan.failed', 'failure', { intent: intent.name });
+                  isFallback = true;
+              } else {
+                addStep('agent.plan.created', 'success', { 
+                  type: plan.type,
+                  intent: plan.intent
+                });
                 logger.info('agent.plan.created', {
                   requestId,
                   intent: plan.intent,
                   type: plan.type,
                   ...(plan.type === 'skill'
-                    ? { skill: plan.skill }
+                    ? { skills: plan.skills }
                     : { steps: plan.steps.map((step) => ({
                         tool: step.tool,
                         inputKey: step.inputKey,
@@ -177,59 +237,86 @@ export class AgentLoop {
                 });
 
                 if (plan.type === 'skill') {
-                  const skill = availableSkills.find((item) => item.metadata.name === plan.skill) || null;
-                  if (skill) {
-                    const skillResult = await this.executeSkillPlan({
-                      parsed,
-                      intent,
-                      skill,
-                      profile,
-                      userId,
-                      availableTools,
-                      requestId,
-                      startedAt,
-                    });
+                  let skillExecuted = false;
 
-                    if (skillResult.ok && skillResult.output) {
-                      logger.info('agent.skill.executed', {
+                  for (let i = 0; i < plan.skills.length; i++) {
+                    const skillName = plan.skills[i];
+                    const skill = availableSkills.find((item) => item.metadata.name === skillName) || null;
+
+                    if (skill) {
+                      const skillResult = await this.executeSkillPlan({
+                        parsed,
+                        intent,
+                        skill,
+                        profile,
+                        userId,
+                        availableTools,
                         requestId,
-                        intent: intent.name,
-                        skill: skill.metadata.name,
-                        answerLength: skillResult.output.length,
+                        startedAt,
+                        trace,
+                        addStep,
+                        checkpoint
                       });
-                      await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, skillResult.output, {
-                        source: 'skill-plan',
-                        provider: this.providerName,
-                        intent: intent.name,
-                        skill: skill.metadata.name,
-                      });
-                      logger.info('agent.run.complete', {
-                        provider: this.providerName,
-                        answerLength: skillResult.output.length,
-                        requestId,
-                        mode: 'skill-plan',
-                      });
-                      metrics.increment('agent.run.success');
-                      metrics.observe('agent.latency', Date.now() - startedAt);
-                      executionPath = 'skill-plan';
-                      skillUsed = skill.metadata.name;
-                      success = true;
-                      return skillResult.output;
+
+                      if (skillResult.ok && skillResult.output) {
+                        logger.info('agent.skill.executed', {
+                          requestId,
+                          intent: intent.name,
+                          skill: skill.metadata.name,
+                          answerLength: skillResult.output.length,
+                        });
+                        await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, skillResult.output, {
+                          source: 'skill-plan',
+                          provider: this.providerName,
+                          intent: intent.name,
+                          skill: skill.metadata.name,
+                        }, trace);
+                        logger.info('agent.run.complete', {
+                          provider: this.providerName,
+                          answerLength: skillResult.output.length,
+                          requestId,
+                          mode: 'skill-plan',
+                        });
+                        metrics.increment('agent.run.success');
+                        metrics.observe('agent.latency', Date.now() - startedAt);
+                        executionPath = 'skill-plan';
+                        skillUsed = skill.metadata.name;
+                        success = true;
+                        skillExecuted = true;
+                        addStep('agent.run.complete', 'success', { mode: 'skill-plan' });
+                        return skillResult.output;
+                      }
+
+                      // If we are here, the skill failed. Check if there is another one to try.
+                      if (i < plan.skills.length - 1) {
+                         logger.warn('planner.fallback.used', {
+                            requestId,
+                            failedSkill: skillName,
+                            nextSkill: plan.skills[i + 1],
+                            reason: 'skill_execution_returned_no_output'
+                         });
+                      }
                     }
                   }
 
-                  logger.info('agent.skill.fallback', {
-                    requestId,
-                    intent: intent.name,
-                    skill: plan.skill,
-                    reason: 'skill_missing_or_failed',
-                  });
+                  if (!skillExecuted) {
+                    isFallback = true;
+                    logger.info('agent.skill.fallback', {
+                      requestId,
+                      intent: intent.name,
+                      skills: plan.skills,
+                      reason: 'all_skills_failed_or_missing',
+                    });
+                  }
                 } else {
+                  const actionPlan = plan as ToolActionPlan;
                   const actionResult = await this.executeActionPlan({
                     parsed,
                     intent,
-                    plan,
+                    plan: actionPlan,
                     requestId,
+                    trace,
+                    addStep
                   });
 
                   if (actionResult.ok && actionResult.output) {
@@ -237,8 +324,8 @@ export class AgentLoop {
                       source: 'action-plan',
                       provider: this.providerName,
                       intent: intent.name,
-                      planSteps: plan.steps.length,
-                    });
+                      planSteps: (plan as ToolActionPlan).steps.length,
+                    }, trace);
                     logger.info('agent.run.complete', {
                       provider: this.providerName,
                       answerLength: actionResult.output.length,
@@ -249,6 +336,7 @@ export class AgentLoop {
                     metrics.observe('agent.latency', Date.now() - startedAt);
                     executionPath = 'action-plan';
                     success = true;
+                    addStep('agent.run.complete', 'success', { mode: 'action-plan' });
                     return actionResult.output;
                   }
 
@@ -257,6 +345,7 @@ export class AgentLoop {
                     intent: intent.name,
                     reason: actionResult.reason || 'plan_failed',
                   });
+                  isFallback = true;
                   const provider = this.providerOverride || ProviderFactory.getChain();
                   const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
                   const composedSystemPrompt = this.contextBuilder.build({
@@ -273,34 +362,15 @@ export class AgentLoop {
                     parsed,
                     requestId,
                     startedAt,
+                    trace,
+                    addStep,
+                    checkpoint
                   });
                   return fallbackReply;
                 }
               }
-
-              logger.info('agent.plan.fallback', {
-                requestId,
-                intent: intent.name,
-                reason: 'no_plan',
-              });
-
-              const provider = this.providerOverride || ProviderFactory.getChain();
-              const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
-              const composedSystemPrompt = this.contextBuilder.build({
-                systemPrompt: parsed.systemPrompt,
-                profile,
-                semanticContext,
-              });
-              return this.executeLLMFlow({
-                provider,
-                composedSystemPrompt,
-                availableTools,
-                userId,
-                parsed,
-                requestId,
-                startedAt,
-              });
             }
+
 
             const provider = this.providerOverride || ProviderFactory.getChain();
             const cacheInput = this.buildCacheInput(parsed.systemPrompt, parsed.history, parsed.userInput, profile, userId, parsed.options);
@@ -311,7 +381,9 @@ export class AgentLoop {
                 source: 'semantic-cache',
                 provider: this.providerName,
                 cacheHit: true,
-              });
+              }, trace);
+              addStep('agent.cache.hit', 'hit', { similarity: cacheHit.distance });
+              addStep('agent.run.complete', 'success', { mode: 'cache-hit' });
               logger.info('agent.run.complete', {
                 provider: this.providerName,
                 answerLength: cacheHit.output.length,
@@ -324,6 +396,7 @@ export class AgentLoop {
               success = true;
               return cacheHit.output;
             }
+            addStep('agent.cache.miss', 'miss');
 
             const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
             const composedSystemPrompt = this.contextBuilder.build({
@@ -340,7 +413,9 @@ export class AgentLoop {
                 parsed,
                 requestId,
                 startedAt,
-                cacheContext: { cacheInput, cacheEmbedding },
+                trace,
+                addStep,
+                checkpoint
             });
         } catch (error) {
           errorCount++;
@@ -356,8 +431,9 @@ export class AgentLoop {
               latencyMs: Date.now() - evaluationStartTime,
               toolUsageCount,
               errorCount,
-              totalIterations: totalIterations || 1
-          });
+              totalIterations: totalIterations || 1,
+              isFallback
+          }, variant);
 
           // --- Passive Learning: collect feedback & update optimization scores ---
           try {
@@ -388,8 +464,11 @@ export class AgentLoop {
       availableTools: Array<{ name: string; description: string; category: string; parameters: any }>;
       requestId?: string;
       startedAt: number;
+      trace: ExecutionTrace;
+      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
+      checkpoint: () => Promise<void>;
     }): Promise<{ ok: boolean; output?: string }> {
-      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt } = params;
+      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt, trace, addStep, checkpoint } = params;
       const normalizedProfile = this.normalizeProfileEntries(profile);
       const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
       const composedSystemPrompt = this.contextBuilder.build({
@@ -445,6 +524,9 @@ export class AgentLoop {
         requestId,
         startedAt,
         cacheContext: { cacheInput, cacheEmbedding },
+        trace,
+        addStep,
+        checkpoint
       });
 
       return { ok: true, output };
@@ -460,6 +542,9 @@ export class AgentLoop {
       startedAt: number;
       cacheContext?: { cacheInput: string; cacheEmbedding: number[] };
       initialMessages?: Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
+      trace: ExecutionTrace;
+      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
+      checkpoint: () => Promise<void>;
     }): Promise<string> {
       const {
         provider,
@@ -471,6 +556,9 @@ export class AgentLoop {
         startedAt,
         cacheContext,
         initialMessages,
+        trace,
+        addStep,
+        checkpoint
       } = params;
 
       const messages = initialMessages
@@ -559,7 +647,8 @@ export class AgentLoop {
           await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
             source: cacheContext ? 'agent-loop' : 'agent-loop',
             provider: this.providerName,
-          });
+          }, trace);
+          addStep('agent.run.complete', 'success');
           logger.info('agent.run.complete', {
             provider: this.providerName,
             answerLength: response.text.length,
@@ -586,8 +675,10 @@ export class AgentLoop {
       intent: DetectedIntent;
       plan: ToolActionPlan;
       requestId?: string;
+      trace: ExecutionTrace;
+      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
     }): Promise<{ ok: boolean; output?: string; messages: Array<{ role: string; content: string }>; reason?: string }> {
-      const { parsed, intent, plan, requestId } = params;
+      const { parsed, intent, plan, requestId, trace, addStep } = params;
       const messages = this.buildInitialMessages(parsed);
       const state: Record<string, any> = {
         input: parsed.userInput,
@@ -784,5 +875,17 @@ export class AgentLoop {
           mimeType: options.mimeType || null,
         },
       });
+    }
+
+    private sanitizeTraceData(data: Record<string, any>): Record<string, any> {
+        const result: Record<string, any> = {};
+        for (const [key, value] of Object.entries(data)) {
+            if (typeof value === 'string' && value.length > 500) {
+                result[key] = value.slice(0, 500) + '... [truncated]';
+            } else {
+                result[key] = value;
+            }
+        }
+        return result;
     }
 }

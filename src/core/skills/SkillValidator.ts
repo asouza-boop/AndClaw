@@ -60,8 +60,8 @@ export class SkillValidator {
         s.metadata.intentTriggers?.some(t => meta.intentTriggers!.includes(t))
       );
       if (duplicateTriggers) {
-         console.warn(`[SkillValidator] Error: Skill '${meta.name}' has overlapping intent triggers with '${duplicateTriggers.metadata.name}'. Rejecting.`);
-         return false; // Reject overlapping intent triggers to maintain determinism
+         console.warn(`[SkillValidator] Warning: Skill '${meta.name}' has overlapping intent triggers with '${duplicateTriggers.metadata.name}'. This will be handled by the prioritized planner.`);
+         // No longer rejecting for better multi-skill candidate support
       }
     }
 

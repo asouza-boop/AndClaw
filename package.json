@@ -13,7 +13,7 @@
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:test": "npm --prefix frontend run test",
-    "test": "tsx test_spec.ts && tsx test_orchestrator.ts && tsx test_eval.ts && tsx test_learning.ts",
+    "test": "tsx test_spec.ts && tsx test_orchestrator.ts && tsx test_eval.ts && tsx test_learning.ts && tsx test_optimized_planner.ts",
     "frontend:sync-public": "node scripts/sync-frontend-dist.js"
   },
   "repository": {

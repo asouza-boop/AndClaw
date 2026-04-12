@@ -35,8 +35,8 @@ export class MemoryManager {
     return this.initConversation(userId, provider);
   }
 
-  public async addMessage(conversationId: string, role: 'user' | 'assistant' | 'system', content: string): Promise<void> {
-    await this.messageRepo.create(conversationId, role, content);
+  public async addMessage(conversationId: string, role: 'user' | 'assistant' | 'system', content: string, trace?: any): Promise<void> {
+    await this.messageRepo.create(conversationId, role, content, trace);
     await this.conversationRepo.updateTimestamp(conversationId);
   }
 
@@ -70,10 +70,11 @@ export class MemoryManager {
     userInput: string,
     assistantOutput: string,
     metadata: Record<string, any> = {},
+    trace?: any,
   ): Promise<void> {
     const conversationId = await this.getOrCreateActiveConversation(userId, provider);
     await this.addMessage(conversationId, 'user', userInput);
-    await this.addMessage(conversationId, 'assistant', assistantOutput);
+    await this.addMessage(conversationId, 'assistant', assistantOutput, trace);
 
     const inputEmbedding = await this.embeddingService.generateEmbedding(userInput);
     const outputEmbedding = await this.embeddingService.generateEmbedding(assistantOutput);

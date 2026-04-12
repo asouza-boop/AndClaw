@@ -62,6 +62,10 @@ export const config = {
     db: path.join(process.cwd(), 'data', 'db.sqlite'),
     skills: path.join(process.cwd(), '.agents', 'skills'),
     tmp: path.join(process.cwd(), 'tmp'),
+  },
+  learning: {
+    enabled: process.env.LEARNING_ENABLED === 'true',
+    mode: (process.env.LEARNING_MODE || 'safe') as 'safe' | 'weighted' | 'full',
   }
 };
 

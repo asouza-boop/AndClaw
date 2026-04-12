@@ -1,6 +1,10 @@
 import type { Tool } from '@/modules/tools/Tool';
 import type { DetectedIntent, IntentName } from './IntentDetector';
 import type { Skill } from '@/skills/SkillLoader';
+import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
+import { OptimizationEngine } from '../learning/OptimizationEngine';
+import type { ExperimentVariant } from '../experiments/ExperimentEngine';
 
 export type ActionPlanStep = {
   tool: string;
@@ -11,7 +15,7 @@ export type ActionPlanStep = {
 export type SkillActionPlan = {
   type: 'skill';
   intent: IntentName;
-  skill: string;
+  skills: string[]; // Prioritized list of candidate skills
 };
 
 export type ToolActionPlan = {
@@ -41,16 +45,17 @@ const INTENT_TO_SKILL: Partial<Record<IntentName, string>> = {
 };
 
 export class ActionPlanner {
-  public plan(intent: DetectedIntent, tools: Tool[], skills: Skill[] = []): ActionPlan | null {
+  public plan(intent: DetectedIntent, tools: Tool[], skills: Skill[] = [], variant: ExperimentVariant = 'A'): ActionPlan | null {
     const toolList = Array.isArray(tools) ? tools : [];
     const skillList = Array.isArray(skills) ? skills : [];
-    const matchedSkillName = this.resolveSkill(intent, skillList);
+    const matchedSkillNames = this.resolveSkills(intent, skillList);
+    const prioritizedSkills = this.sortSkills(matchedSkillNames, skillList, intent.requestId, variant);
 
-    if (matchedSkillName) {
+    if (prioritizedSkills.length > 0) {
       return {
         type: 'skill',
         intent: intent.name,
-        skill: matchedSkillName,
+        skills: prioritizedSkills,
       };
     }
 
@@ -63,12 +68,81 @@ export class ActionPlanner {
     };
   }
 
-  private resolveSkill(intent: DetectedIntent, skills: Skill[]): string | null {
-    const desiredSkillName = INTENT_TO_SKILL[intent.name];
-    if (!desiredSkillName) return null;
+  private resolveSkills(intent: DetectedIntent, skills: Skill[]): string[] {
+    const desiredByMapping = INTENT_TO_SKILL[intent.name];
+    
+    // Find all skills that have this intent in their triggers OR match the static mapping
+    const candidates = skills.filter((skill) => {
+      const matchTrigger = skill.metadata.intentTriggers?.includes(intent.name);
+      const matchMapping = desiredByMapping === skill.metadata.name;
+      const isEnabled = skill.metadata.plannerEnabled !== false;
+      const isActive = skill.metadata.status !== 'experimental';
+      
+      return (matchTrigger || matchMapping) && isEnabled && isActive;
+    });
 
-    const matchedSkill = skills.find((skill) => skill.metadata.name === desiredSkillName);
-    return matchedSkill?.metadata.name || null;
+    // Return unique names, preserving some notion of original priority (metadata.priority)
+    return Array.from(new Set(
+      candidates
+        .sort((a, b) => (b.metadata.priority || 0) - (a.metadata.priority || 0))
+        .map(s => s.metadata.name)
+    ));
+  }
+
+  /**
+   * Reorders candidate skills based on performance metrics if Optimization is enabled.
+   */
+  private sortSkills(skillNames: string[], availableSkills: Skill[], requestId?: string, variant: ExperimentVariant = 'A'): string[] {
+    // Strategy A: Baseline (Current status-quo logic: keep metadata priority)
+    if (variant === 'A') {
+      return skillNames;
+    }
+
+    // Strategy B: Optimized (Prioritize successRate and Latency)
+    if (!config.learning.enabled || config.learning.mode !== 'safe') {
+      return skillNames;
+    }
+
+    if (skillNames.length <= 1) return skillNames;
+
+    const originalOrder = [...skillNames];
+    
+    const candidatesWithScores = skillNames.map(name => {
+      const scoreData = OptimizationEngine.getScore(name);
+      // Safety Limit: only use score if usageCount > 5
+      const hasEnoughData = scoreData && scoreData.usageCount > 5;
+      
+      let finalScore = 0;
+      if (hasEnoughData) {
+        // formula: score = successRate * 0.7 + (1 / (latency / 1000)) * 0.3
+        const latencySec = Math.max(0.1, scoreData.avgLatencyMs / 1000);
+        finalScore = (scoreData.successRate * 0.7) + (0.3 * (1 / latencySec));
+      }
+
+      return { name, score: finalScore, hasEnoughData };
+    });
+
+    // Only sort those that have enough data, keeping the rest in their original priority at the end
+    const sortedNames = candidatesWithScores
+      .sort((a, b) => {
+        if (a.hasEnoughData && b.hasEnoughData) return b.score - a.score;
+        if (a.hasEnoughData) return -1;
+        if (b.hasEnoughData) return 1;
+        return 0; // maintain relative original order
+      })
+      .map(item => item.name);
+
+    const changed = JSON.stringify(originalOrder) !== JSON.stringify(sortedNames);
+    if (changed) {
+      logger.info('planner.optimized', {
+        requestId,
+        originalOrder,
+        optimizedOrder: sortedNames,
+        selectedSkill: sortedNames[0],
+      });
+    }
+
+    return sortedNames;
   }
 
   private buildSteps(intent: DetectedIntent, tools: Tool[]): ActionPlanStep[] {
