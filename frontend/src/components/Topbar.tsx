@@ -15,37 +15,37 @@ export function Topbar({ title }: TopbarProps) {
 
   return (
     <>
-      <header className="h-16 flex items-center justify-between px-8 border-b border-white/[0.08] bg-surface/40 backdrop-blur-md shrink-0 sticky top-0 z-[50]">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold tracking-tight text-foreground transition-all duration-300">
+      <header className="h-20 flex items-center justify-between px-10 border-b border-white/[0.05] bg-[#050507]/40 backdrop-blur-xl shrink-0 sticky top-0 z-[50]">
+        <div className="flex items-center gap-6">
+          <h1 className="text-h2 text-white tracking-tighter transition-premium">
             {title}
           </h1>
-          <div className="h-4 w-[1px] bg-white/10 hidden md:block" />
+          <div className="h-5 w-[1px] bg-white/10 hidden md:block" />
           <div className="relative hidden lg:block group">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
-              placeholder="Buscar comandos, notas..."
-              className="pl-9 pr-4 py-1.5 rounded-lg bg-surface-2 border border-white/[0.05] text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-64 transition-all"
+              placeholder="Search cognitive records..."
+              className="pl-11 pr-5 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] w-72 transition-premium"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* Notification bell */}
           <div className="relative">
             <button
               id="notifications-button"
               onClick={toggle}
-              className={`relative flex items-center justify-center w-10 h-10 rounded-xl border transition-all duration-200 ${
+              className={`relative flex items-center justify-center w-11 h-11 rounded-2xl border transition-premium interactive-scale ${
                 unreadCount > 0 
-                  ? 'border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10' 
-                  : 'border-white/[0.07] text-muted-foreground hover:text-foreground hover:bg-surface-3'
+                  ? 'border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/20' 
+                  : 'border-white/[0.07] text-white/40 hover:text-white hover:bg-white/5'
               }`}
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4.5 h-4.5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-primary text-white text-[10px] font-black border-2 border-surface animate-in zoom-in">
+                <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-primary text-white text-[10px] font-black border-2 border-[#050507] animate-in zoom-in">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
@@ -53,29 +53,29 @@ export function Topbar({ title }: TopbarProps) {
             <NotificationPanel />
           </div>
 
-          <div className="h-6 w-[1px] bg-white/10 mx-1" />
+          <div className="h-6 w-[1px] bg-white/10 mx-2" />
 
           <button
             onClick={() => openQuickCapture('note')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest shadow-xl shadow-white/5 hover:bg-primary hover:text-white transition-premium interactive-scale"
           >
             <Plus className="w-4 h-4" />
-            <span>Capturar</span>
+            <span>Capture</span>
           </button>
           
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => openQuickCapture('task')}
-              className="p-2.5 rounded-xl border border-white/[0.07] text-muted-foreground hover:text-foreground hover:bg-surface-3 hover:border-white/20 transition-all group"
-              title="Nova Tarefa"
+              className="p-3 rounded-2xl border border-white/[0.07] text-white/40 hover:text-white hover:bg-white/5 hover:border-white/20 transition-premium group interactive-scale"
+              title="New Operation"
             >
-              <ListTodo className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <ListTodo className="w-4.5 h-4.5 group-hover:scale-110 transition-premium" />
             </button>
             <button 
-              className="p-2.5 rounded-xl border border-white/[0.07] text-muted-foreground hover:text-foreground hover:bg-surface-3 hover:border-white/20 transition-all group"
-              title="Nova Reunião"
+              className="p-3 rounded-2xl border border-white/[0.07] text-white/40 hover:text-white hover:bg-white/5 hover:border-white/20 transition-premium group interactive-scale"
+              title="Protocol Meeting"
             >
-              <Video className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <Video className="w-4.5 h-4.5 group-hover:scale-110 transition-premium" />
             </button>
           </div>
         </div>

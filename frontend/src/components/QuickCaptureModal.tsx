@@ -29,7 +29,7 @@ export function QuickCaptureModal() {
         method: 'POST',
         body: JSON.stringify({ content: content.trim(), type }),
       });
-      toast(`${type === 'task' ? 'Tarefa' : 'Captura'} salva!`, 'success');
+      toast(`${type === 'task' ? 'Operation' : 'Signal'} captured!`, 'success');
       setContent('');
       close();
     } catch (err: any) {
@@ -43,79 +43,82 @@ export function QuickCaptureModal() {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-background/60 backdrop-blur-md animate-in fade-in duration-200" 
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-[#050507]/60 backdrop-blur-xl animate-in fade-in duration-300" 
       onClick={close}
     >
       <div 
-        className="w-full max-w-lg rounded-2xl bg-surface glow-border shadow-2xl p-6 transform animate-in slide-in-from-top-4 duration-300" 
+        className="w-full max-w-xl glass-panel-v2 p-10 transform animate-in slide-in-from-top-8 duration-500 shadow-[0_32px_128px_-32px_rgba(0,0,0,1)] border-white/10" 
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <MessageSquare className="w-4 h-4 text-primary" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-lg shadow-primary/20">
+              <MessageSquare className="w-5 h-5" />
             </div>
-            <h2 className="text-base font-semibold">Captura Rápida</h2>
+            <h2 className="text-xl font-black text-white tracking-tighter uppercase">Quick Signal Capture</h2>
           </div>
-          <button onClick={close} className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
+          <button onClick={close} className="p-2.5 rounded-xl hover:bg-white/5 transition-premium text-white/20 hover:text-white interactive-scale">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-3 mb-8">
           {types.map((t) => (
             <button
               key={t.value}
               onClick={() => setType(t.value as any)}
-              className={`flex-1 flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition-all ${
+              className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl border transition-premium interactive-scale ${
                 type === t.value
-                  ? 'bg-primary/10 border-primary/30 text-primary ring-1 ring-primary/20'
-                  : 'bg-surface-2 border-transparent text-muted-foreground hover:border-white/10'
+                  ? 'bg-white text-black border-white shadow-xl shadow-white/5'
+                  : 'bg-white/5 border-white/5 text-white/20 hover:border-white/20 hover:text-white/40'
               }`}
             >
-              <t.icon className={`w-4 h-4 ${type === t.value ? 'text-primary' : t.color}`} />
-              <span className="text-[10px] font-medium uppercase tracking-wider">{t.label}</span>
+              <t.icon className={`w-4 h-4 ${type === t.value ? 'text-black' : t.color}`} />
+              <span className="text-[10px] font-black uppercase tracking-widest leading-none">{t.label}</span>
             </button>
           ))}
         </div>
 
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={type === 'task' ? "O que precisa ser feito?" : "Descreva sua ideia ou nota..."}
-          rows={4}
-          className="w-full px-4 py-3 rounded-xl bg-surface-2 border border-white/[0.07] text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none shadow-inner"
-          autoFocus
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              close();
-            }
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              handleSave();
-            }
-          }}
-        />
+        <div className="space-y-2 mb-8">
+           <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder={type === 'task' ? "What is the next operational protocol?" : "Stream cognitive fragments into the library..."}
+            rows={4}
+            className="w-full px-6 py-5 rounded-2xl bg-white/[0.03] border border-white/10 text-[15px] font-medium text-white placeholder:text-white/10 focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] transition-premium resize-none shadow-inner"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                close();
+              }
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleSave();
+              }
+            }}
+          />
+        </div>
         
-        <div className="flex items-center justify-between mt-5">
-          <p className="text-[10px] text-muted-foreground">
-            Pressione <kbd className="px-1 py-0.5 rounded bg-surface-3 font-sans">⌘</kbd> + <kbd className="px-1 py-0.5 rounded bg-surface-3 font-sans">Enter</kbd> para salvar
-          </p>
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-white/5">
+            <kbd className="text-[10px] font-black text-white/40 font-mono">⌘</kbd>
+            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">+ ENTER TO COMMIT</span>
+          </div>
+          <div className="flex gap-3">
             <button 
               onClick={close} 
-              className="px-4 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-2 transition-colors"
+              className="px-6 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-white/20 hover:text-white hover:bg-white/5 transition-premium"
             >
-              Cancelar
+              Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={loading || !content.trim()}
-              className="px-6 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold shadow-lg shadow-primary/20 hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
+              className="px-10 py-3 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest shadow-2xl shadow-white/5 hover:bg-primary hover:text-white disabled:opacity-20 transition-premium flex items-center gap-3 interactive-scale"
             >
-              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Salvar
+              {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+              Commit Signal
             </button>
           </div>
         </div>

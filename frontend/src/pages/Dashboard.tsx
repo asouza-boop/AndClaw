@@ -59,119 +59,78 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <header>
-        <h2 className="text-3xl font-black text-white tracking-tighter mb-1">Command Center</h2>
-        <p className="text-white/40 text-sm">Visão geral unificada de operações e inteligência.</p>
+    <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
+      <header className="px-4">
+        <h2 className="text-4xl font-black text-white tracking-tighter mb-2">Command Center</h2>
+        <p className="text-white/30 text-[13px] font-medium tracking-wide uppercase">Unified Intelligence & Operations Pipeline</p>
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={ListTodo} label="Tarefas" value={pendingTasks.length} sub="pendentes" color="bg-accent/10 text-accent border border-accent/20" />
-        <StatCard icon={AlertTriangle} label="Prioridades" value={highPriority.length} sub="em aberto" color="bg-destructive/10 text-destructive border border-destructive/20" />
-        <StatCard icon={Video} label="Reuniões" value={meetings?.length || 0} sub="recentes" color="bg-primary/10 text-primary border border-primary/20" />
-        <StatCard icon={Inbox} label="Inbox" value={unprocessed.length} sub="capturas" color="bg-warn/10 text-warn border border-warn/20" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+        <StatCard icon={ListTodo} label="Tasks" value={pendingTasks.length} sub="pending execution" color="bg-primary/10 text-primary border border-primary/20" />
+        <StatCard icon={AlertTriangle} label="Critical" value={highPriority.length} sub="waiting action" color="bg-rose-500/10 text-rose-500 border border-rose-500/20" />
+        <StatCard icon={Video} label="Meetings" value={meetings?.length || 0} sub="recorded intelligence" color="bg-accent/10 text-accent border border-accent/20" />
+        <StatCard icon={Inbox} label="Captures" value={unprocessed.length} sub="unprocessed fragments" color="bg-white/10 text-white/60 border border-white/20" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4">
         {/* Today's tasks */}
-        <div className="glass-card p-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Agenda do Dia</h3>
-          <div className="space-y-3">
+        <div className="glass-card p-8">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-6 font-mono">Operations Pipeline</h3>
+          <div className="space-y-4">
             {pendingTasks.slice(0, 5).map((t: any) => (
-              <div key={t._id || t.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-colors">
-                <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-[8px] font-bold text-white/50">
-                  {t.priority === 'high' ? '!' : ''}
+              <div key={t._id || t.id} className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-2xl border border-white/5 hover:bg-white/5 transition-premium group">
+                <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-[9px] font-black text-white/30 group-hover:border-primary/40 group-hover:text-primary transition-premium">
+                  {t.priority === 'high' ? '!' : '#'}
                 </div>
-                <span className="text-xs text-white/80 flex-1 truncate">{t.title}</span>
+                <span className="text-[13px] text-white/70 flex-1 truncate font-medium">{t.title}</span>
               </div>
             ))}
-            {pendingTasks.length === 0 && <p className="text-sm text-white/20 italic text-center py-4">Nenhuma tarefa pendente</p>}
+            {pendingTasks.length === 0 && <p className="text-sm text-white/20 italic text-center py-4">No pending operations.</p>}
           </div>
         </div>
 
-        {/* Priorities */}
-        <div className="glass-card p-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Urgent Matters</h3>
-          <div className="space-y-3">
-            {highPriority.slice(0, 5).map((t: any) => (
-              <div key={t._id || t.id} className="flex items-center gap-3 p-3 bg-rose-500/5 rounded-xl border border-rose-500/10 hover:bg-rose-500/10 transition-colors">
-                <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                <span className="text-xs text-white/80 font-medium flex-1 truncate">{t.title}</span>
+        {/* Quick chat */}
+        <div className="glass-card p-8 bg-gradient-to-br from-primary/5 to-transparent flex flex-col">
+          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-6 font-mono">Cognitive Prompt</h3>
+          <div className="flex-1 space-y-4 max-h-[280px] overflow-y-auto mb-6 pr-4 scrollbar-hide">
+            {chatMessages.length === 0 && (
+               <p className="text-white/20 text-xs italic p-4 border border-dashed border-white/5 rounded-2xl">Initialize cognitive link or vocal command...</p>
+            )}
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed transition-premium shadow-lg ${
+                  m.role === 'user' 
+                    ? 'bg-primary text-white font-bold rounded-tr-sm shadow-primary/20' 
+                    : 'bg-white/5 text-white/90 border border-white/5 rounded-tl-sm shadow-black/40'
+                }`}>
+                  {m.content}
+                </div>
               </div>
             ))}
-            {highPriority.length === 0 && <p className="text-sm text-white/20 italic text-center py-4">Tudo sob controle</p>}
-          </div>
-        </div>
-
-        {/* Inbox preview */}
-        <div className="glass-card p-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Brain Dump Inbox</h3>
-          <div className="space-y-3">
-            {unprocessed.slice(0, 3).map((c: any) => (
-              <div key={c._id || c.id} className="p-3 bg-white/5 rounded-xl border border-white/5 text-xs text-white/60 truncate italic leading-relaxed">
-                "{c.content}"
+            {chatLoading && (
+              <div className="flex items-center gap-3 text-[10px] text-primary uppercase font-black tracking-widest animate-pulse px-2">
+                 <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+                 <span>Analyzing Intent...</span>
               </div>
-            ))}
-            {unprocessed.length === 0 && <p className="text-sm text-white/20 italic text-center py-4">Inbox vazio</p>}
+            )}
           </div>
-        </div>
-
-        {/* Meetings */}
-        <div className="glass-card p-6">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-4">Recent Meetings</h3>
-          <div className="space-y-3">
-            {(meetings || []).slice(0, 3).map((m: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/5 hover:bg-primary/10 transition-colors">
-                 <Video className="w-3 h-3 text-primary/60" />
-                 <span className="text-xs text-white/80 truncate">{m.title || m.summary || 'Reunião'}</span>
-              </div>
-            ))}
-            {(!meetings || meetings.length === 0) && <p className="text-sm text-white/20 italic text-center py-4">Sem reuniões recentes</p>}
+          <div className="flex gap-2 p-2 bg-black/40 rounded-2xl border border-white/10 focus-within:border-primary/40 transition-premium">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
+              placeholder="Send command..."
+              className="flex-1 px-4 py-3 bg-transparent text-[13px] text-white placeholder:text-white/20 focus:outline-none"
+            />
+            <button
+              onClick={sendChat}
+              disabled={chatLoading || !chatInput.trim()}
+              className="w-12 h-12 flex items-center justify-center rounded-xl bg-white text-black hover:bg-primary hover:text-white disabled:opacity-20 transition-premium shadow-xl interactive-scale"
+            >
+              <Send className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-      </div>
-
-      {/* Quick chat */}
-      <div className="glass-card p-6 bg-gradient-to-br from-white/5 to-transparent">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 mb-4">Vocal Assistant Prompt</h3>
-        <div className="space-y-4 max-h-64 overflow-y-auto mb-6 pr-4 scrollbar-hide">
-          {chatMessages.length === 0 && (
-             <p className="text-white/20 text-xs italic">Inicie um comando vocal ou textual para o AndClaw...</p>
-          )}
-          {chatMessages.map((m, i) => (
-            <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-              <div className={`max-w-[85%] p-3 rounded-2xl text-xs leading-relaxed ${
-                m.role === 'user' 
-                  ? 'bg-primary text-white font-medium rounded-tr-none' 
-                  : 'bg-white/5 text-white/90 border border-white/5 rounded-tl-none'
-              }`}>
-                {m.content}
-              </div>
-            </div>
-          ))}
-          {chatLoading && (
-            <div className="flex items-center gap-2 text-[10px] text-accent animate-pulse">
-               <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-               <span>Agente processando intenção...</span>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 p-1.5 bg-black/20 rounded-2xl border border-white/5">
-          <input
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
-            placeholder="Digite seu comando..."
-            className="flex-1 px-4 py-2 bg-transparent text-sm text-white placeholder:text-white/20 focus:outline-none"
-          />
-          <button
-            onClick={sendChat}
-            disabled={chatLoading || !chatInput.trim()}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-20 transition-all shadow-lg"
-          >
-            <Send className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>

@@ -112,25 +112,25 @@ export default function SkillsPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
       {/* Header */}
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 px-4">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter mb-1">Skill Forge</h1>
-          <p className="text-sm text-white/40">Engenharia de capacidades autônomas em tempo real.</p>
+          <h1 className="text-4xl font-black text-white tracking-tighter mb-2">Skill Forge</h1>
+          <p className="text-white/30 text-[13px] font-medium tracking-wide uppercase">Real-time Autonomous Capability Engineering</p>
         </div>
         
-        <div className="flex items-center gap-1.5 p-1 bg-white/5 rounded-2xl border border-white/5">
+        <div className="flex gap-2 p-2 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-md">
           <button
             onClick={() => setTab('library')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tab === 'library' ? 'bg-white text-black shadow-lg scale-[1.02]' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-premium ${tab === 'library' ? 'bg-white text-black shadow-xl shadow-white/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
           >
             <Zap className="w-3.5 h-3.5" />
             Library
           </button>
           <button
             onClick={() => { setTab('create'); if (!editingSkill) resetChat(); }}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${tab === 'create' ? 'bg-white text-black shadow-lg scale-[1.02]' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-premium ${tab === 'create' ? 'bg-white text-black shadow-xl shadow-white/5' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
           >
             <Plus className="w-3.5 h-3.5" />
             Forge
@@ -140,34 +140,34 @@ export default function SkillsPage() {
 
       {/* Library Tab */}
       {tab === 'library' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-4">
-             <div className="relative flex-1 max-w-md group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-white/50 transition-colors" />
+        <div className="space-y-8 px-4">
+          <div className="flex items-center justify-between gap-6">
+             <div className="relative flex-1 max-w-xl group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Pesquisar por nome, slug ou funcionalidade..."
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/[0.03] border border-white/5 text-sm text-white focus:outline-none focus:border-primary/40 transition-all placeholder:text-white/10"
+                  placeholder="Analyze blueprints, slugs or capability vectors..."
+                  className="w-full pl-14 pr-6 py-4 rounded-2xl bg-white/[0.03] border border-white/5 text-[15px] font-medium text-white focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] transition-premium placeholder:text-white/10 shadow-xl"
                 />
              </div>
              <button
                onClick={() => { resetChat(); setTab('create'); }}
-               className="p-3.5 rounded-2xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all"
+               className="w-14 h-14 rounded-2xl bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-premium flex items-center justify-center shadow-lg shadow-primary/10 interactive-scale"
              >
-               <Plus className="w-5 h-5" />
+               <Plus className="w-6 h-6" />
              </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredSkills.map((s: Skill, i: number) => (
               <SkillCard key={s._id || s.id || i} skill={s} onEdit={editSkill} onDelete={deleteSkill} />
             ))}
             {filteredSkills.length === 0 && (
-              <div className="col-span-full py-24 text-center glass-card">
-                <Zap className="w-12 h-12 text-white/5 mx-auto mb-4" />
-                <p className="text-sm font-medium text-white/40 uppercase tracking-widest">
-                  {search ? 'Nenhum blueprint encontrado' : 'O Forge está livre. Crie sua primeira skill científica.'}
+              <div className="col-span-full py-32 text-center glass-card border-dashed">
+                <Zap className="w-16 h-16 text-white/5 mx-auto mb-6" />
+                <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.4em]">
+                  {search ? 'No Blueprints Identified' : 'Forge Status: Idle. Initialize First Scientific Skill.'}
                 </p>
               </div>
             )}
@@ -177,19 +177,21 @@ export default function SkillsPage() {
 
       {/* Create/Edit Tab */}
       {tab === 'create' && (
-        <SkillForge 
-          chatMessages={chatMessages}
-          chatInput={chatInput}
-          chatLoading={chatLoading}
-          preview={preview}
-          saving={saving}
-          suggestionChips={SUGGESTION_CHIPS}
-          setChatInput={setChatInput}
-          setPreview={setPreview}
-          onSend={sendChat}
-          onReset={resetChat}
-          onSave={saveSkill}
-        />
+        <div className="px-4">
+          <SkillForge 
+            chatMessages={chatMessages}
+            chatInput={chatInput}
+            chatLoading={chatLoading}
+            preview={preview}
+            saving={saving}
+            suggestionChips={SUGGESTION_CHIPS}
+            setChatInput={setChatInput}
+            setPreview={setPreview}
+            onSend={sendChat}
+            onReset={resetChat}
+            onSave={saveSkill}
+          />
+        </div>
       )}
     </div>
   );

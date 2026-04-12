@@ -131,23 +131,23 @@ export default function KnowledgePage() {
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 relative">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+    <div className="p-8 space-y-10 animate-in fade-in duration-700 relative max-w-[1400px] mx-auto">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 px-4">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tighter mb-1">Memory Vault</h1>
-          <p className="text-sm text-white/40">Repositório de memória consolidada e vínculos neurais.</p>
+          <h1 className="text-4xl font-black text-white tracking-tighter mb-2">Memory Vault</h1>
+          <p className="text-white/30 text-[13px] font-medium tracking-wide uppercase">Consolidated Cognitive Repository & Neural Mapping</p>
         </div>
-        <div className="flex gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/5">
+        <div className="flex gap-2 p-2 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-md">
           <button 
              onClick={() => setLinkDialog(true)}
-             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 transition-all"
+             className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:bg-white/5 transition-premium"
           >
             <Link2 className="h-3.5 w-3.5" />
             Vínculo
           </button>
           <button 
              onClick={() => setEntryDialog(true)}
-             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all shadow-lg"
+             className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-premium shadow-xl shadow-white/5"
           >
             <Plus className="h-3.5 w-3.5" />
             Nova Memória
@@ -155,39 +155,39 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 px-4">
         {stats.map((stat) => (
-          <div key={stat.label} className="glass-card p-5 group flex flex-col justify-between h-28">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl bg-white/5 border border-white/10 group-hover:scale-110 transition-transform ${stat.tone.replace('text-', 'bg-').replace('primary', 'primary/10').replace('accent', 'accent/10').replace('success', 'success/10').replace('warn', 'warn/10')}`}>
+          <div key={stat.label} className="glass-card p-6 group flex flex-col justify-between h-32 interactive-scale">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-2xl bg-white/5 border border-white/10 group-hover:scale-110 transition-premium ${stat.tone.replace('text-', 'bg-').replace('primary', 'primary/10').replace('accent', 'accent/10').replace('success', 'success/10').replace('warn', 'warn/10')}`}>
                 <stat.icon className={`h-4 w-4 ${stat.tone}`} />
               </div>
-              <span className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">{stat.label}</span>
+              <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em] font-mono">{stat.label}</span>
             </div>
-            <p className="text-2xl font-black text-white tracking-tight">{stat.value}</p>
+            <p className="text-3xl font-black text-white tracking-tight">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-6 px-4">
         <div className="relative flex-1 group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-white/50 transition-colors" />
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20 group-focus-within:text-primary transition-colors" />
           <input
             placeholder="Search cognitive records..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white/[0.03] border border-white/5 text-sm text-white focus:outline-none focus:border-primary/40 transition-all placeholder:text-white/10"
+            className="w-full pl-14 pr-6 py-4 rounded-2xl bg-white/[0.03] border border-white/5 text-[15px] font-medium text-white focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] transition-premium placeholder:text-white/10"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 p-2 bg-black/20 rounded-2xl border border-white/5">
            {['all', ...availableCategories].map((cat) => (
              <button
                key={cat}
                onClick={() => setCategoryFilter(cat)}
-               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+               className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-premium ${
                  categoryFilter === cat 
-                   ? 'bg-white text-black border-white shadow-lg' 
-                   : 'bg-white/5 text-white/30 border-white/5 hover:text-white hover:bg-white/10'
+                   ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' 
+                   : 'text-white/30 border-transparent hover:text-white hover:bg-white/5'
                }`}
              >
                {cat}
@@ -196,28 +196,30 @@ export default function KnowledgePage() {
         </div>
       </div>
 
-      {loadingMemories || loadingLinks ? (
-        <KnowledgeSkeleton />
-      ) : processedMemories.length === 0 ? (
-        <div className="glass-card py-24 text-center">
-            <Brain className="h-12 w-12 mx-auto text-white/5 mb-4" />
-            <p className="text-sm font-medium text-white/40 uppercase tracking-widest">
-              {search ? 'Sistema não encontrou correlações' : 'Vácuo cognitivo detectado. Inicie a primeira memória.'}
-            </p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {processedMemories.map((entry) => (
-            <MemoryCard 
-              key={entry.id} 
-              entry={entry} 
-              expanded={expandedId === entry.id}
-              onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
-              onInspect={(item) => setInspectedItem(item)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="px-4">
+        {loadingMemories || loadingLinks ? (
+          <KnowledgeSkeleton />
+        ) : processedMemories.length === 0 ? (
+          <div className="glass-card py-32 text-center border-dashed">
+              <Brain className="h-16 w-16 mx-auto text-white/5 mb-6" />
+              <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.4em]">
+                {search ? 'No Correlations Identified' : 'Cognitive Vacuum Detected'}
+              </p>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {processedMemories.map((entry) => (
+              <MemoryCard 
+                key={entry.id} 
+                entry={entry} 
+                expanded={expandedId === entry.id}
+                onToggle={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                onInspect={(item) => setInspectedItem(item)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Slide-over Inspector */}
       <MemoryInspector 
@@ -231,82 +233,106 @@ export default function KnowledgePage() {
         }}
       />
 
-      <div className="glass-card p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Network className="h-4 w-4 text-accent" />
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Neural Connections</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {links.map((link) => (
-            <div
-              key={link.id}
-              className="p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-all group"
-            >
-              <div className="flex items-center justify-between mb-2">
-                 <p className="text-xs font-black text-white/80 group-hover:text-primary transition-colors">{link.label || 'Vínculo Semântico'}</p>
-                 <Link2 className="h-3 w-3 text-white/10" />
+      <div className="px-4">
+        <div className="glass-card p-10 bg-gradient-to-br from-accent/5 to-transparent">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-10 h-10 rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+              <Network className="h-5 w-5 text-accent" />
+            </div>
+            <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/30 font-mono">Neural Mapping Deck</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {links.map((link) => (
+              <div
+                key={link.id}
+                className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/5 hover:border-accent/40 transition-premium group interactive-scale"
+              >
+                <div className="flex items-center justify-between mb-4">
+                   <p className="text-[14px] font-bold text-white/80 group-hover:text-accent transition-colors">{link.label || 'Semantic Link'}</p>
+                   <Link2 className="h-4 w-4 text-white/10 group-hover:text-accent group-hover:rotate-45 transition-premium" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-lg bg-white/5 text-[9px] font-black text-white/20 uppercase tracking-tighter">
+                    {link.from_type}
+                  </span>
+                  <div className="h-[1px] flex-1 bg-white/5" />
+                  <span className="px-2 py-0.5 rounded-lg bg-accent/10 text-[9px] font-black text-accent uppercase tracking-tighter">
+                    {link.to_type}
+                  </span>
+                </div>
               </div>
-              <p className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">
-                {link.from_type} → {link.to_type}
-              </p>
-            </div>
-          ))}
-          {links.length === 0 && (
-            <div className="col-span-full py-8 text-center border border-dashed border-white/5 rounded-2xl">
-               <p className="text-[10px] text-white/20 uppercase font-bold tracking-widest">Nenhuma conexão estabelecida.</p>
-            </div>
-          )}
+            ))}
+            {links.length === 0 && (
+              <div className="col-span-full py-12 text-center border border-dashed border-white/5 rounded-3xl">
+                 <p className="text-[10px] text-white/20 uppercase font-black tracking-[0.3em]">No Neural Connections Implemented</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <Dialog open={entryDialog} onOpenChange={setEntryDialog}>
-        <DialogContent className="max-w-lg glass-panel border-white/10 bg-black/90 text-white shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black tracking-tighter">Forge Cognitive Record</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <input
-              placeholder="Identificação do Registro (Título)"
-              value={entryForm.title}
-              onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm focus:outline-none focus:border-primary/40 transition-all font-outfit"
-            />
-            <textarea
-              placeholder="Conteúdo semântico em markdown..."
-              value={entryForm.content}
-              onChange={(e) => setEntryForm((prev) => ({ ...prev, content: e.target.value }))}
-              rows={8}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs font-mono focus:outline-none focus:border-primary/40 transition-all resize-none"
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <select
-                value={entryForm.type}
-                onChange={(e) => setEntryForm((prev) => ({ ...prev, type: e.target.value }))}
-                className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs uppercase font-bold tracking-widest focus:outline-none"
-              >
-                {Object.entries(CATEGORY_META).map(([key, meta]) => (
-                  <option key={key} value={key} className="bg-black text-white">
-                    {meta.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                placeholder="Fonte (ex: manual)"
-                value={entryForm.source_type}
-                onChange={(e) => setEntryForm((prev) => ({ ...prev, source_type: e.target.value }))}
-                className="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-xs focus:outline-none focus:border-primary/40 transition-all"
-              />
+        <DialogContent className="max-w-xl p-0 overflow-hidden border-none bg-transparent shadow-none">
+          <div className="glass-panel-v2 p-10 space-y-8 animate-in zoom-in-95 duration-300">
+            <DialogHeader>
+              <DialogTitle className="text-3xl font-black tracking-tighter text-white">Forge Cognitive Record</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1">Record Identity</p>
+                <input
+                  placeholder="Identification Header"
+                  value={entryForm.title}
+                  onChange={(e) => setEntryForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-primary/40 transition-premium font-outfit"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1">Semantic Content</p>
+                <textarea
+                  placeholder="Markdown flow protocol..."
+                  value={entryForm.content}
+                  onChange={(e) => setEntryForm((prev) => ({ ...prev, content: e.target.value }))}
+                  rows={8}
+                  className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-[13px] font-mono text-white/80 focus:outline-none focus:border-primary/40 transition-premium resize-none scrollbar-hide"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1">Cognitive Class</p>
+                  <select
+                    value={entryForm.type}
+                    onChange={(e) => setEntryForm((prev) => ({ ...prev, type: e.target.value }))}
+                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-widest text-white/60 focus:outline-none"
+                  >
+                    {Object.entries(CATEGORY_META).map(([key, meta]) => (
+                      <option key={key} value={key} className="bg-[#0a0a0c] text-white">
+                        {meta.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1">Protocol Source</p>
+                  <input
+                    placeholder="manual / external"
+                    value={entryForm.source_type}
+                    onChange={(e) => setEntryForm((prev) => ({ ...prev, source_type: e.target.value }))}
+                    className="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-black uppercase tracking-widest text-white/60 focus:outline-none focus:border-primary/40 transition-premium"
+                  />
+                </div>
+              </div>
             </div>
+            <DialogFooter>
+              <button 
+                onClick={() => saveEntry.mutate()} 
+                disabled={saveEntry.isPending}
+                className="w-full py-5 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] hover:bg-primary hover:text-white disabled:opacity-20 transition-premium shadow-2xl"
+              >
+                {saveEntry.isPending ? 'Synchronizing Pipeline...' : 'Commit to Neural Library'}
+              </button>
+            </DialogFooter>
           </div>
-          <DialogFooter>
-            <button 
-              onClick={() => saveEntry.mutate()} 
-              disabled={saveEntry.isPending}
-              className="w-full py-4 rounded-xl bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-white/90 disabled:opacity-20 transition-all"
-            >
-              {saveEntry.isPending ? 'Synchronizing...' : 'Seal to Vault'}
-            </button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

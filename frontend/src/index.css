@@ -86,7 +86,7 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl transition-all duration-700;
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl transition-premium;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
   }
   
@@ -100,7 +100,7 @@
   }
 
   .glass-panel {
-    @apply bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl;
+    @apply glass-panel-v2;
   }
 
   .glass-surface {
