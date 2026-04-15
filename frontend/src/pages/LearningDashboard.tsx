@@ -28,7 +28,7 @@ export default function LearningDashboard() {
     ];
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-700">
+        <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
             <header>
                 <h1 className="text-3xl font-black text-white tracking-tighter mb-1">Intelligence Dashboard</h1>
                 <p className="text-sm text-white/40 italic">Monitoramento em tempo real da evolução cognitiva do AndClaw.</p>
