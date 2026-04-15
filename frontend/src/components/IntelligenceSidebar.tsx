@@ -15,7 +15,6 @@ import {
   Shield,
   Sparkles,
   Settings2,
-  Zap,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
@@ -111,21 +110,6 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps) {
   const recentSignals = useMemo(() => items.slice(0, 3), [items]);
 
   const traceSteps = currentTrace?.steps ?? [];
-  const reasoningSteps = useMemo(
-    () =>
-      traceSteps.filter((step) =>
-        [
-          'agent.intent.detected',
-          'agent.plan.created',
-          'agent.plan.result',
-          'agent.plan.fallback',
-          'agent.skill.selected',
-          'agent.skill.executed',
-          'agent.skill.fallback',
-        ].includes(step.type),
-      ),
-    [traceSteps],
-  );
   const memorySteps = useMemo(
     () => traceSteps.filter((step) => step.type.includes('memory') || step.type.includes('cache')),
     [traceSteps],
@@ -411,37 +395,6 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps) {
                         title="Agent Trace"
                         emptyMessage="No trace available for the current session."
                       />
-                    </div>
-                  </section>
-
-                  <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">Reasoning</p>
-                        <h3 className="mt-2 text-base font-semibold tracking-tight text-foreground">Planner steps</h3>
-                      </div>
-                      <Zap className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div className="mt-4 space-y-2">
-                      {reasoningSteps.length > 0 ? (
-                        reasoningSteps.map((step, index) => (
-                          <div key={`${step.type}-${index}`} className="rounded-xl border border-white/[0.06] bg-surface/45 px-3 py-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-                                {step.type.split('.').pop()}
-                              </p>
-                              <span className="text-[10px] text-muted-foreground">{step.status}</span>
-                            </div>
-                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                              {step.data ? JSON.stringify(step.data).slice(0, 180) : 'No step payload available.'}
-                            </p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-xl border border-dashed border-white/[0.08] bg-surface/35 px-3 py-4 text-sm text-muted-foreground">
-                          No reasoning trace available yet.
-                        </div>
-                      )}
                     </div>
                   </section>
                 </div>
