@@ -58,12 +58,11 @@ async function runTests() {
     const plan1 = planner.plan(intent, [], mockSkills);
     assert(plan1?.type === 'skill', 'Plan 1 is a skill plan');
     if (plan1?.type === 'skill') {
-        assert(plan1.skills[0] === 'skill-alpha', 'Alpha is top (priority 10)');
-        assert(plan1.skills[1] === 'skill-beta', 'Beta is second (priority 5)');
+        assert(plan1.skill === 'skill-alpha', 'Alpha is top (priority 10)');
     }
 
-    // 2. Enable Learning Safe Mode
-    console.log('\nTest 2: Reordering via performance metrics (Safe Mode)');
+    // 2. Learning metrics are passive and must not affect planner order
+    console.log('\nTest 2: Passive learning metrics do not reorder planner');
     // Beta: high success (100%), low latency (100ms)
     // Alpha: low success (50%), high latency (500ms)
     for(let i=0; i<10; i++) {
@@ -98,8 +97,7 @@ async function runTests() {
 
     const plan2 = planner.plan(intent, [], mockSkills);
     if (plan2?.type === 'skill') {
-        assert(plan2.skills[0] === 'skill-beta', `Beta is now top (got ${plan2.skills[0]})`);
-        assert(plan2.skills[1] === 'skill-alpha', `Alpha is now second (got ${plan2.skills[1]})`);
+        assert(plan2.skill === 'skill-alpha', `Alpha stays top because learning is passive (got ${plan2.skill})`);
     }
 
     // 3. Safety Limit: Insufficient data
@@ -135,7 +133,7 @@ async function runTests() {
 
     const plan3 = planner.plan(intent, [], mockSkills);
     if (plan3?.type === 'skill') {
-        assert(plan3.skills[0] === 'skill-alpha', 'Alpha stays top due to insufficient data for Beta');
+        assert(plan3.skill === 'skill-alpha', 'Alpha stays top due to insufficient data for Beta');
     }
 
     // 4. Fallback in AgentLoop (Simulated)
