@@ -72,7 +72,7 @@ function buildMemoryContext(
   traceSteps: Array<{ type?: string; status?: string; data?: Record<string, unknown>; timestamp?: string }>,
   requestId: string | null,
 ) {
-  const traceText = traceSteps
+  const traceText = (traceSteps || [])
     .map((step) => {
       const stepData = step.data ? JSON.stringify(step.data) : '';
       return [step.type, step.status, stepData].filter(Boolean).join(' ');
@@ -92,18 +92,18 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
   const queryClient = useQueryClient();
   const { currentTrace, currentRequestId } = useAgentStore();
 
-  const traceSteps = currentTrace?.steps || [];
+  const traceSteps = Array.isArray(currentTrace?.steps) ? currentTrace.steps : [];
   
-  const reasoningSteps = traceSteps.filter(s => ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused'].includes(s.type));
+  const reasoningSteps = traceSteps.filter(s => s && ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused'].includes(s.type || ''));
   const memorySteps = useMemo(
-    () => traceSteps.filter((step) => step.type.includes('memory') || step.type.includes('cache')),
+    () => traceSteps.filter((step) => step?.type?.includes('memory') || step?.type?.includes('cache')),
     [traceSteps],
   );
-  const securitySteps = traceSteps.filter(s => ['agent.security.blocked', 'agent.spec.violation'].includes(s.type));
+  const securitySteps = traceSteps.filter(s => s && ['agent.security.blocked', 'agent.spec.violation'].includes(s.type || ''));
 
   const usedMemoryIds = useMemo(() => {
     const ids = new Set<string>();
-    traceSteps.forEach((step) => collectTraceMemoryIds(step.data, ids));
+    traceSteps.forEach((step) => collectTraceMemoryIds(step?.data, ids));
     return ids;
   }, [traceSteps]);
 
@@ -114,7 +114,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
   });
 
   const knowledgeMemories = useMemo<MemoryItem[]>(
-    () => knowledgeRows.map((row: KnowledgeRow) => parseKnowledgeRow(row)),
+    () => (Array.isArray(knowledgeRows) ? knowledgeRows : []).map((row: KnowledgeRow) => parseKnowledgeRow(row)),
     [knowledgeRows],
   );
 
@@ -162,7 +162,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
       <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
         {activeTab === 'why' && (
           <ExecutionTimeline 
-            steps={reasoningSteps as TraceStep[]} 
+            steps={(reasoningSteps || []) as TraceStep[]} 
             title="Reasoning Flux"
             emptyMessage="Waiting for engine logic..."
           />
@@ -175,7 +175,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
               Recent Memory Events
             </h3>
             <div className="space-y-4">
-              {memorySteps.map((step, i) => (
+              {(memorySteps || []).map((step, i) => (
                 <div key={i} className={`glass-card-v2 p-5 ${step.status === 'hit' ? 'border-accent/30 bg-accent/5' : ''}`}>
                   <div className="flex justify-between items-center mb-3">
                     <span className={`text-[10px] font-black tracking-widest uppercase ${step.status === 'hit' ? 'text-accent' : 'text-white/40'}`}>
@@ -190,7 +190,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
                   </p>
                 </div>
               ))}
-              {memorySteps.length === 0 && (
+              {(!memorySteps || memorySteps.length === 0) && (
                 <div className="text-[11px] text-white/20 italic p-8 text-center border border-dashed border-white/5 rounded-2xl">
                   No semantic context utilized.
                 </div>
@@ -199,7 +199,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
 
             <div className="mt-8">
               <MemoryInspector
-                memories={knowledgeMemories}
+                memories={knowledgeMemories || []}
                 contextText={memoryContextText}
                 usedMemoryIds={usedMemoryIds}
                 emptyMessage={knowledgeLoading ? 'Loading semantic memories...' : 'No semantic memory available yet.'}
@@ -221,12 +221,12 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
                 Prompt injection monitoring and recursive policy enforcement initialized.
               </p>
             </div>
-            {securitySteps.length === 0 && (
+            {(!securitySteps || securitySteps.length === 0) && (
               <div className="text-[11px] text-emerald-400/40 italic p-8 text-center border border-dashed border-emerald-500/10 rounded-2xl">
                 No policy violations detected.
               </div>
             )}
-            {securitySteps.map((step, i) => (
+            {(securitySteps || []).map((step, i) => (
               <div key={i} className="glass-card-v2 p-5 bg-rose-500/10 border-rose-500/20">
                 <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">THREAT DETECTED</span>
                 <p className="text-[11px] text-white/80 mt-2 leading-relaxed">{step.data?.reason || 'Access denied by governance policy.'}</p>
@@ -254,3 +254,4 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
     </div>
   );
 }
+

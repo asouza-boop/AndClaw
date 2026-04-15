@@ -3,15 +3,21 @@ import { apiFetch } from '@/lib/api';
 import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
 import { IntelligenceInsights } from '@/components/dashboard/IntelligenceInsights';
 import { MetricGrid } from '@/components/dashboard/MetricGrid';
+import { useAgentStore } from '@/stores/agentStore';
+import { transformLearningMetrics } from '@/lib/adapters/learningAdapter';
 
 export default function LearningDashboard() {
-    const { data: metrics, isLoading } = useQuery({
+    const { featureFlags } = useAgentStore();
+    const { data: rawMetrics, isLoading } = useQuery({
         queryKey: ['learning-metrics'],
         queryFn: () => apiFetch<any>('/api/learning/dashboard'),
         refetchInterval: 10000,
     });
 
-    if (isLoading) {
+    const dashboardState = transformLearningMetrics(rawMetrics);
+    const { metrics, mostReliableSkills, failurePatterns, mostUsedTools, improvingSkills } = dashboardState;
+
+    if (isLoading && !rawMetrics) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -24,7 +30,14 @@ export default function LearningDashboard() {
         { title: 'Cache Efficiency', value: `${(metrics?.cacheEfficiency || 0).toFixed(1)}%`, subtitle: 'Calls saved by cache', trend: 'up' as const },
         { title: 'Avg Latency', value: `${(metrics?.avgLatency || 0).toFixed(0)}ms`, subtitle: 'System-wide response', trend: 'down' as const },
         { title: 'Fallback Rate', value: `${(metrics?.fallbackRate || 0).toFixed(1)}%`, subtitle: 'Deterministic fallbacks', trend: 'neutral' as const },
-        { title: 'Knowledge Growth', value: metrics?.topSkills?.length || 0, subtitle: 'Active semantic records', trend: 'up' as const },
+        { title: 'Knowledge Growth', value: (metrics?.topSkills || []).length || 0, subtitle: 'Active semantic records', trend: 'up' as const },
+    ];
+
+    const safeInsights = [
+        ...mostReliableSkills.map((s, i) => ({ id: `rel-${i}`, type: 'performance', content: `${s.skillId}: ${s.description} (${s.metricValue})`, priority: 'high' as const })),
+        ...failurePatterns.map((s, i) => ({ id: `fail-${i}`, type: 'system', content: `Observing ${s.skillId}: ${s.description} (${s.metricValue})`, priority: 'medium' as const })),
+        ...mostUsedTools.map((s, i) => ({ id: `tool-${i}`, type: 'cache', content: `Core routing via ${s.skillId} (${s.metricValue})`, priority: 'low' as const })),
+        ...improvingSkills.map((s, i) => ({ id: `imp-${i}`, type: 'performance', content: `Optimization engine improved ${s.skillId} to ${s.metricValue}`, priority: 'medium' as const }))
     ];
 
     return (
@@ -34,7 +47,7 @@ export default function LearningDashboard() {
                 <p className="text-sm text-white/40 italic">Monitoramento em tempo real da evolução cognitiva do AndClaw.</p>
             </header>
 
-            <MetricGrid metrics={efficiencyMetrics} />
+            <MetricGrid metrics={efficiencyMetrics || []} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
@@ -46,13 +59,16 @@ export default function LearningDashboard() {
                 </div>
 
                 <div className="space-y-8">
-                    <IntelligenceInsights 
-                        insights={[
-                            { id: '1', type: 'performance', content: 'Skill AWS-Cost-Analyzer performando 15% acima da média.', priority: 'high' },
-                            { id: '2', type: 'cache', content: 'Taxa de acerto de cache subiu para 42% na última hora.', priority: 'medium' },
-                            { id: '3', type: 'system', content: 'Otimização automática de memória liberou 256MB.', priority: 'low' },
-                        ]} 
-                    />
+                    {featureFlags.UI_LEARNING_INSIGHTS ? (
+                        <IntelligenceInsights 
+                            insights={safeInsights || []} 
+                        />
+                    ) : (
+                        <div className="glass-card p-8 border-dashed border-white/5 flex flex-col items-center text-center opacity-50 h-full">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Automated Insights Module</p>
+                            <p className="text-[11px] text-white/60 leading-relaxed italic">Engine telemetry currently running in stealth mode. Insights processing is available but toggled off via active UI feature flag.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -36,6 +36,14 @@ interface AgentState {
   setTrace: (trace: ExecutionTrace | null) => void;
   setPerformanceData: (data: SkillPerformance[]) => void;
   
+  // Feature Flags
+  featureFlags: {
+    UI_TRACE_ENHANCED: boolean;
+    UI_MEMORY_INSPECTOR_V2: boolean;
+    UI_LEARNING_INSIGHTS: boolean;
+  };
+  toggleFeatureFlag: (flag: 'UI_TRACE_ENHANCED' | 'UI_MEMORY_INSPECTOR_V2' | 'UI_LEARNING_INSIGHTS') => void;
+  
   // Real-time trace update helper
   addTraceStep: (step: TraceStep) => void;
 }
@@ -46,6 +54,11 @@ export const useAgentStore = create<AgentState>((set) => ({
   currentRequestId: null,
   currentTrace: null,
   performanceData: [],
+  featureFlags: {
+    UI_TRACE_ENHANCED: false,
+    UI_MEMORY_INSPECTOR_V2: false,
+    UI_LEARNING_INSIGHTS: false,
+  },
   
   setUIMode: (mode) => {
     localStorage.setItem('andclaw_ui_mode', mode);
@@ -56,6 +69,13 @@ export const useAgentStore = create<AgentState>((set) => ({
   setTrace: (trace) => set({ currentTrace: trace }),
   setPerformanceData: (data) => set({ performanceData: data }),
   
+  toggleFeatureFlag: (flag) => set((state) => ({
+    featureFlags: {
+      ...state.featureFlags,
+      [flag]: !state.featureFlags[flag]
+    }
+  })),
+
   addTraceStep: (step) => set((state) => {
     if (!state.currentTrace) {
       return { 

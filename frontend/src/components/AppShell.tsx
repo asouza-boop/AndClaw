@@ -5,6 +5,7 @@ import { Topbar } from './Topbar';
 import { BackendRetryBanner } from './BackendRetryBanner';
 import { BackendRetryIndicator } from './BackendRetryIndicator';
 import { CommandPalette } from './CommandPalette';
+import { DebugPanel } from './DebugPanel';
 import { useEffect } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 
@@ -60,6 +61,7 @@ export function AppShell() {
 
       <BackendRetryIndicator />
       <CommandPalette />
+      <DebugPanel />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { Clock3, Eye, Pin, PinOff, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MemoryItem } from '@/components/memory/MemoryCard';
+import { useAgentStore } from '@/stores/agentStore';
 
 export interface InspectorMemoryItem extends MemoryItem {
   title: string;
@@ -115,13 +116,15 @@ export function MemoryInspector({
 }: MemoryInspectorProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => loadPinnedIds());
+  const { featureFlags } = useAgentStore();
 
   useEffect(() => {
     setPinnedIds(loadPinnedIds());
   }, []);
 
   const enrichedMemories = useMemo<InspectorMemoryItem[]>(() => {
-    return memories
+    const safeMemories = Array.isArray(memories) ? memories : [];
+    return safeMemories
       .map(parseMemory)
       .map((item) => {
         const source = `${item.title} ${item.body} ${item.summary} ${item.type} ${item.source_type || ''}`;
@@ -183,7 +186,8 @@ export function MemoryInspector({
                 onFocus={() => setHoveredId(id)}
                 onClick={() => setHoveredId(id)}
                 className={cn(
-                  'group w-full rounded-2xl border px-3 py-3 text-left transition-all duration-200',
+                  'group w-full rounded-2xl border px-3 py-3 text-left transition-all',
+                  featureFlags.UI_MEMORY_INSPECTOR_V2 ? 'duration-500' : 'duration-200',
                   item.used
                     ? 'border-primary/20 bg-primary/[0.08] shadow-[0_18px_45px_-30px_rgba(168,85,247,0.45)]'
                     : 'border-white/[0.06] bg-surface/45 hover:border-white/[0.1] hover:bg-white/[0.05]',
