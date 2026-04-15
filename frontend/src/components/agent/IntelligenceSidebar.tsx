@@ -1,17 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { Brain, Database, Shield, Activity, Zap } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
 import { ExecutionTimeline, TraceStep } from './ExecutionTimeline';
+import { MemoryInspector } from './MemoryInspector';
+import { apiFetch, ensureArray } from '@/lib/api';
+import type { MemoryItem } from '../memory/MemoryCard';
 
-export function IntelligenceSidebar() {
+type KnowledgeRow = MemoryItem & {
+  _id?: string;
+  category?: string;
+  summary?: string;
+};
+
+const memoryIdKeys = new Set([
+  'memoryId',
+  'memory_id',
+  'memoryIDs',
+  'memory_ids',
+  'knowledgeId',
+  'knowledge_id',
+  'knowledgeIDs',
+  'knowledge_ids',
+  'sourceId',
+  'source_id',
+]);
+
+function collectTraceMemoryIds(value: unknown, ids = new Set<string>()) {
+  if (!value) return ids;
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectTraceMemoryIds(entry, ids));
+    return ids;
+  }
+  if (typeof value !== 'object') return ids;
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (memoryIdKeys.has(key)) {
+      if (Array.isArray(entry)) {
+        entry.forEach((item) => {
+          if (typeof item === 'string' || typeof item === 'number') ids.add(String(item));
+        });
+      } else if (typeof entry === 'string' || typeof entry === 'number') {
+        ids.add(String(entry));
+      }
+    }
+    collectTraceMemoryIds(entry, ids);
+  }
+  return ids;
+}
+
+function parseKnowledgeRow(row: KnowledgeRow): MemoryItem {
+  const content = row.content || row.body || row.summary || '';
+  const title = row.title || content.split('\n').find(Boolean)?.replace(/^#+\s*/, '').slice(0, 90) || 'Untitled memory';
+  const body = row.body || content;
+  const summary = row.summary || body.replace(/\s+/g, ' ').trim().slice(0, 220) || 'No summary available.';
+
+  return {
+    ...row,
+    id: String(row.id ?? row._id ?? title),
+    type: row.type || row.category || 'memory',
+    content,
+    title,
+    body,
+    summary,
+  };
+}
+
+function buildMemoryContext(
+  pathname: string,
+  title: string | undefined,
+  traceSteps: Array<{ type?: string; status?: string; data?: Record<string, unknown>; timestamp?: string }>,
+  requestId: string | null,
+) {
+  const traceText = traceSteps
+    .map((step) => {
+      const stepData = step.data ? JSON.stringify(step.data) : '';
+      return [step.type, step.status, stepData].filter(Boolean).join(' ');
+    })
+    .join(' ');
+
+  return [pathname, title || '', requestId || '', traceText].filter(Boolean).join('\n');
+}
+
+interface IntelligenceSidebarProps {
+  title?: string;
+}
+
+export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
   const [activeTab, setActiveTab] = useState<'why' | 'memory' | 'security'>('why');
-  const { currentTrace } = useAgentStore();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+  const { currentTrace, currentRequestId } = useAgentStore();
 
-  const steps = currentTrace?.steps || [];
+  const traceSteps = currentTrace?.steps || [];
   
-  const reasoningSteps = steps.filter(s => ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused'].includes(s.type));
-  const memorySteps = steps.filter(s => ['agent.cache.hit', 'agent.cache.miss', 'agent.memory.used'].includes(s.type));
-  const securitySteps = steps.filter(s => ['agent.security.blocked', 'agent.spec.violation'].includes(s.type));
+  const reasoningSteps = traceSteps.filter(s => ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused'].includes(s.type));
+  const memorySteps = useMemo(
+    () => traceSteps.filter((step) => step.type.includes('memory') || step.type.includes('cache')),
+    [traceSteps],
+  );
+  const securitySteps = traceSteps.filter(s => ['agent.security.blocked', 'agent.spec.violation'].includes(s.type));
+
+  const usedMemoryIds = useMemo(() => {
+    const ids = new Set<string>();
+    traceSteps.forEach((step) => collectTraceMemoryIds(step.data, ids));
+    return ids;
+  }, [traceSteps]);
+
+  const { data: knowledgeRows = [], isLoading: knowledgeLoading } = useQuery({
+    queryKey: ['intelligence-sidebar', 'knowledge'],
+    queryFn: () => apiFetch('/api/knowledge').catch(() => []).then(ensureArray),
+    staleTime: 30_000,
+  });
+
+  const knowledgeMemories = useMemo<MemoryItem[]>(
+    () => knowledgeRows.map((row: KnowledgeRow) => parseKnowledgeRow(row)),
+    [knowledgeRows],
+  );
+
+  const memoryContextText = useMemo(
+    () => buildMemoryContext(location.pathname, title, traceSteps, currentRequestId),
+    [currentRequestId, location.pathname, title, traceSteps],
+  );
+
+  const deleteMemory = useMutation({
+    mutationFn: (item: MemoryItem) => apiFetch(`/api/knowledge/${item.id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['intelligence-sidebar', 'knowledge'] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge'] });
+    },
+    onError: (error: unknown) => {
+      console.error(error);
+    },
+  });
 
   const TabButton = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
     <button
@@ -51,7 +172,7 @@ export function IntelligenceSidebar() {
           <div className="space-y-6">
             <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
               <Database className="w-3 h-3 text-accent" />
-              Semantic Map
+              Recent Memory Events
             </h3>
             <div className="space-y-4">
               {memorySteps.map((step, i) => (
@@ -74,6 +195,16 @@ export function IntelligenceSidebar() {
                   No semantic context utilized.
                 </div>
               )}
+            </div>
+
+            <div className="mt-8">
+              <MemoryInspector
+                memories={knowledgeMemories}
+                contextText={memoryContextText}
+                usedMemoryIds={usedMemoryIds}
+                emptyMessage={knowledgeLoading ? 'Loading semantic memories...' : 'No semantic memory available yet.'}
+                onDelete={(item) => deleteMemory.mutate(item)}
+              />
             </div>
           </div>
         )}
