@@ -25,9 +25,12 @@ export function Topbar({ title }: TopbarProps) {
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-primary transition-colors" />
             <input
               type="text"
-              placeholder="Search cognitive records..."
-              className="pl-11 pr-5 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] w-72 transition-premium"
+              placeholder="Search or jump to..."
+              className="pl-11 pr-14 py-2.5 rounded-2xl bg-white/[0.03] border border-white/5 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] w-72 transition-premium"
             />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-black text-white/30 tracking-widest pointer-events-none">
+              ⌘K
+            </div>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { IntelligenceSidebar } from './agent/IntelligenceSidebar';
 import { Topbar } from './Topbar';
 import { BackendRetryBanner } from './BackendRetryBanner';
 import { BackendRetryIndicator } from './BackendRetryIndicator';
+import { CommandPalette } from './CommandPalette';
 import { useEffect } from 'react';
 import { useNotificationStore } from '@/stores/notificationStore';
 
@@ -58,6 +59,7 @@ export function AppShell() {
       </div>
 
       <BackendRetryIndicator />
+      <CommandPalette />
     </div>
   );
 }
