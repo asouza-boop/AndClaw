@@ -1,12 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { Brain, Database, Shield, Activity, Zap } from 'lucide-react';
+import { Brain, Database, Shield, Activity, Zap, Workflow, ShieldCheck } from 'lucide-react';
 import { useAgentStore } from '@/stores/agentStore';
 import { ExecutionTimeline, TraceStep } from './ExecutionTimeline';
 import { MemoryInspector } from './MemoryInspector';
 import { apiFetch, ensureArray } from '@/lib/api';
 import type { MemoryItem } from '../memory/MemoryCard';
+import { Panel } from '@/components/ui/Panel';
+import { Badge } from '@/components/ui/badge';
+import { Stack } from '@/components/ui/Layout';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Label, Caption } from '@/components/ui/Typography';
 
 type KnowledgeRow = MemoryItem & {
   _id?: string;
@@ -82,19 +87,21 @@ function buildMemoryContext(
   return [pathname, title || '', requestId || '', traceText].filter(Boolean).join('\n');
 }
 
+type TabId = 'why' | 'memory' | 'trace' | 'security';
+
 interface IntelligenceSidebarProps {
   title?: string;
 }
 
 export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
-  const [activeTab, setActiveTab] = useState<'why' | 'memory' | 'security'>('why');
+  const [activeTab, setActiveTab] = useState<TabId>('why');
   const location = useLocation();
   const queryClient = useQueryClient();
   const { currentTrace, currentRequestId } = useAgentStore();
 
   const traceSteps = Array.isArray(currentTrace?.steps) ? currentTrace.steps : [];
   
-  const reasoningSteps = traceSteps.filter(s => s && ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused'].includes(s.type || ''));
+  const reasoningSteps = traceSteps.filter(s => s && ['agent.intent.detected', 'agent.plan.created', 'agent.control.paused', 'agent.skill.selected'].includes(s.type || ''));
   const memorySteps = useMemo(
     () => traceSteps.filter((step) => step?.type?.includes('memory') || step?.type?.includes('cache')),
     [traceSteps],
@@ -134,70 +141,169 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
     },
   });
 
-  const TabButton = ({ id, icon: Icon, label }: { id: typeof activeTab, icon: any, label: string }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`flex-1 flex flex-col items-center gap-2 py-4 transition-premium relative ${
-        activeTab === id 
-          ? 'text-primary' 
-          : 'text-white/30 hover:text-white'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      <span className="text-[9px] font-black uppercase tracking-[0.2em]">{label}</span>
-      {activeTab === id && (
-        <div className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-primary shadow-[0_0_10px_rgba(168,85,247,0.5)] rounded-full" />
-      )}
-    </button>
-  );
+  const tabs: { id: TabId; icon: any; label: string }[] = [
+    { id: 'why', icon: Brain, label: 'WHY' },
+    { id: 'memory', icon: Database, label: 'MEMORY' },
+    { id: 'trace', icon: Workflow, label: 'TRACE' },
+    { id: 'security', icon: Shield, label: 'SECURITY' },
+  ];
 
   return (
-    <div className="w-full h-full flex flex-col animate-in fade-in duration-700 font-outfit">
+    <Panel variant="sidebar" className="w-full flex flex-col animate-in fade-in duration-700 font-outfit rounded-none">
+      {/* Tab Bar */}
       <div className="flex bg-black/40 border-b border-white/5">
-        <TabButton id="why" icon={Brain} label="WHY" />
-        <TabButton id="memory" icon={Database} label="MEMORY" />
-        <TabButton id="security" icon={Shield} label="SECURITY" />
+        {tabs.map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex-1 flex flex-col items-center gap-2 py-4 transition-all duration-300 relative ${
+              activeTab === id 
+                ? 'text-primary' 
+                : 'text-white/30 hover:text-white/70'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <Label className={`text-[9px] ${activeTab === id ? 'text-primary' : 'text-inherit'}`}>
+              {label}
+            </Label>
+            {activeTab === id && (
+              <div className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-primary shadow-[0_0_10px_rgba(168,85,247,0.5)] rounded-full animate-in fade-in duration-300" />
+            )}
+          </button>
+        ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide">
+      {/* Tab Content */}
+      <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+        {/* WHY Tab */}
         {activeTab === 'why' && (
-          <ExecutionTimeline 
-            steps={(reasoningSteps || []) as TraceStep[]} 
-            title="Reasoning Flux"
-            emptyMessage="Waiting for engine logic..."
-          />
-        )}
-
-        {activeTab === 'memory' && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-              <Database className="w-3 h-3 text-accent" />
-              Recent Memory Events
-            </h3>
-            <div className="space-y-4">
-              {(memorySteps || []).map((step, i) => (
-                <div key={i} className={`glass-card-v2 p-5 ${step.status === 'hit' ? 'border-accent/30 bg-accent/5' : ''}`}>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className={`text-[10px] font-black tracking-widest uppercase ${step.status === 'hit' ? 'text-accent' : 'text-white/40'}`}>
-                      {step.status === 'hit' ? 'CACHE MATCH' : 'COLD FETCH'}
-                    </span>
-                    {step.data?.similarity && (
-                      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/5 text-white/40">SIM: {(step.data.similarity * 100).toFixed(0)}%</span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-white/60 leading-relaxed italic">
-                    Vector analysis identified relevant context for user directive.
-                  </p>
-                </div>
-              ))}
-              {(!memorySteps || memorySteps.length === 0) && (
-                <div className="text-[11px] text-white/20 italic p-8 text-center border border-dashed border-white/5 rounded-2xl">
-                  No semantic context utilized.
-                </div>
+          <Stack className="gap-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+              <Label className="text-white/40 flex items-center gap-2">
+                <Brain className="w-3 h-3 text-primary" />
+                Decision Reasoning
+              </Label>
+              {reasoningSteps.length > 0 && (
+                <Badge variant="optimizing" className="text-[8px]">
+                  {reasoningSteps.length} decision{reasoningSteps.length > 1 ? 's' : ''}
+                </Badge>
               )}
             </div>
 
-            <div className="mt-8">
+            {reasoningSteps.length > 0 ? (
+              <Stack className="gap-4">
+                {reasoningSteps.map((step, i) => {
+                  const isFallback = (step.type || '').includes('fallback');
+                  const isPlan = (step.type || '').includes('plan');
+                  const isSkill = (step.type || '').includes('skill');
+
+                  return (
+                    <div key={i} className="glass-card p-4 space-y-3 animate-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-foreground/90">
+                          {(step.type || '').split('.').pop()?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Step'}
+                        </Label>
+                        {isFallback && <Badge variant="fallback" className="text-[8px]">Fallback</Badge>}
+                        {isPlan && <Badge variant="optimizing" className="text-[8px]">Primary Path</Badge>}
+                        {isSkill && <Badge variant="success" className="text-[8px]">Optimized</Badge>}
+                      </div>
+
+                      {step.data?.reason && (
+                        <div className="px-3 py-2 rounded-xl bg-primary/5 border border-primary/10">
+                          <Caption className="text-primary/70 mb-1">Reasoning</Caption>
+                          <p className="text-xs text-white/80 leading-relaxed">{String(step.data.reason)}</p>
+                        </div>
+                      )}
+
+                      {step.data?.decision && (
+                        <div className="px-3 py-2 rounded-xl bg-accent/5 border border-accent/10">
+                          <Caption className="text-accent/70 mb-1">Decision</Caption>
+                          <p className="text-xs text-white/80 leading-relaxed">{String(step.data.decision)}</p>
+                        </div>
+                      )}
+
+                      {step.data && !step.data.reason && !step.data.decision && (
+                        <Caption as="p" className="text-white/50 italic leading-relaxed">
+                          {typeof step.data === 'string' ? step.data : JSON.stringify(step.data, null, 2).slice(0, 200)}
+                        </Caption>
+                      )}
+
+                      <Caption className="text-white/20">
+                        {step.status || 'processed'}
+                      </Caption>
+                    </div>
+                  );
+                })}
+              </Stack>
+            ) : (
+              <EmptyState
+                icon={Brain}
+                title="Waiting for reasoning"
+                description="Agent decision steps will appear here as the engine processes your request."
+                className="py-12"
+              />
+            )}
+          </Stack>
+        )}
+
+        {/* MEMORY Tab */}
+        {activeTab === 'memory' && (
+          <Stack className="gap-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+              <Label className="text-white/40 flex items-center gap-2">
+                <Database className="w-3 h-3 text-accent" />
+                Memory Events
+              </Label>
+              {memorySteps.length > 0 && (
+                <Badge variant="cached" className="text-[8px]">
+                  {memorySteps.length} event{memorySteps.length > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+
+            <Stack className="gap-3">
+              {(memorySteps || []).map((step, i) => {
+                const isHit = step.status === 'hit';
+                return (
+                  <div
+                    key={i}
+                    className={`glass-card p-4 transition-all duration-300 animate-in slide-in-from-bottom-1 ${
+                      isHit ? 'border-accent/30 hover:border-accent/50' : 'hover:border-white/15'
+                    }`}
+                    style={{ animationDelay: `${i * 60}ms` }}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <Badge variant={isHit ? 'cached' : 'glass'} className="text-[8px]">
+                        {isHit ? 'Cache Match' : 'Cold Fetch'}
+                      </Badge>
+                      {step.data?.similarity && (
+                        <Caption className="font-mono text-white/40">
+                          SIM: {(Number(step.data.similarity) * 100).toFixed(0)}%
+                        </Caption>
+                      )}
+                    </div>
+                    <Caption as="p" className="text-white/60 italic leading-relaxed">
+                      Vector analysis identified relevant context for user directive.
+                    </Caption>
+                  </div>
+                );
+              })}
+            </Stack>
+
+            {(!memorySteps || memorySteps.length === 0) && (
+              <EmptyState
+                icon={Database}
+                title="No memory events"
+                description="Semantic context lookups will appear here during agent processing."
+                className="py-10"
+              />
+            )}
+
+            <div className="mt-4 pt-4 border-t border-white/5">
+              <Label className="text-white/40 flex items-center gap-2 mb-4">
+                <Database className="w-3 h-3 text-primary" />
+                Knowledge Base
+              </Label>
               <MemoryInspector
                 memories={knowledgeMemories || []}
                 contextText={memoryContextText}
@@ -206,52 +312,106 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
                 onDelete={(item) => deleteMemory.mutate(item)}
               />
             </div>
-          </div>
+          </Stack>
         )}
 
+        {/* TRACE Tab */}
+        {activeTab === 'trace' && (
+          <Stack className="gap-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+              <Label className="text-white/40 flex items-center gap-2">
+                <Workflow className="w-3 h-3 text-primary" />
+                Execution Trace
+              </Label>
+              {traceSteps.length > 0 && (
+                <Badge variant="glass" className="text-[8px]">
+                  {traceSteps.length} step{traceSteps.length > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+
+            <ExecutionTimeline
+              steps={(traceSteps || []) as TraceStep[]}
+              title="Full Execution Pipeline"
+              emptyMessage="Waiting for cognitive trace..."
+            />
+          </Stack>
+        )}
+
+        {/* SECURITY Tab */}
         {activeTab === 'security' && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
+          <Stack className="gap-6 animate-in fade-in duration-500">
+            <Label className="text-white/40 flex items-center gap-2">
               <Shield className="w-3 h-3 text-rose-500" />
               Governance Deck
-            </h3>
-            <div className="glass-card-v2 p-5 bg-emerald-500/5 border-emerald-500/20">
-              <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Active Constitution</p>
-              <p className="text-[11px] text-white/40 mt-2 leading-relaxed">
+            </Label>
+
+            <div className="glass-card p-4 border-emerald-500/20 bg-emerald-500/5">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <Label className="text-emerald-400">Active Constitution</Label>
+              </div>
+              <Caption as="p" className="text-white/40 leading-relaxed">
                 Prompt injection monitoring and recursive policy enforcement initialized.
-              </p>
+              </Caption>
             </div>
-            {(!securitySteps || securitySteps.length === 0) && (
-              <div className="text-[11px] text-emerald-400/40 italic p-8 text-center border border-dashed border-emerald-500/10 rounded-2xl">
-                No policy violations detected.
-              </div>
+
+            {(!securitySteps || securitySteps.length === 0) ? (
+              <EmptyState
+                icon={ShieldCheck}
+                title="No violations detected"
+                description="The governance engine is actively monitoring. All operations are within policy bounds."
+                className="py-10 border-emerald-500/10"
+              />
+            ) : (
+              <Stack className="gap-3">
+                {(securitySteps || []).map((step, i) => {
+                  const isBlock = (step.type || '').includes('blocked');
+                  return (
+                    <div
+                      key={i}
+                      className={`glass-card p-4 animate-in slide-in-from-bottom-1 duration-300 ${
+                        isBlock
+                          ? 'border-red-500/20 bg-red-500/5 hover:border-red-500/30'
+                          : 'border-amber-500/20 bg-amber-500/5 hover:border-amber-500/30'
+                      }`}
+                      style={{ animationDelay: `${i * 80}ms` }}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant={isBlock ? 'error' : 'fallback'} className="text-[8px]">
+                          {isBlock ? 'Blocked' : 'Warning'}
+                        </Badge>
+                      </div>
+                      <Caption as="p" className="text-white/80 leading-relaxed">
+                        {step.data?.reason || 'Access denied by governance policy.'}
+                      </Caption>
+                    </div>
+                  );
+                })}
+              </Stack>
             )}
-            {(securitySteps || []).map((step, i) => (
-              <div key={i} className="glass-card-v2 p-5 bg-rose-500/10 border-rose-500/20">
-                <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">THREAT DETECTED</span>
-                <p className="text-[11px] text-white/80 mt-2 leading-relaxed">{step.data?.reason || 'Access denied by governance policy.'}</p>
-              </div>
-            ))}
-          </div>
+          </Stack>
         )}
       </div>
       
+      {/* Footer */}
       <div className="p-6 border-t border-white/5 bg-black/60 space-y-4">
         <a 
           href="/evolucao"
-          className="flex items-center justify-between p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-premium group interactive-scale"
+          className="flex items-center justify-between p-4 rounded-2xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-all duration-300 group"
         >
           <div className="flex items-center gap-3">
             <Activity className="w-4 h-4 text-primary animate-pulse" />
-            <span className="text-[11px] font-black text-primary uppercase tracking-widest">Engine Metrics</span>
+            <Label className="text-primary">Engine Metrics</Label>
           </div>
-          <Zap className="w-4 h-4 text-primary group-hover:translate-x-1 transition-premium" />
+          <Zap className="w-4 h-4 text-primary group-hover:translate-x-1 transition-all duration-300" />
         </a>
-        <div className="flex items-center justify-center gap-2 text-[10px] text-white/10 font-black uppercase tracking-[0.3em] py-2">
-          <span>Explainability Mode v1.0</span>
+        <div className="flex items-center justify-center py-2">
+          <Caption className="text-white/10 tracking-[0.3em]">Explainability Mode v2.0</Caption>
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
+
 
