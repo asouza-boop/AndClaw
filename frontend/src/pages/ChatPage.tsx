@@ -2,11 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
-import { Send, Terminal, Layout, Eye, EyeOff, Activity, Bot, User2, Sparkles, CornerDownLeft } from 'lucide-react';
+import { Send, Terminal, Eye, EyeOff, Bot, User2, Sparkles, CornerDownLeft } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useAgentStore } from '@/stores/agentStore';
 import { ExecutionHUD } from '@/components/agent/ExecutionHUD';
 import { IntelligenceSidebar } from '@/components/agent/IntelligenceSidebar';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Stack } from '@/components/ui/Layout';
+import { Caption, Label } from '@/components/ui/Typography';
 
 interface Message {
   id?: number;
@@ -152,58 +156,57 @@ export default function ChatPage() {
   };
 
   const isEmpty = messages.length === 0 && !loading;
+  const safeMessages = Array.isArray(messages) ? messages : [];
   const currentStepLabel = currentTrace?.steps?.[currentTrace.steps.length - 1]?.type?.split('.')?.pop();
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6 lg:p-8">
-      <div className="flex items-start justify-between gap-4 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-4 py-3 backdrop-blur-xl">
+    <Stack className="h-full min-h-0 gap-4 p-4 md:p-6 lg:p-8 animate-in fade-in duration-700">
+      {/* Header Bar */}
+      <div className="flex items-start justify-between gap-4 glass-panel px-5 py-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/10">
             <Sparkles className="h-4.5 w-4.5" />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Chat com o agente</p>
-            <p className="text-xs text-muted-foreground">Respostas rápidas, histórico persistente e leitura clara.</p>
+            <Caption as="p">Respostas rápidas, histórico persistente e leitura clara.</Caption>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleDebug}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
-          >
+          <Button variant="glass" size="sm" onClick={toggleDebug} className="rounded-xl">
             {uiMode === 'debug' ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             {uiMode === 'debug' ? 'Debug ligado' : 'Debug'}
-          </button>
-          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <CornerDownLeft className="h-3.5 w-3.5" />
-            Enter para enviar
+          </Button>
+          <div className="hidden items-center gap-2 sm:flex">
+            <Caption className="flex items-center gap-1.5">
+              <CornerDownLeft className="h-3.5 w-3.5" />
+              Enter para enviar
+            </Caption>
           </div>
         </div>
       </div>
 
+      {/* Main Chat Area */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-surface/30 shadow-[0_24px_70px_-32px_rgba(0,0,0,0.7)] backdrop-blur-xl">
         <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-5 scroll-smooth sm:px-6">
-          <div className="space-y-4 pb-6">
+          <div className="space-y-5 pb-6">
             {isEmpty && (
-              <div className="mx-auto flex max-w-xl flex-col items-center justify-center rounded-[24px] border border-dashed border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center animate-in fade-in duration-300">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-                  <Bot className="h-5 w-5" />
-                </div>
-                <h2 className="text-base font-semibold text-foreground">Comece a conversa</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  Envie uma pergunta, pedido de ação ou contexto. O histórico aparece aqui com separação clara entre você e o agente.
-                </p>
-              </div>
+              <EmptyState
+                className="mx-auto max-w-xl py-16"
+                icon={Bot}
+                title="Comece a conversa"
+                description="Envie uma pergunta, pedido de ação ou contexto. O histórico aparece aqui com separação clara entre você e o agente."
+              />
             )}
 
-            {messages.map((m, i) => (
+            {safeMessages.map((m, i) => (
               <div
                 key={`${m.timestamp || 'msg'}-${i}`}
-                className={`flex items-end gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+                className={`group flex items-end gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ${
                   m.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
+                style={{ animationDelay: `${Math.min(i * 30, 150)}ms` }}
               >
                 {m.role === 'assistant' && (
                   <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
@@ -212,14 +215,14 @@ export default function ChatPage() {
                 )}
 
                 <div
-                  className={`max-w-[min(46rem,78%)] rounded-[22px] border px-4 py-3 shadow-sm ${
+                  className={`max-w-[min(46rem,78%)] rounded-[22px] border px-4 py-3 shadow-sm transition-all duration-300 ${
                     m.role === 'user'
-                      ? 'rounded-br-md border-primary/15 bg-gradient-to-br from-primary/15 to-white/[0.03] text-foreground'
-                      : 'rounded-bl-md border-white/[0.08] bg-surface/70 text-foreground'
+                      ? 'rounded-br-md border-primary/15 bg-gradient-to-br from-primary/15 to-white/[0.03] text-foreground hover:border-primary/25 hover:shadow-md hover:shadow-primary/5'
+                      : 'rounded-bl-md border-white/[0.08] bg-surface/70 text-foreground hover:border-white/[0.12] hover:bg-surface/80'
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                    <div className="flex items-center gap-2">
                       <span
                         className={`flex h-5 w-5 items-center justify-center rounded-full ${
                           m.role === 'user' ? 'bg-primary/15 text-primary' : 'bg-white/[0.05] text-muted-foreground'
@@ -227,42 +230,44 @@ export default function ChatPage() {
                       >
                         {m.role === 'user' ? <User2 className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
                       </span>
-                      <span className={m.role === 'user' ? 'text-primary' : 'text-muted-foreground'}>
+                      <Label className={m.role === 'user' ? 'text-primary' : 'text-muted-foreground'}>
                         {m.role === 'user' ? 'Você' : 'Agente'}
-                      </span>
+                      </Label>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">{formatTime(m.timestamp)}</span>
+                    <Caption>{formatTime(m.timestamp)}</Caption>
                   </div>
 
                   {m.role === 'assistant' ? (
                     <div className="prose prose-sm prose-invert max-w-none prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-strong:text-foreground prose-a:text-primary">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                      <ReactMarkdown>{m.content || ''}</ReactMarkdown>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/95">{m.content}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/95">{m.content || ''}</p>
                   )}
 
-                  {m.role === 'assistant' && (m.trace || (loading && i === messages.length - 1)) && (
-                    <button
+                  {m.role === 'assistant' && (m.trace || (loading && i === safeMessages.length - 1)) && (
+                    <Button
+                      variant="subtle"
+                      size="sm"
                       onClick={() => inspectTrace(m)}
-                      className="mt-3 inline-flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-primary transition-colors hover:text-accent"
+                      className="mt-3 h-auto px-0 py-0 text-[10px] font-semibold uppercase tracking-wider text-primary hover:text-accent"
                     >
                       <Terminal className="h-3.5 w-3.5" />
                       Explore trace
-                    </button>
+                    </Button>
                   )}
                 </div>
 
                 {m.role === 'user' && (
-                  <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] text-[10px] font-semibold text-muted-foreground sm:flex">
-                    U
+                  <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] sm:flex">
+                    <Label className="text-muted-foreground">U</Label>
                   </div>
                 )}
               </div>
             ))}
 
             {loading && (
-              <div className="flex items-end gap-3 animate-in fade-in duration-200">
+              <div className="flex items-end gap-3 animate-in fade-in duration-300">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
                   <Bot className="h-4 w-4" />
                 </div>
@@ -270,9 +275,9 @@ export default function ChatPage() {
                   <TypingIndicator />
                 </div>
                 {uiMode === 'debug' && currentTrace && currentStepLabel && (
-                  <div className="px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary animate-pulse">
+                  <Caption className="px-2 text-primary animate-pulse">
                     {currentStepLabel}...
-                  </div>
+                  </Caption>
                 )}
               </div>
             )}
@@ -280,8 +285,9 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="sticky bottom-0 border-t border-white/[0.08] bg-background/75 px-4 py-4 backdrop-blur-xl sm:px-6">
-          <div className="flex items-end gap-3 rounded-[24px] border border-white/[0.08] bg-surface/55 p-3 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.75)]">
+        {/* Composer */}
+        <div className="sticky bottom-0 border-t border-white/[0.08] glass-panel rounded-none px-4 py-4 sm:px-6">
+          <div className="flex items-end gap-3 rounded-[24px] border border-white/[0.08] bg-surface/55 p-3 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.75)] transition-all duration-300 focus-within:border-primary/20 focus-within:shadow-[0_20px_50px_-36px_rgba(168,85,247,0.2)]">
             <textarea
               ref={textareaRef}
               value={input}
@@ -307,12 +313,13 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {/* Intelligence Sidebar */}
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <div className="hidden xl:block" />
         <div className="xl:block">
           <IntelligenceSidebar />
         </div>
       </div>
-    </div>
+    </Stack>
   );
 }
