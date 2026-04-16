@@ -1,4 +1,7 @@
 import React from 'react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Label, Caption } from '@/components/ui/Typography';
+import { Badge } from '@/components/ui/badge';
 
 interface Props {
     title: string;
@@ -8,23 +11,31 @@ interface Props {
     trend?: 'up' | 'down' | 'neutral';
 }
 
-export const EfficiencyMetricCard: React.FC<Props> = ({ title, value, subtitle, trend }) => {
+const trendConfig = {
+    up: { Icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-400', glow: 'shadow-[0_0_8px_rgba(52,211,153,0.5)]', badge: 'success' as const, label: '↑ Up' },
+    down: { Icon: TrendingDown, color: 'text-rose-400', bg: 'bg-rose-400', glow: 'shadow-[0_0_8px_rgba(251,113,133,0.5)]', badge: 'error' as const, label: '↓ Down' },
+    neutral: { Icon: Minus, color: 'text-white/30', bg: 'bg-white/20', glow: '', badge: 'glass' as const, label: '— Stable' },
+};
+
+export const EfficiencyMetricCard: React.FC<Props> = ({ title, value, subtitle, trend = 'neutral' }) => {
+    const config = trendConfig[trend] || trendConfig.neutral;
+    const { Icon } = config;
+
     return (
-        <div className="glass-card p-6 flex flex-col justify-between h-32 group">
+        <div className="glass-card p-5 flex flex-col justify-between h-36 group hover:border-white/[0.12] transition-all duration-300">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{title}</span>
-                <div className={`w-2 h-2 rounded-full glass-glow-accent ${
-                    trend === 'up' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 
-                    trend === 'down' ? 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.5)]' : 
-                    'bg-white/20'
-                }`} />
+                <Label className="text-white/30">{title}</Label>
+                <div className={`w-2 h-2 rounded-full ${config.bg} ${config.glow}`} />
             </div>
             <div>
-              <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-white tracking-tighter">{value}</span>
-                  {trend === 'up' && <span className="text-emerald-400 text-[10px] font-black uppercase tracking-tighter self-end mb-1">+Yield</span>}
-              </div>
-              <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-1">{subtitle}</p>
+                <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-white tracking-tighter">{value}</span>
+                    <Badge variant={config.badge} className="text-[7px] px-1.5 py-0 gap-0.5">
+                        <Icon className="h-2.5 w-2.5" />
+                        {config.label}
+                    </Badge>
+                </div>
+                <Caption as="p" className="mt-1.5">{subtitle}</Caption>
             </div>
         </div>
     );

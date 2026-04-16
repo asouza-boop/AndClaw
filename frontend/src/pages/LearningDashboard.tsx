@@ -5,6 +5,11 @@ import { IntelligenceInsights } from '@/components/dashboard/IntelligenceInsight
 import { MetricGrid } from '@/components/dashboard/MetricGrid';
 import { useAgentStore } from '@/stores/agentStore';
 import { transformLearningMetrics } from '@/lib/adapters/learningAdapter';
+import { PageContainer, Stack, Section } from '@/components/ui/Layout';
+import { Title, Body, Caption } from '@/components/ui/Typography';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/badge';
+import { BrainCircuit, Activity } from 'lucide-react';
 
 export default function LearningDashboard() {
     const { featureFlags } = useAgentStore();
@@ -17,20 +22,55 @@ export default function LearningDashboard() {
     const dashboardState = transformLearningMetrics(rawMetrics);
     const { metrics, mostReliableSkills, failurePatterns, mostUsedTools, improvingSkills } = dashboardState;
 
+    // Dynamic summary
+    const hasData = (metrics?.topSkills || []).length > 0 || (metrics?.worstSkills || []).length > 0;
+    const cacheEfficiency = metrics?.cacheEfficiency || 0;
+    const fallbackRate = metrics?.fallbackRate || 0;
+    const avgLatency = metrics?.avgLatency || 0;
+
+    const summaryText = !hasData
+        ? 'Agent is still learning. Data will appear as requests are processed.'
+        : cacheEfficiency > 70
+            ? `High cache efficiency at ${cacheEfficiency.toFixed(0)}% — the agent is operating optimally.`
+            : fallbackRate > 30
+                ? `Fallback rate at ${fallbackRate.toFixed(0)}% — some skills may need attention.`
+                : avgLatency < 500
+                    ? `Low latency at ${avgLatency.toFixed(0)}ms — response times are excellent.`
+                    : 'The agent is processing and improving with each interaction.';
+
     if (isLoading && !rawMetrics) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+            <PageContainer className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                <p className="text-xs font-black uppercase tracking-widest text-white/20">Sincronizando Heurísticas...</p>
-            </div>
+                <Caption>Sincronizando Heurísticas...</Caption>
+            </PageContainer>
         );
     }
 
+    if (!hasData && !isLoading) {
+        return (
+            <PageContainer className="flex items-center justify-center h-[60vh]">
+                <EmptyState
+                    icon={BrainCircuit}
+                    title="Agent is still learning"
+                    description="The intelligence engine will start generating insights and metrics as the agent processes real requests."
+                    className="py-16 max-w-lg"
+                />
+            </PageContainer>
+        );
+    }
+
+    // Compute success rate from top skills
+    const topSkills = metrics?.topSkills || [];
+    const totalUsage = topSkills.reduce((sum: number, s: any) => sum + (s.usageCount || 0), 0);
+    const totalSuccess = topSkills.reduce((sum: number, s: any) => sum + (s.successCount || 0), 0);
+    const successRate = totalUsage > 0 ? ((totalSuccess / totalUsage) * 100) : 0;
+
     const efficiencyMetrics = [
-        { title: 'Cache Efficiency', value: `${(metrics?.cacheEfficiency || 0).toFixed(1)}%`, subtitle: 'Calls saved by cache', trend: 'up' as const },
-        { title: 'Avg Latency', value: `${(metrics?.avgLatency || 0).toFixed(0)}ms`, subtitle: 'System-wide response', trend: 'down' as const },
-        { title: 'Fallback Rate', value: `${(metrics?.fallbackRate || 0).toFixed(1)}%`, subtitle: 'Deterministic fallbacks', trend: 'neutral' as const },
-        { title: 'Knowledge Growth', value: (metrics?.topSkills || []).length || 0, subtitle: 'Active semantic records', trend: 'up' as const },
+        { title: 'Success Rate', value: `${successRate.toFixed(1)}%`, subtitle: 'Overall execution accuracy', trend: successRate > 80 ? 'up' as const : successRate > 50 ? 'neutral' as const : 'down' as const },
+        { title: 'Avg Latency', value: `${(avgLatency).toFixed(0)}ms`, subtitle: 'System-wide response', trend: avgLatency < 500 ? 'up' as const : avgLatency < 2000 ? 'neutral' as const : 'down' as const },
+        { title: 'Cache Efficiency', value: `${cacheEfficiency.toFixed(1)}%`, subtitle: 'Calls saved by cache', trend: cacheEfficiency > 50 ? 'up' as const : cacheEfficiency > 20 ? 'neutral' as const : 'down' as const },
+        { title: 'Fallback Rate', value: `${fallbackRate.toFixed(1)}%`, subtitle: 'Deterministic fallbacks', trend: fallbackRate < 10 ? 'up' as const : fallbackRate < 30 ? 'neutral' as const : 'down' as const },
     ];
 
     const safeInsights = [
@@ -41,36 +81,58 @@ export default function LearningDashboard() {
     ];
 
     return (
-        <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
-            <header>
-                <h1 className="text-3xl font-black text-white tracking-tighter mb-1">Intelligence Dashboard</h1>
-                <p className="text-sm text-white/40 italic">Monitoramento em tempo real da evolução cognitiva do AndClaw.</p>
-            </header>
-
-            <MetricGrid metrics={efficiencyMetrics || []} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <PerformanceChart 
-                        top={metrics?.topSkills || []} 
-                        worst={metrics?.worstSkills || []} 
-                        worstTitle="Skills Sob Observação"
-                    />
-                </div>
-
-                <div className="space-y-8">
-                    {featureFlags.UI_LEARNING_INSIGHTS ? (
-                        <IntelligenceInsights 
-                            insights={safeInsights || []} 
-                        />
-                    ) : (
-                        <div className="glass-card p-8 border-dashed border-white/5 flex flex-col items-center text-center opacity-50 h-full">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Automated Insights Module</p>
-                            <p className="text-[11px] text-white/60 leading-relaxed italic">Engine telemetry currently running in stealth mode. Insights processing is available but toggled off via active UI feature flag.</p>
+        <PageContainer>
+            <Stack className="gap-8">
+                {/* Header */}
+                <Section>
+                    <header className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/10">
+                                <BrainCircuit className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <Title as="h1" className="text-2xl md:text-3xl">Agent Intelligence</Title>
+                                <Body as="p" className="mt-1 max-w-xl">{summaryText}</Body>
+                            </div>
                         </div>
-                    )}
+                        <div className="hidden sm:flex items-center gap-2">
+                            <Badge variant="glass" className="text-[8px] gap-1">
+                                <Activity className="h-3 w-3 animate-pulse" />
+                                Live
+                            </Badge>
+                        </div>
+                    </header>
+                </Section>
+
+                {/* Metrics Grid */}
+                <MetricGrid metrics={efficiencyMetrics} />
+
+                {/* Charts + Insights */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                        <PerformanceChart
+                            top={metrics?.topSkills || []}
+                            worst={metrics?.worstSkills || []}
+                            worstTitle="Skills Sob Observação"
+                        />
+                    </div>
+
+                    <div>
+                        {featureFlags.UI_LEARNING_INSIGHTS ? (
+                            <IntelligenceInsights
+                                insights={safeInsights || []}
+                            />
+                        ) : (
+                            <div className="glass-card p-6 border-dashed border-white/5 flex flex-col items-center text-center h-full justify-center">
+                                <Caption className="mb-2">Automated Insights Module</Caption>
+                                <Body as="p" className="italic max-w-xs">
+                                    Engine telemetry is running in stealth mode. Toggle the UI_LEARNING_INSIGHTS flag to enable.
+                                </Body>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-        </div>
+            </Stack>
+        </PageContainer>
     );
 }

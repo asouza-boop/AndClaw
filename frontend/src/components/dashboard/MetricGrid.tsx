@@ -1,4 +1,5 @@
 import React from 'react';
+import { Grid } from '@/components/ui/Layout';
 import { EfficiencyMetricCard } from './EfficiencyMetricCard';
 
 interface Metric {
@@ -13,14 +14,16 @@ interface MetricGridProps {
 }
 
 export const MetricGrid: React.FC<MetricGridProps> = ({ metrics }) => {
+  const safeMetrics = Array.isArray(metrics) ? metrics : [];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {metrics.map((metric, i) => (
-        <EfficiencyMetricCard 
-          key={i}
+    <Grid className="grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {safeMetrics.map((metric, i) => (
+        <EfficiencyMetricCard
+          key={metric.title || i}
           {...metric}
         />
       ))}
-    </div>
+    </Grid>
   );
 };
