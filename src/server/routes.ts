@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query } from '@/db/postgres';
+import { TaskService } from '@/core/agent/TaskService';
 import { ensureSchema } from '@/db/schema';
 import {
   syncGoogleCalendars,
@@ -740,6 +741,12 @@ router.post('/captures', async (req: Request, res: Response) => {
     [content, source, type, tags, project_id || null, due_date || null, JSON.stringify(metadata), status]
   );
   const row = rows[0];
+
+  // Auto-create task if capture type is 'task'
+  if (row && type === 'task') {
+    await TaskService.createFromCapture(row);
+  }
+
   res.status(201).json({
     ok: true,
     item: row,

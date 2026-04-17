@@ -58,7 +58,7 @@ export async function ensureSchema(): Promise<void> {
       id BIGSERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
-      status TEXT DEFAULT 'open',
+      status TEXT DEFAULT 'pending',
       priority TEXT DEFAULT 'normal',
       due_date TIMESTAMPTZ,
       project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL,
@@ -254,4 +254,5 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS embedding vector(1536)`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS memory_type TEXT DEFAULT 'contextual'`);
+  await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS capture_id BIGINT`);
 }

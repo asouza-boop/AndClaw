@@ -23,6 +23,7 @@ import { ExecutionOrchestrator } from './execution/ExecutionOrchestrator';
 import { SpecService } from './spec/SpecService';
 import { AgentEvaluator } from './evaluation/AgentEvaluator';
 import { TaskDecomposer } from './agent/TaskDecomposer';
+import { TaskService } from './agent/TaskService';
 import { SubAgentSpawner } from './agent/SubAgentSpawner';
 import { ResultAggregator } from './agent/ResultAggregator';
 import { FeedbackCollector, FeedbackEntry } from './learning/FeedbackCollector';
@@ -777,9 +778,9 @@ export class AgentLoop {
         const type = allowedTypes.includes(classification.type) ? classification.type : 'note';
 
         try {
-            await query(
+            const rows = await query(
                 `INSERT INTO captures (content, source, type, status, metadata)
-                 VALUES ($1, $2, $3, $4, $5)`,
+                 VALUES ($1, $2, $3, $4, $5) RETURNING *`,
                 [
                     input,
                     'agent-loop',
@@ -793,6 +794,12 @@ export class AgentLoop {
                 ]
             );
             logger.info('agent.routing.completed', { requestId, type });
+
+            // Auto-create task if classified as task
+            const capture = rows[0];
+            if (capture && type === 'task') {
+                await TaskService.createFromCapture(capture);
+            }
         } catch (err: any) {
             logger.warn('agent.routing.failed', { requestId, error: err.message });
             // Routing failure should not block the agent run
