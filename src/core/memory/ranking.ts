@@ -33,11 +33,17 @@ export function rankSemanticMemories(
     .map((record) => {
       const similarity = Number.isFinite(record.distance) ? Number(record.distance) : Number.POSITIVE_INFINITY;
       const recency = recencyScore(record.created_at, now);
+      
+      // Memory type bias (lower is better)
+      let typeBias = 0;
+      if (record.memory_type === 'problem_solution') typeBias = -0.1;
+      else if (record.memory_type === 'operational') typeBias = -0.05;
+
       return {
         ...record,
         similarityScore: similarity,
         recencyScore: recency,
-        rankScore: (similarity * similarityWeight) - (recency * recencyWeight),
+        rankScore: (similarity * similarityWeight) - (recency * recencyWeight) + typeBias,
       };
     })
     .sort((a, b) => {

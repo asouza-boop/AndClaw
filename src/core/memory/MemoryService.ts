@@ -15,6 +15,7 @@ export interface SemanticMemoryRecord {
   source_type?: string | null;
   source_id?: string | null;
   metadata?: Record<string, any> | null;
+  memory_type?: string;
   created_at?: string;
   distance?: number;
 }
@@ -34,9 +35,10 @@ export class MemoryService {
     const parsed = MemorySaveSchema.parse({ content, embedding, metadata });
     if (!config.db.url) return null;
     const start = Date.now();
+    const memoryType = this.detectMemoryType(content, metadata.memoryType);
     const rows = await query<SemanticMemoryRecord>(
-      `INSERT INTO memory_items (type, content, source_type, source_id, metadata, embedding)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6::vector)
+      `INSERT INTO memory_items (type, content, source_type, source_id, metadata, embedding, memory_type)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6::vector, $7)
        RETURNING *`,
       [
         String(metadata.type || 'semantic'),
@@ -45,14 +47,38 @@ export class MemoryService {
         metadata.source_id || null,
         JSON.stringify(metadata),
         toVectorLiteral(embedding),
+        memoryType
       ]
     );
+    logger.info('memory.type.assigned', { memoryType, contentLength: content.length });
     logger.info('memory.save', {
       contentLength: parsed.content.length,
+      memoryType,
       metadataType: parsed.metadata.type || 'semantic',
       latencyMs: Date.now() - start,
     });
     return rows[0] || null;
+  }
+
+  private detectMemoryType(content: string, override?: string): string {
+    if (override && ['operational', 'contextual', 'problem_solution'].includes(override)) {
+        return override;
+    }
+    const text = content.toLowerCase();
+
+    // Heuristics for problem_solution
+    const solutionKeywords = ['resolveu', 'consertou', 'fix', 'solucionado', 'resultado final', 'sucesso', 'concluído com êxito'];
+    if (solutionKeywords.some(k => text.includes(k))) {
+        return 'problem_solution';
+    }
+
+    // Heuristics for operational
+    const operationalKeywords = ['executou', 'rodou', 'ferramenta', 'skill', 'output', 'trace', 'comando'];
+    if (operationalKeywords.some(k => text.includes(k))) {
+        return 'operational';
+    }
+
+    return 'contextual';
   }
 
   public async search(embedding: number[], limit = 5): Promise<SemanticMemoryRecord[]> {

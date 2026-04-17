@@ -253,4 +253,5 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS audio_file_name TEXT`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS embedding vector(1536)`);
+  await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS memory_type TEXT DEFAULT 'contextual'`);
 }
