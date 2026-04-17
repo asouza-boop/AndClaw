@@ -732,12 +732,12 @@ router.post('/captures', async (req: Request, res: Response) => {
   const body = req.body || {};
   // Accept 'title' as alias for 'content' (REST convention compatibility)
   const content = body.content || body.title;
-  const { source = 'pwa', type = 'note', tags = [], project_id, due_date } = body;
+  const { source = 'pwa', type = 'note', tags = [], project_id, due_date, metadata = {}, status = 'pending' } = body;
   if (!content) return res.status(400).json({ error: 'content is required', note: 'Also accepts title as alias for content' });
   const rows = await query(
-    `INSERT INTO captures (content, source, type, tags, project_id, due_date)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [content, source, type, tags, project_id || null, due_date || null]
+    `INSERT INTO captures (content, source, type, tags, project_id, due_date, metadata, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [content, source, type, tags, project_id || null, due_date || null, JSON.stringify(metadata), status]
   );
   const row = rows[0];
   res.status(201).json({
@@ -766,7 +766,7 @@ router.get('/captures', async (req: Request, res: Response) => {
 
 router.patch('/captures/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, type, tags, project_id, due_date } = req.body || {};
+  const { status, type, tags, project_id, due_date, metadata } = req.body || {};
   const updates: string[] = [];
   const params: any[] = [];
 
@@ -775,6 +775,7 @@ router.patch('/captures/:id', async (req: Request, res: Response) => {
   if (tags !== undefined) { params.push(tags); updates.push(`tags = $${params.length}`); }
   if (project_id !== undefined) { params.push(project_id); updates.push(`project_id = $${params.length}`); }
   if (due_date !== undefined) { params.push(due_date); updates.push(`due_date = $${params.length}`); }
+  if (metadata !== undefined) { params.push(JSON.stringify(metadata)); updates.push(`metadata = $${params.length}`); }
   if (status === 'processed') { updates.push(`processed_at = NOW()`); }
 
   if (updates.length === 0) return res.status(400).json({ error: 'nothing to update' });
