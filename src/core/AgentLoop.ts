@@ -190,6 +190,12 @@ export class AgentLoop {
 
         try {
             const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
+
+            // --- Decision Layer: Classification ---
+            const classification = this.classifyInput(parsed.userInput);
+            addStep('agent.classification.result', 'success', classification);
+            logger.info('agent.classification.result', { requestId, ...classification });
+
             const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
             if (intent) intent.requestId = requestId;
             const availableSkills = this.skillLoader.fetchSkills();
@@ -731,6 +737,34 @@ export class AgentLoop {
       }
 
       return false;
+    }
+
+    private classifyInput(input: string): { type: "task" | "note" | "link" | "meeting" | "project", confidence: number } {
+        const text = input.toLowerCase();
+
+        // Heuristics
+        if (text.includes('http://') || text.includes('https://') || text.includes('www.')) {
+            return { type: 'link', confidence: 1.0 };
+        }
+
+        if (text.includes('reunião') || text.includes('meeting') || text.includes('call') || text.includes('agendar')) {
+            return { type: 'meeting', confidence: 0.95 };
+        }
+
+        if (text.includes('fazer') || text.includes('todo') || text.includes('preciso') || text.includes('task') || text.includes('devo')) {
+            return { type: 'task', confidence: 0.9 };
+        }
+
+        if (text.includes('projeto') || text.includes('project') || text.includes('roadmap') || text.includes('plano')) {
+            return { type: 'project', confidence: 0.85 };
+        }
+
+        // Default to note for long text or fallback
+        const isLongText = input.length > 250 || (input.match(/\n/g) || []).length >= 3;
+        return { 
+            type: 'note', 
+            confidence: isLongText ? 0.9 : 0.7 
+        };
     }
 
     private normalizeProfileEntries(profile: Array<{ key?: string; value?: string }>): Array<{ key: string; value: string }> {
