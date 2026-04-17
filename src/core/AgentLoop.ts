@@ -1,3 +1,4 @@
+import { query } from '@/db/postgres';
 import { ProviderFactory } from '@/providers/ProviderFactory';
 import { ToolRegistry } from '@/core/ToolRegistry';
 import { config } from '@/config/env';
@@ -195,6 +196,9 @@ export class AgentLoop {
             const classification = this.classifyInput(parsed.userInput);
             addStep('agent.classification.result', 'success', classification);
             logger.info('agent.classification.result', { requestId, ...classification });
+
+            // --- Routing Layer: Auto-capture ---
+            await this.routeToCapture(parsed.userInput, classification, requestId);
 
             const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
             if (intent) intent.requestId = requestId;
@@ -765,6 +769,34 @@ export class AgentLoop {
             type: 'note', 
             confidence: isLongText ? 0.9 : 0.7 
         };
+    }
+
+    private async routeToCapture(input: string, classification: { type: string, confidence: number }, requestId?: string): Promise<void> {
+        // Routing types: only handle the ones requested (or map project to task/note)
+        const allowedTypes = ['link', 'task', 'note', 'meeting'];
+        const type = allowedTypes.includes(classification.type) ? classification.type : 'note';
+
+        try {
+            await query(
+                `INSERT INTO captures (content, source, type, status, metadata)
+                 VALUES ($1, $2, $3, $4, $5)`,
+                [
+                    input,
+                    'agent-loop',
+                    type,
+                    'processed',
+                    JSON.stringify({
+                        originalInput: input,
+                        classificationConfidence: classification.confidence,
+                        requestId
+                    })
+                ]
+            );
+            logger.info('agent.routing.completed', { requestId, type });
+        } catch (err: any) {
+            logger.warn('agent.routing.failed', { requestId, error: err.message });
+            // Routing failure should not block the agent run
+        }
     }
 
     private normalizeProfileEntries(profile: Array<{ key?: string; value?: string }>): Array<{ key: string; value: string }> {
