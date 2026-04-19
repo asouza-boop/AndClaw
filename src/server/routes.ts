@@ -12,7 +12,7 @@ import {
 } from '@/integrations/googleCalendar';
 import { exportDailyGitVault } from '@/integrations/gitvault';
 import { registerPushSubscription, sendPushTest, getVapidPublicKey } from '@/integrations/push';
-import { listRaindropCollections, listRaindrops } from '@/integrations/raindrop';
+import { listRaindropCollections, listRaindrops, saveToRaindrop } from '@/integrations/raindrop';
 import { AgentController } from '@/core/AgentController';
 import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { config } from '@/config/env';
@@ -745,6 +745,14 @@ router.post('/captures', async (req: Request, res: Response) => {
   // Auto-create task if capture type is 'task'
   if (row && type === 'task') {
     await TaskService.createFromCapture(row);
+  }
+
+  // Auto-save link to Raindrop.io
+  if (row && type === 'link' && config.raindrop.token) {
+    const urlMatch = content.match(/https?:\/\/[^\s]+/);
+    if (urlMatch) {
+      await saveToRaindrop(urlMatch[0], content.replace(urlMatch[0], '').trim() || undefined);
+    }
   }
 
   res.status(201).json({

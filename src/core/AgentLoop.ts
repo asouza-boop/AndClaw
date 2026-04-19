@@ -1,5 +1,6 @@
 import { query } from '@/db/postgres';
 import { ProviderFactory } from '@/providers/ProviderFactory';
+import { saveToRaindrop } from '@/integrations/raindrop';
 import { ToolRegistry } from '@/core/ToolRegistry';
 import { config } from '@/config/env';
 import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
@@ -799,6 +800,19 @@ export class AgentLoop {
             const capture = rows[0];
             if (capture && type === 'task') {
                 await TaskService.createFromCapture(capture);
+            }
+
+            // Auto-save link to Raindrop.io
+            if (type === 'link') {
+                const urlMatch = input.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    const result = await saveToRaindrop(urlMatch[0], input.replace(urlMatch[0], '').trim() || undefined);
+                    if (result.ok) {
+                        logger.info('agent.raindrop.saved', { requestId, raindropId: result.id });
+                    } else {
+                        logger.warn('agent.raindrop.failed', { requestId, error: result.error });
+                    }
+                }
             }
         } catch (err: any) {
             logger.warn('agent.routing.failed', { requestId, error: err.message });
