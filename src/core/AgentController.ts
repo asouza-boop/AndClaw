@@ -5,6 +5,7 @@ import { SkillLoader } from '@/skills/SkillLoader';
 import { config } from '@/config/env';
 
 import { SuggestionService } from '@/core/agent/SuggestionService';
+import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
 
 export class AgentController {
     private memoryManager: MemoryManager;

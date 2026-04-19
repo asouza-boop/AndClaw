@@ -13,6 +13,7 @@ import { ContextBuilder } from '@/core/ContextBuilder';
 import { IntentDetector, DetectedIntent } from '@/core/planner/IntentDetector';
 import { ActionPlanner, ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 import { AgentRunInputSchema } from '@/contracts/agent';
+import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
@@ -674,7 +675,7 @@ export class AgentLoop {
 
           // PHASE 4: Autonomous Learning (Background)
           if (MemoryDigestionService.isMemorable(parsed.userInput, response.text)) {
-            MemoryDigestionService.digest(parsed.userInput, response.text, provider).then(fact => {
+            MemoryDigestionService.digest(parsed.userInput, response.text, provider).then((fact: string | null) => {
               if (fact) {
                 this.memoryManager.addSemanticMemory(fact, {
                   type: 'digested_fact',
@@ -685,7 +686,7 @@ export class AgentLoop {
                   logger.info('memory.digestion.completed', { requestId, factLength: fact.length });
                 });
               }
-            }).catch(err => {
+            }).catch((err: Error) => {
               logger.error('memory.digestion.async.failed', { requestId, error: err.message });
             });
           }

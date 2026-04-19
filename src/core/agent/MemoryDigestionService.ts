@@ -1,4 +1,5 @@
 import { ILLMProvider } from '@/providers/ILLMProvider';
+import { logger } from '@/infra/logger';
 
 export class MemoryDigestionService {
     /**

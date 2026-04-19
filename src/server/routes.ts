@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '@/db/postgres';
 import { TaskService } from '@/core/agent/TaskService';
+import { MeetingService } from '@/core/agent/MeetingService';
 import { ensureSchema } from '@/db/schema';
 import {
   syncGoogleCalendars,

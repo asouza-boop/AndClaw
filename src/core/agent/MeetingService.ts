@@ -1,7 +1,7 @@
 import { query } from '@/db/postgres';
 import { logger } from '@/infra/logger';
 import { TaskService } from './TaskService';
-import { MemoryService } from '../memory/MemoryService';
+import { MemoryManager } from '@/memory/MemoryManager';
 
 export class MeetingService {
     /**
@@ -70,23 +70,21 @@ ${transcript}`;
             }
 
             // 2. Persist Decisions to Long-term Memory
-            const memoryService = new MemoryService();
+            const memoryManager = new MemoryManager();
             const decisions = data.decisions || [];
             for (const dec of decisions.slice(0, 5)) {
-                await memoryService.store(
+                await memoryManager.addSemanticMemory(
                     `[Meeting Decision] ${dec}`, 
-                    'operational', 
-                    { source: 'meeting', meetingId }
+                    { source: 'meeting', meetingId, type: 'meeting_intelligence', memoryType: 'operational' }
                 );
             }
 
             // 3. Persist Ideas to Contextual Memory
             const ideas = data.ideas || [];
             for (const idea of ideas.slice(0, 5)) {
-                await memoryService.store(
+                await memoryManager.addSemanticMemory(
                     `[Meeting Insight] ${idea}`, 
-                    'contextual', 
-                    { source: 'meeting', meetingId, brainstorm: true }
+                    { source: 'meeting', meetingId, brainstorm: true, type: 'meeting_intelligence', memoryType: 'contextual' }
                 );
             }
 

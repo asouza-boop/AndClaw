@@ -7,7 +7,7 @@ import { AgentRunRequestSchema } from '@/contracts/api';
 import { AgentControlState } from '@/contracts/trace';
 
 export type AgentRouteDeps = {
-  processInput: (userId: string, input: string, options?: any) => Promise<string>;
+  processInput: (userId: string, input: string, options?: any) => Promise<any>;
   hasLLMConfig: typeof defaultHasLLMConfig;
   offlineFallbackMessage: typeof offlineFallbackMessage;
   getUserId: (req: Request) => string;
