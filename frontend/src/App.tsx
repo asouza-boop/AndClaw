@@ -11,6 +11,7 @@ import ChatPage from "./pages/ChatPage";
 import AgentsPage from "./pages/AgentsPage";
 import SkillsPage from "./pages/SkillsPage";
 import SettingsPage from "./pages/SettingsPage";
+import SettingsProviders from "./pages/SettingsProviders";
 import MeetingsPage from "./pages/MeetingsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import NotFound from "./pages/NotFound";
