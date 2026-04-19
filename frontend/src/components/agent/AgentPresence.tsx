@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAgentStore } from '@/stores/agentStore';
 import { Brain, Cpu, Sparkles, Activity, CheckCircle, AlertTriangle, Search, Lightbulb } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const statusMap: Record<string, { label: string; icon: any; color: string }> = {
   'agent.run.start': { label: 'AndClaw está acordando...', icon: Sparkles, color: 'text-primary' },
@@ -32,20 +31,10 @@ export function AgentPresence() {
   const Icon = info.icon;
 
   return (
-    <AnimatePresence>
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        className="flex items-center gap-3 px-4 py-2 rounded-full bg-surface/40 backdrop-blur-md border border-white/5 shadow-lg shadow-black/20"
-      >
+    <div className={`flex items-center gap-3 px-4 py-2 rounded-full bg-surface/40 backdrop-blur-md border border-white/5 shadow-lg shadow-black/20 transform transition-all duration-300 animate-in fade-in slide-in-from-bottom-2`}>
         <div className="relative">
           {isActive && (
-            <motion.div 
-              animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0.1, 0.3] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className={`absolute inset-0 rounded-full blur-md ${info.color} bg-current`}
-            />
+            <div className={`absolute inset-0 rounded-full blur-md ${info.color} bg-current opacity-20 animate-ping`} />
           )}
           <Icon className={`w-4 h-4 ${info.color} relative z-10 ${isActive ? 'animate-pulse' : ''}`} />
         </div>
@@ -60,16 +49,14 @@ export function AgentPresence() {
         {isActive && (
            <div className="flex gap-1 ml-2">
              {[0, 1, 2].map(i => (
-               <motion.div 
+               <div 
                  key={i}
-                 animate={{ opacity: [0.3, 1, 0.3] }}
-                 transition={{ repeat: Infinity, duration: 1, delay: i * 0.2 }}
-                 className="w-1 h-1 rounded-full bg-primary"
+                 className={`w-1 h-1 rounded-full bg-primary animate-bounce`}
+                 style={{ animationDelay: `${i * 0.15}s` }}
                />
              ))}
            </div>
         )}
-      </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }

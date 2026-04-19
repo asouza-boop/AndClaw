@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAgentStore } from '@/stores/agentStore';
 import { ExecutionHUD } from '@/components/agent/ExecutionHUD';
 import { IntelligenceSidebar } from '@/components/agent/IntelligenceSidebar';
+import { AgentPresence } from '@/components/agent/AgentPresence';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Stack } from '@/components/ui/Layout';
