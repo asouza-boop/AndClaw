@@ -31,4 +31,39 @@ export class TaskService {
             logger.error('task.bridge.failed', { captureId: capture.id, error: err.message });
         }
     }
+
+    /**
+     * Creates a task from a meeting action item.
+     */
+    static async createFromMeetingAction(meetingId: string | number, actionText: string): Promise<void> {
+        try {
+            // Duplicate check: same meeting and same title
+            const existing = await query(
+                `SELECT id FROM tasks WHERE title = $1 AND metadata->>'meeting_id' = $2`,
+                [actionText, String(meetingId)]
+            );
+
+            if (existing.length > 0) {
+                logger.info('task.meeting_bridge.skipped', { meetingId, title: actionText, reason: 'duplicate' });
+                return;
+            }
+
+            await query(
+                `INSERT INTO tasks (title, status, metadata)
+                 VALUES ($1, $2, $3::jsonb)`,
+                [
+                    actionText,
+                    'pending',
+                    JSON.stringify({
+                        source: 'meeting',
+                        meeting_id: meetingId,
+                        created_at: new Date().toISOString()
+                    })
+                ]
+            );
+            logger.info('task.meeting_bridge.created', { meetingId, title: actionText });
+        } catch (err: any) {
+            logger.error('task.meeting_bridge.failed', { meetingId, error: err.message });
+        }
+    }
 }

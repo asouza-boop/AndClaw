@@ -50,8 +50,13 @@ export function createAgentRoutes(overrides: Partial<AgentRouteDeps> = {}) {
       if (!deps.hasLLMConfig()) {
         return res.json({ ok: true, reply: deps.offlineFallbackMessage() });
       }
-      const reply = await deps.processInput(userId, input, parsed.options);
-      return res.json({ ok: true, reply });
+      const result = await deps.processInput(userId, input, parsed.options);
+      
+      if (typeof result === 'object' && result !== null && 'reply' in result) {
+        return res.json({ ok: true, reply: result.reply, suggestions: result.suggestions, memorable: result.memorable });
+      }
+      
+      return res.json({ ok: true, reply: result });
     } catch (error) {
       return next(error);
     }

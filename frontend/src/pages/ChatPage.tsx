@@ -18,6 +18,8 @@ interface Message {
   content: string;
   timestamp?: string;
   trace?: any;
+  suggestions?: any[];
+  memorable?: boolean;
 }
 
 function TypingIndicator() {
@@ -95,6 +97,22 @@ export default function ChatPage() {
     textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
   }, [input]);
 
+  const handleSuggestion = async (s: any) => {
+    try {
+      if (s.action === 'create_task') {
+        await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify(s.data) });
+        toast(`Task criada: ${s.data.title}`, 'success');
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      } else if (s.action === 'store_memory') {
+        await apiFetch('/api/memory', { method: 'POST', body: JSON.stringify({ type: 'note', content: s.data.content }) });
+        toast('Salvo na memória!', 'success');
+        queryClient.invalidateQueries({ queryKey: ['memory'] });
+      }
+    } catch (err: any) {
+      toast(err.message, 'error');
+    }
+  };
+
   const send = async () => {
     if (!input.trim() || loading) return;
     const msg = input.trim();
@@ -112,13 +130,15 @@ export default function ChatPage() {
         body: JSON.stringify({
           message: msg,
           conversation: 'pwa-user',
-          options: { requestId },
+          options: { requestId, includeSuggestions: true },
         }),
       });
 
       const assistantMsg: Message = {
         role: 'assistant',
         content: res.reply || res.message || JSON.stringify(res),
+        suggestions: res.suggestions || [],
+        memorable: res.memorable || false,
         timestamp: new Date().toISOString(),
       };
 
@@ -224,14 +244,14 @@ export default function ChatPage() {
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full ${
-                          m.role === 'user' ? 'bg-primary/15 text-primary' : 'bg-white/[0.05] text-muted-foreground'
+                        className={`flex h-5 w-5 items-center justify-center rounded-full transition-all duration-500 ${
+                          m.role === 'user' ? 'bg-primary/15 text-primary' : (m.memorable ? 'bg-accent/20 text-accent shadow-[0_0_12px_rgba(168,85,247,0.4)] animate-pulse' : 'bg-white/[0.05] text-muted-foreground')
                         }`}
                       >
-                        {m.role === 'user' ? <User2 className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                        {m.role === 'user' ? <User2 className="h-3 w-3" /> : (m.memorable ? <Brain className="h-3 w-3" /> : <Bot className="h-3 w-3" />)}
                       </span>
-                      <Label className={m.role === 'user' ? 'text-primary' : 'text-muted-foreground'}>
-                        {m.role === 'user' ? 'Você' : 'Agente'}
+                      <Label className={m.role === 'user' ? 'text-primary' : (m.memorable ? 'text-accent font-black animate-in fade-in' : 'text-muted-foreground')}>
+                        {m.role === 'user' ? 'Você' : (m.memorable ? 'Aprendizado Ativo' : 'Agente')}
                       </Label>
                     </div>
                     <Caption>{formatTime(m.timestamp)}</Caption>
@@ -243,6 +263,20 @@ export default function ChatPage() {
                     </div>
                   ) : (
                     <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/95">{m.content || ''}</p>
+                  )}
+
+                  {m.role === 'assistant' && m.suggestions && m.suggestions.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2 animate-in slide-in-from-left-2 duration-300">
+                      {m.suggestions.map((s, si) => (
+                        <button 
+                          key={si}
+                          onClick={() => handleSuggestion(s)}
+                          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 text-[9px] font-black uppercase tracking-wider text-primary-foreground hover:bg-primary hover:text-white transition-all active:scale-95"
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
                   )}
 
                   {m.role === 'assistant' && (m.trace || (loading && i === safeMessages.length - 1)) && (

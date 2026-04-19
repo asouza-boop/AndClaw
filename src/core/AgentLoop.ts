@@ -28,6 +28,8 @@ import { TaskService } from './agent/TaskService';
 import { SubAgentSpawner } from './agent/SubAgentSpawner';
 import { ResultAggregator } from './agent/ResultAggregator';
 import { FeedbackCollector, FeedbackEntry } from './learning/FeedbackCollector';
+import { MeetingService } from './agent/MeetingService';
+import { ProjectService } from './agent/ProjectService';
 import { OptimizationEngine } from './learning/OptimizationEngine';
 import { ExperimentEngine, ExperimentVariant } from './experiments/ExperimentEngine';
 import { ExecutionTrace, TraceStep, AgentControlState } from '@/contracts/trace';
@@ -159,48 +161,56 @@ export class AgentLoop {
             return `[Erro de Segurança] ${injectionCheck.reason || 'Sua solicitação foi bloqueada por motivos de segurança.'}`;
         }
 
-        // --- 2. Multi-Agent Decomposition Check ---
-        const decomposition = await TaskDecomposer.decompose(parsed.userInput);
-        if (decomposition.isComplex && decomposition.subTasks.length > 1) {
-            console.log(`[AgentLoop] Complex task detected. Spawning ${decomposition.subTasks.length} sub-agents.`);
-            const spawner = new SubAgentSpawner(this.providerName, this.registry);
-            const subResults = await spawner.spawnAll(decomposition.subTasks);
-            
-            // Track metrics for sub-agents
-            const multiAgentSuccess = subResults.every(r => r.success);
-            AgentEvaluator.evaluateRun({
-                success: multiAgentSuccess,
-                latencyMs: Date.now() - startedAt,
-                toolUsageCount: subResults.length,
-                errorCount: subResults.filter(r => !r.success).length,
-                totalIterations: 1
-            }, variant);
-
-            // --- Passive Learning: Multi-Agent path ---
-            const multiAgentFeedback: FeedbackEntry = {
-                requestId,
-                success: multiAgentSuccess,
-                latencyMs: Date.now() - startedAt,
-                toolsUsed: subResults.map(r => r.description || 'sub-agent'),
-                executionPath: 'multi-agent',
-                errorCount: subResults.filter(r => !r.success).length,
-                timestamp: new Date().toISOString(),
-            };
-            FeedbackCollector.collect(multiAgentFeedback);
-
-            return ResultAggregator.aggregate(subResults);
-        }
-
-        try {
-            const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
-
             // --- Decision Layer: Classification ---
             const classification = this.classifyInput(parsed.userInput);
             addStep('agent.classification.result', 'success', classification);
             logger.info('agent.classification.result', { requestId, ...classification });
 
             // --- Routing Layer: Auto-capture ---
-            await this.routeToCapture(parsed.userInput, classification, requestId);
+            const actionMessage = await this.routeToCapture(parsed.userInput, classification, requestId);
+
+            const finalResponse = (text: string) => {
+                if (actionMessage) {
+                    return `${text}\n\n---\n*AndClaw OS: ${actionMessage}*`;
+                }
+                return text;
+            };
+
+            const decomposition = await TaskDecomposer.decompose(parsed.userInput);
+            if (decomposition.isComplex && decomposition.subTasks.length > 1) {
+                console.log(`[AgentLoop] Complex task detected. Spawning ${decomposition.subTasks.length} sub-agents.`);
+                const spawner = new SubAgentSpawner(this.providerName, this.registry);
+                const subResults = await spawner.spawnAll(decomposition.subTasks);
+                
+                // Track metrics for sub-agents
+                const multiAgentSuccess = subResults.every(r => r.success);
+                AgentEvaluator.evaluateRun({
+                    success: multiAgentSuccess,
+                    latencyMs: Date.now() - startedAt,
+                    toolUsageCount: subResults.length,
+                    errorCount: subResults.filter(r => !r.success).length,
+                    totalIterations: 1
+                }, variant);
+
+                // --- Passive Learning: Multi-Agent path ---
+                const multiAgentFeedback: FeedbackEntry = {
+                    requestId,
+                    success: multiAgentSuccess,
+                    latencyMs: Date.now() - startedAt,
+                    toolsUsed: subResults.map(r => r.description || 'sub-agent'),
+                    executionPath: 'multi-agent',
+                    errorCount: subResults.filter(r => !r.success).length,
+                    timestamp: new Date().toISOString(),
+                };
+                FeedbackCollector.collect(multiAgentFeedback);
+
+                return finalResponse(ResultAggregator.aggregate(subResults));
+            }
+
+        try {
+            const profile = this.normalizeProfileEntries(await this.profileRepo.getAll());
+
+            // Action message was already captured above
 
             const intent = this.intentDetector.detect(parsed.userInput, parsed.history);
             if (intent) intent.requestId = requestId;
@@ -349,7 +359,7 @@ export class AgentLoop {
                     executionPath = 'action-plan';
                     success = true;
                     addStep('agent.run.complete', 'success', { mode: 'action-plan' });
-                    return actionResult.output;
+                    return finalResponse(actionResult.output);
                   }
 
                   logger.info('agent.plan.fallback', {
@@ -378,7 +388,7 @@ export class AgentLoop {
                     addStep,
                     checkpoint
                   });
-                  return fallbackReply;
+                  return finalResponse(fallbackReply);
                 }
               }
             }
@@ -406,7 +416,7 @@ export class AgentLoop {
               metrics.observe('agent.latency', Date.now() - startedAt);
               executionPath = 'cache-hit';
               success = true;
-              return cacheHit.output;
+              return finalResponse(cacheHit.output);
             }
             addStep('agent.cache.miss', 'miss');
 
@@ -417,7 +427,7 @@ export class AgentLoop {
               semanticContext,
             });
 
-            return this.executeLLMFlow({
+            const llmReply = await this.executeLLMFlow({
                 provider,
                 composedSystemPrompt,
                 availableTools,
@@ -429,6 +439,7 @@ export class AgentLoop {
                 addStep,
                 checkpoint
             });
+            return finalResponse(llmReply);
         } catch (error) {
           errorCount++;
           throw error;
@@ -660,6 +671,24 @@ export class AgentLoop {
             source: cacheContext ? 'agent-loop' : 'agent-loop',
             provider: this.providerName,
           }, trace);
+
+          // PHASE 4: Autonomous Learning (Background)
+          if (MemoryDigestionService.isMemorable(parsed.userInput, response.text)) {
+            MemoryDigestionService.digest(parsed.userInput, response.text, provider).then(fact => {
+              if (fact) {
+                this.memoryManager.addSemanticMemory(fact, {
+                  type: 'digested_fact',
+                  source_type: 'chat',
+                  source_id: requestId || 'chat',
+                  userId
+                }).then(() => {
+                  logger.info('memory.digestion.completed', { requestId, factLength: fact.length });
+                });
+              }
+            }).catch(err => {
+              logger.error('memory.digestion.async.failed', { requestId, error: err.message });
+            });
+          }
           addStep('agent.run.complete', 'success');
           logger.info('agent.run.complete', {
             provider: this.providerName,
@@ -761,8 +790,12 @@ export class AgentLoop {
             return { type: 'task', confidence: 0.9 };
         }
 
-        if (text.includes('projeto') || text.includes('project') || text.includes('roadmap') || text.includes('plano')) {
+        if (text.includes('projeto') || text.includes('project') || text.includes('roadmap') || text.includes('iniciar plano')) {
             return { type: 'project', confidence: 0.85 };
+        }
+
+        if (text.includes('reunião') || text.includes('meeting') || text.includes('call') || text.includes('vídeo') || text.includes('conversa agendada')) {
+            return { type: 'meeting', confidence: 0.95 };
         }
 
         // Default to note for long text or fallback
@@ -773,10 +806,11 @@ export class AgentLoop {
         };
     }
 
-    private async routeToCapture(input: string, classification: { type: string, confidence: number }, requestId?: string): Promise<void> {
+    private async routeToCapture(input: string, classification: { type: string, confidence: number }, requestId?: string): Promise<string | null> {
         // Routing types: only handle the ones requested (or map project to task/note)
-        const allowedTypes = ['link', 'task', 'note', 'meeting'];
+        const allowedTypes = ['link', 'task', 'note', 'meeting', 'project'];
         const type = allowedTypes.includes(classification.type) ? classification.type : 'note';
+        let actionMessage: string | null = null;
 
         try {
             const rows = await query(
@@ -796,27 +830,48 @@ export class AgentLoop {
             );
             logger.info('agent.routing.completed', { requestId, type });
 
-            // Auto-create task if classified as task
             const capture = rows[0];
-            if (capture && type === 'task') {
-                await TaskService.createFromCapture(capture);
-            }
-
-            // Auto-save link to Raindrop.io
-            if (type === 'link') {
-                const urlMatch = input.match(/https?:\/\/[^\s]+/);
-                if (urlMatch) {
-                    const result = await saveToRaindrop(urlMatch[0], input.replace(urlMatch[0], '').trim() || undefined);
-                    if (result.ok) {
-                        logger.info('agent.raindrop.saved', { requestId, raindropId: result.id });
+            if (capture) {
+                if (type === 'task') {
+                    await TaskService.createFromCapture(capture);
+                    actionMessage = '✅ Tarefa registrada';
+                } else if (type === 'meeting') {
+                    await MeetingService.createFromCapture(capture);
+                    actionMessage = '📅 Reunião agendada';
+                } else if (type === 'project') {
+                    const projectId = await ProjectService.createFromCapture(capture);
+                    if (projectId) {
+                        // Bridge shim for ProjectService breakdown
+                        const bridgeAgent = {
+                            processInput: async (_uid: string, prompt: string) => {
+                                const provider = this.providerOverride || ProviderFactory.getProvider(this.providerName);
+                                const result = await provider.generateResponse(prompt, [], []);
+                                return result.text;
+                            }
+                        };
+                        await ProjectService.decomposeProject(projectId, input, bridgeAgent);
+                        actionMessage = '📁 Projeto inicializado + ⚡ Plano de ação gerado';
                     } else {
-                        logger.warn('agent.raindrop.failed', { requestId, error: result.error });
+                        actionMessage = '📁 Projeto inicializado';
                     }
+                } else if (type === 'link') {
+                    const urlMatch = input.match(/https?:\/\/[^\s]+/);
+                    if (urlMatch) {
+                        const result = await saveToRaindrop(urlMatch[0], input.replace(urlMatch[0], '').trim() || undefined);
+                        if (result.ok) {
+                            actionMessage = '🔖 Link salvo no Raindrop';
+                        } else {
+                            actionMessage = '🔒 Link capturado localmente';
+                        }
+                    }
+                } else {
+                    actionMessage = '🧠 Memória armazenada';
                 }
             }
+            return actionMessage;
         } catch (err: any) {
             logger.warn('agent.routing.failed', { requestId, error: err.message });
-            // Routing failure should not block the agent run
+            return null;
         }
     }
 

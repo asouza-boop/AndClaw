@@ -248,11 +248,27 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS participants TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS summary TEXT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS action_items JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS decisions JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS ideas JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS project_id BIGINT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS skills_used TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS notes TEXT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS audio_file_name TEXT`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS embedding vector(1536)`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS memory_type TEXT DEFAULT 'contextual'`);
+  await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS usage_count INTEGER DEFAULT 0`);
+  await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS last_accessed_at TIMESTAMPTZ DEFAULT NOW()`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS capture_id BIGINT`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS daily_briefings (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT,
+      briefing_date DATE DEFAULT CURRENT_DATE,
+      content JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, briefing_date)
+    );
+  `);
 }

@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Network, Link2, ExternalLink, Calendar, Database } from 'lucide-react';
+import { X, Network, Link2, ExternalLink, Calendar, Database, Target, TrendingUp, Zap, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import * as Typography from "@/components/ui/Typography";
 import { MemoryItem, CATEGORY_META } from './MemoryCard';
 
 interface MemoryInspectorProps {
@@ -40,18 +41,55 @@ export const MemoryInspector: React.FC<MemoryInspectorProps> = ({ item, onClose,
       <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
         <section>
           <h1 className="text-2xl font-black text-white tracking-tighter leading-tight">{item.title}</h1>
-          <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-white/30 tracking-widest">
+          <div className="flex flex-wrap items-center gap-4 mt-6">
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-white/30 tracking-widest bg-white/5 px-2 py-1 rounded-lg border border-white/5">
               <Calendar className="w-3 h-3" />
               <span>{item.created_at ? new Date(item.created_at).toLocaleDateString() : '—'}</span>
             </div>
             {item.source_type && (
-              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary tracking-widest">
+              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-primary tracking-widest bg-primary/5 px-2 py-1 rounded-lg border border-primary/20">
                 <ExternalLink className="w-3 h-3" />
                 <span>Source: {item.source_type}</span>
               </div>
             )}
+            {item.memory_type && (
+              <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-accent tracking-widest bg-accent/5 px-2 py-1 rounded-lg border border-accent/20">
+                <Zap className="w-3 h-3" />
+                <span>{item.memory_type}</span>
+              </div>
+            )}
           </div>
+        </section>
+
+        {/* Semantic Telemetry */}
+        <section className="grid grid-cols-2 gap-4">
+           <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+             <div className="flex items-center justify-between">
+                <Typography.Label className="text-[9px] font-black text-white/20 uppercase tracking-widest">Neural Confidence</Typography.Label>
+                <Target className="w-3 h-3 text-white/20" />
+             </div>
+             <div className="space-y-1">
+                <Typography.Title className="text-lg font-black text-white">
+                    {item.similarityScore ? `${(Math.max(0, (1 - item.similarityScore)) * 100).toFixed(1)}%` : 'N/A'}
+                </Typography.Title>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: `${item.similarityScore ? Math.max(0, (1 - item.similarityScore)) * 100 : 0}%` }} />
+                </div>
+             </div>
+           </div>
+
+           <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+             <div className="flex items-center justify-between">
+                <Typography.Label className="text-[9px] font-black text-white/20 uppercase tracking-widest">Engagement</Typography.Label>
+                <TrendingUp className="w-3 h-3 text-white/20" />
+             </div>
+             <div className="space-y-1">
+                <Typography.Title className="text-lg font-black text-white">
+                    {item.usage_count || 0} Uses
+                </Typography.Title>
+                <Typography.Caption className="text-[8px] text-white/20 uppercase font-bold tracking-tighter">Usage weight applied to Ranking</Typography.Caption>
+             </div>
+           </div>
         </section>
 
         <section className="prose prose-sm prose-invert max-w-none">

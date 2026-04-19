@@ -1,5 +1,5 @@
 import React from 'react';
-import { Brain, Database, FileText, Lightbulb } from 'lucide-react';
+import { Brain, Database, FileText, Lightbulb, Heart } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 export interface MemoryItem {
@@ -12,11 +12,15 @@ export interface MemoryItem {
   title?: string;
   body?: string;
   summary?: string;
+  memory_type?: string;
+  usage_count?: number;
+  similarityScore?: number;
 }
 
 export const CATEGORY_META: Record<string, { label: string; icon: any; tone: string }> = {
   decision: { label: 'Decisão', icon: Lightbulb, tone: 'text-warn' },
   insight: { label: 'Insight', icon: Brain, tone: 'text-primary' },
+  personal: { label: 'Pessoal', icon: Heart, tone: 'text-rose-400' },
   memory: { label: 'Memória', icon: Database, tone: 'text-accent' },
   note: { label: 'Nota', icon: FileText, tone: 'text-success' },
 };

@@ -6,7 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import {
   Plus, X, ArrowLeft, Calendar, Clock, Users, Zap,
   FileText, CheckSquare, Brain, Play, Pause, Mic, MicOff, Square,
-  ChevronRight, Search, RotateCcw, Upload, Loader2, BookOpen
+  ChevronRight, Search, RotateCcw, Upload, Loader2, BookOpen,
+  Sparkles, Lightbulb
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { MeetingsSkeleton } from '@/components/PageSkeletons';
@@ -22,6 +23,8 @@ interface Meeting {
   transcript?: string;
   summary?: string;
   action_items?: ActionItem[];
+  decisions?: string[];
+  ideas?: string[];
   skills_used?: string[];
   notes?: string;
 }
@@ -339,7 +342,8 @@ function MeetingDetail({
         body: JSON.stringify({ action }),
       });
       qc.invalidateQueries({ queryKey: ['meetings'] });
-      toast(`${action === 'transcribe' ? 'Transcrição' : action === 'summarize' ? 'Resumo' : 'Action items'} gerados!`, 'success');
+      qc.invalidateQueries({ queryKey: ['tasks'] }); // Invalidate tasks too
+      toast(`${action === 'transcribe' ? 'Transcrição' : action === 'summarize' ? 'Resumo' : 'Ações extraídas e tarefas criadas!'}`, 'success');
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {
@@ -425,7 +429,7 @@ function MeetingDetail({
   const tabs = [
     { key: 'summary' as const, label: 'Resumo', icon: Brain },
     { key: 'transcript' as const, label: 'Transcrição', icon: FileText },
-    { key: 'actions' as const, label: 'Ações', icon: CheckSquare },
+    { key: 'intelligence' as const, label: 'Inteligência', icon: Sparkles },
     { key: 'skills' as const, label: 'Skills', icon: Zap },
   ];
 
@@ -645,43 +649,93 @@ function MeetingDetail({
           </div>
         )}
 
-        {activeTab === 'actions' && (
-          <div className="rounded-xl bg-card border border-border p-6 space-y-3">
-            {meeting.action_items && meeting.action_items.length > 0 ? (
-              meeting.action_items.map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-surface-2 border border-border hover:border-primary/20 transition-colors"
-                >
-                  <button
-                    onClick={() => toggleAction(idx)}
-                    className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
-                      item.done
-                        ? 'bg-success border-success text-success-foreground'
-                        : 'border-muted-foreground/40 hover:border-primary'
-                    }`}
-                  >
-                    {item.done && <span className="text-[10px]">✓</span>}
-                  </button>
-                  <div className="flex-1">
-                    <p className={`text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                      {item.text}
-                    </p>
-                    {item.assignee && (
-                      <span className="text-[10px] text-muted-foreground mt-1 inline-block">
-                        → {item.assignee}
-                      </span>
-                    )}
+        {activeTab === 'intelligence' && (
+          <div className="space-y-6">
+            {/* Actions Section */}
+            <div className="rounded-xl bg-card border border-border p-6">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary mb-6 flex items-center gap-2">
+                <CheckSquare className="w-4 h-4" />
+                Próximas Ações Atribuídas
+              </h4>
+              <div className="space-y-3">
+                {meeting.action_items && meeting.action_items.length > 0 ? (
+                  meeting.action_items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-surface-2 border border-border hover:border-primary/20 transition-colors"
+                    >
+                      <button
+                        onClick={() => toggleAction(idx)}
+                        className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                          item.done
+                            ? 'bg-success border-success text-success-foreground'
+                            : 'border-muted-foreground/40 hover:border-primary'
+                        }`}
+                      >
+                        {item.done && <span className="text-[10px]">✓</span>}
+                      </button>
+                      <div className="flex-1">
+                        <p className={`text-sm ${item.done ? 'line-through text-muted-foreground' : 'text-foreground font-medium'}`}>
+                          {item.text}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <CheckSquare className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Nenhuma ação extraída.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Clique em "Extrair Inteligência" para gerar automaticamente.</p>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <CheckSquare className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Nenhuma ação extraída.</p>
-                <p className="text-xs text-muted-foreground mt-1">Clique em "Extrair Ações" para gerar automaticamente.</p>
+                )}
               </div>
-            )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Decisions Section */}
+              <div className="rounded-xl bg-card border border-border p-6 flex flex-col">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-success mb-4 flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5" />
+                  Decisões Tomadas
+                </h4>
+                <div className="space-y-2 flex-1">
+                  {meeting.decisions && meeting.decisions.length > 0 ? (
+                    meeting.decisions.map((dec, i) => (
+                      <div key={i} className="text-sm p-4 rounded-xl bg-success/5 border border-success/10 text-success-foreground font-medium leading-relaxed">
+                        {dec}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 opacity-20">
+                      <Zap className="w-8 h-8 mb-2" />
+                      <p className="text-xs italic">Nenhuma decisão registrada.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Ideas Section */}
+              <div className="rounded-xl bg-card border border-border p-6 flex flex-col">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-accent mb-4 flex items-center gap-2">
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  Insights & Ideias
+                </h4>
+                <div className="space-y-2 flex-1">
+                  {meeting.ideas && meeting.ideas.length > 0 ? (
+                    meeting.ideas.map((idea, i) => (
+                      <div key={i} className="text-sm p-4 rounded-xl bg-accent/5 border border-accent/10 text-accent font-medium leading-relaxed">
+                        {idea}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8 opacity-20">
+                      <Lightbulb className="w-8 h-8 mb-2" />
+                      <p className="text-xs italic">Nenhum insight registrado.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

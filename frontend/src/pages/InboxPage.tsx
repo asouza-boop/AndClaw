@@ -1,323 +1,354 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
-import { useState } from 'react';
-import { Trash2, CheckSquare, Archive, Loader2, Sparkles, Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { 
+  Trash2, CheckSquare, Archive, Loader2, Sparkles, Plus, 
+  Calendar, FolderKanban, MessageSquare, Link as LinkIcon,
+  Search, Filter, ChevronRight, Clock, Target
+} from 'lucide-react';
+import { PageContainer, Section, Stack, Grid } from '@/components/ui/Layout';
+import { Panel } from '@/components/ui/Panel';
+import { Badge } from '@/components/ui/badge';
+import * as Typography from "@/components/ui/Typography";
+import { Button } from '@/components/ui/button';
 
-const typeColors: Record<string, string> = {
-  note: 'bg-warn/10 text-warn border-warn/20',
-  task: 'bg-accent/10 text-accent border-accent/20',
-  idea: 'bg-primary/10 text-primary border-primary/20',
-  link: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+/* ─── Types ─── */
+interface UnifiedItem {
+  id: string;
+  type: 'task' | 'meeting' | 'project' | 'link' | 'note' | 'idea';
+  title: string;
+  status: string;
+  createdAt: string;
+  metadata?: any;
+  raw?: any;
+}
+
+const typeConfig: Record<string, { label: string; icon: any; variant: any }> = {
+  task: { label: 'Tarefa', icon: CheckSquare, variant: 'cached' },
+  meeting: { label: 'Reunião', icon: Calendar, variant: 'secondary' },
+  project: { label: 'Projeto', icon: FolderKanban, variant: 'optimizing' },
+  link: { label: 'Link', icon: LinkIcon, variant: 'glass' },
+  note: { label: 'Nota', icon: MessageSquare, variant: 'glass' },
+  idea: { label: 'Ideia', icon: Sparkles, variant: 'glass' },
 };
-const typeLabels: Record<string, string> = { note: 'Nota', task: 'Tarefa', idea: 'Ideia', link: 'Link' };
-const priorityColors: Record<string, string> = {
-  high: 'bg-destructive/10 text-destructive border-destructive/20',
-  normal: 'bg-accent/10 text-accent border-accent/20',
-  low: 'bg-surface-3 text-muted-foreground',
-};
-const priorityLabels: Record<string, string> = { high: 'Alta', normal: 'Normal', low: 'Baixa' };
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `há ${mins}m`;
+  if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `há ${hrs}h`;
-  return `há ${Math.floor(hrs / 24)}d`;
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
 }
 
 export default function InboxPage() {
   const qc = useQueryClient();
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [captureText, setCaptureText] = useState('');
+
+  /* Queries */
   const { data: captures = [] } = useQuery({ queryKey: ['captures'], queryFn: () => apiFetch('/api/captures').then(ensureArray) });
   const { data: tasks = [] } = useQuery({ queryKey: ['tasks'], queryFn: () => apiFetch('/api/tasks').then(ensureArray) });
+  const { data: meetings = [] } = useQuery({ queryKey: ['meetings'], queryFn: () => apiFetch('/api/meetings').then(ensureArray) });
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: () => apiFetch('/api/projects').then(ensureArray) });
 
-  const [filter, setFilter] = useState('all');
-  const [captureType, setCaptureType] = useState('note');
-  const [captureText, setCaptureText] = useState('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState('normal');
+  /* Aggregation */
+  const unifiedItems = useMemo(() => {
+    const items: UnifiedItem[] = [];
 
-  const unprocessed = captures.filter((c: any) => c.status !== 'processed');
-  const processed = captures.filter((c: any) => c.status === 'processed');
-  const filtered = filter === 'all' ? captures : captures.filter((c: any) => c.type === filter);
-  const filteredUnprocessed = filtered.filter((c: any) => c.status !== 'processed');
-  const filteredProcessed = filtered.filter((c: any) => c.status === 'processed');
+    // 1. Process Captures (Signals)
+    captures.forEach((c: any) => {
+      if (c.status === 'processed' && (c.type === 'task' || c.type === 'meeting' || c.type === 'project')) return;
+      items.push({
+        id: c.id || c._id,
+        type: c.type || 'note',
+        title: c.content,
+        status: c.status,
+        createdAt: c.createdAt || c.created_at,
+        raw: c
+      });
+    });
 
-  const pendingTasks = tasks.filter((t: any) => t.status !== 'done');
-  const todayTasks = tasks.filter((t: any) => {
-    const due = t.dueDate || t.due_date;
-    if (!due) return false;
-    return new Date(due).toDateString() === new Date().toDateString();
-  });
-  const doneTasks = tasks.filter((t: any) => t.status === 'done');
+    // 2. Process Tasks
+    tasks.forEach((t: any) => {
+      if (t.status === 'done' && filter !== 'all') return;
+      items.push({
+        id: t.id || t._id,
+        type: 'task',
+        title: t.title,
+        status: t.status,
+        createdAt: t.createdAt || t.created_at,
+        raw: t
+      });
+    });
 
+    // 3. Process Meetings
+    meetings.forEach((m: any) => {
+      items.push({
+        id: m.id || m._id,
+        type: 'meeting',
+        title: m.title,
+        status: m.status,
+        createdAt: m.createdAt || m.created_at || m.meeting_date,
+        raw: m
+      });
+    });
+
+    // 4. Process Projects
+    projects.forEach((p: any) => {
+      items.push({
+        id: p.id || p._id,
+        type: 'project',
+        title: p.name,
+        status: p.status,
+        createdAt: p.createdAt || p.created_at,
+        raw: p
+      });
+    });
+
+    return items
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .filter(item => {
+        const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase());
+        const matchesFilter = filter === 'all' || item.type === filter;
+        return matchesSearch && matchesFilter;
+      });
+  }, [captures, tasks, meetings, projects, filter, search]);
+
+  /* Mutations */
   const deleteCapture = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/captures/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Item excluído', 'success'); },
-  });
-
-  const convertToTask = useMutation({
-    mutationFn: async (capture: any) => {
-      await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: capture.content, priority: 'normal' }) });
-      await apiFetch(`/api/captures/${capture._id || capture.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'processed' }) });
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); qc.invalidateQueries({ queryKey: ['tasks'] }); toast('Convertido em tarefa', 'success'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Signal deletado', 'success'); },
   });
 
   const archiveCapture = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'processed' }) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Arquivado', 'success'); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Signal arquivado', 'success'); },
   });
-
-  const saveCapture = async () => {
-    if (!captureText.trim()) return;
-    try {
-      await apiFetch('/api/captures', { method: 'POST', body: JSON.stringify({ content: captureText.trim(), type: captureType }) });
-      setCaptureText('');
-      qc.invalidateQueries({ queryKey: ['captures'] });
-      toast('Captura salva', 'success');
-    } catch (err: any) { toast(err.message, 'error'); }
-  };
-
-  const createTask = async () => {
-    if (!newTaskTitle.trim()) return;
-    try {
-      await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify({ title: newTaskTitle.trim(), priority: newTaskPriority }) });
-      setNewTaskTitle('');
-      qc.invalidateQueries({ queryKey: ['tasks'] });
-      toast('Tarefa criada', 'success');
-    } catch (err: any) { toast(err.message, 'error'); }
-  };
 
   const processAI = useMutation({
     mutationFn: () => apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ action: 'extract' }) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['captures'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
-      qc.invalidateQueries({ queryKey: ['memory'] });
-      toast('Processamento concluído pelo Agente', 'success');
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      toast('Processamento de IA concluído', 'success');
     },
-    onError: (err: any) => toast(err.message, 'error'),
   });
 
-  const deleteTask = useMutation({
-    mutationFn: (id: string) => apiFetch(`/api/tasks/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); toast('Tarefa excluída', 'success'); },
-  });
+  const saveCapture = async () => {
+    if (!captureText.trim()) return;
+    try {
+      await apiFetch('/api/captures', { method: 'POST', body: JSON.stringify({ content: captureText.trim(), type: 'note' }) });
+      setCaptureText('');
+      qc.invalidateQueries({ queryKey: ['captures'] });
+      toast('Signal capturado', 'success');
+    } catch (err: any) { toast(err.message, 'error'); }
+  };
 
-  const filters = [
-    { value: 'all', label: 'Todos' },
-    { value: 'task', label: 'Tarefas' },
-    { value: 'note', label: 'Notas' },
-    { value: 'idea', label: 'Ideias' },
-    { value: 'link', label: 'Links' },
-  ];
+  const getPendingSignals = () => captures.filter((c: any) => c.status !== 'processed').length;
 
   return (
-    <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
-      <div className="flex flex-col lg:flex-row gap-8 px-4">
-        {/* Left - Captures */}
-        <div className="flex-[7] space-y-8">
-          {/* Header & Filters */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-4xl font-black text-white tracking-tighter">Inbox</h1>
-              <span className="text-[10px] font-black text-white/20 bg-white/5 border border-white/10 px-3 py-1 rounded-full uppercase tracking-widest font-mono">
-                {unprocessed.length} Nodes
-              </span>
-            </div>
-            <div className="flex gap-1.5 p-1.5 bg-black/20 rounded-2xl border border-white/5 backdrop-blur-md">
-              {filters.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFilter(f.value)}
-                  className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-premium ${filter === f.value ? 'bg-white text-black shadow-lg shadow-white/5' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
-                >
-                  {f.label}
-                </button>
-              ))}
+    <PageContainer className="pb-20">
+      <Section className="mb-10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <Stack className="space-y-1">
+            <Typography.Title className="text-5xl font-black tracking-tighter">Inbox</Typography.Title>
+            <Typography.Label className="text-white/40 uppercase tracking-[0.3em] text-[10px]">
+              {unifiedItems.length} Entradas Unificadas · {getPendingSignals()} Sinais Pendentes
+            </Typography.Label>
+          </Stack>
+
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              className="rounded-2xl border-white/5 bg-white/5 hover:bg-white/10"
+              onClick={() => processAI.mutate()}
+              disabled={processAI.isPending || getPendingSignals() === 0}
+            >
+              {processAI.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              {processAI.isPending ? 'Processando...' : 'Extrair com IA'}
+            </Button>
+          </div>
+        </div>
+      </Section>
+
+      <Grid className="lg:grid-cols-[1fr_320px] items-start gap-10">
+        {/* Main Feed */}
+        <Stack className="space-y-6">
+          {/* Controls Mobile */}
+          <div className="flex flex-col gap-4 lg:hidden">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+              <input 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar no Inbox..."
+                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-primary/40 transition-premium"
+              />
             </div>
           </div>
 
-          {/* AI Banner */}
-          {unprocessed.length > 0 && (
-            <div className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r from-primary/20 to-accent/10 border border-primary/20 shadow-2xl shadow-primary/5 animate-in slide-in-from-top-4 duration-500">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/20 flex items-center justify-center text-primary shadow-lg shadow-primary/20">
-                  <Sparkles className={`w-6 h-6 ${processAI.isPending ? 'animate-spin' : 'animate-pulse'}`} />
+          <div className="space-y-4">
+            {unifiedItems.length === 0 ? (
+              <Panel className="glass-panel p-20 flex flex-col items-center justify-center text-center space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-white/20">
+                  <Archive className="w-8 h-8" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">Cognitive Extraction Available</h3>
-                  <p className="text-[11px] text-white/40 font-medium">{unprocessed.length} pending fragments awaiting intelligent organization.</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => processAI.mutate()}
-                disabled={processAI.isPending}
-                className="px-6 py-3 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white disabled:opacity-50 transition-premium flex items-center gap-2 shadow-xl shadow-white/5 interactive-scale"
-              >
-                {processAI.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                {processAI.isPending ? 'Syncing...' : 'Extract with AI'}
-              </button>
+                <Typography.Label className="text-white/40 uppercase tracking-widest text-xs font-black">Inbox Vazio</Typography.Label>
+                <Typography.Caption className="max-w-[200px]">Tudo limpo por aqui. Capture novos sinais ou tarefas para começar.</Typography.Caption>
+              </Panel>
+            ) : (
+              unifiedItems.map((item) => (
+                <InboxItemRow 
+                  key={`${item.type}-${item.id}`} 
+                  item={item} 
+                  onArchive={() => archiveCapture.mutate(item.id)}
+                  onDelete={() => deleteCapture.mutate(item.id)}
+                />
+              ))
+            )}
+          </div>
+        </Stack>
+
+        {/* Sidebar / Controls Desktop */}
+        <Stack className="hidden lg:flex space-y-8 sticky top-8">
+          {/* Search */}
+          <Panel className="glass-panel p-6 space-y-4">
+            <Typography.Label className="text-[10px] font-black uppercase tracking-widest text-white/30">Busca e Filtros</Typography.Label>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+              <input 
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-primary/40 transition-premium"
+              />
+            </div>
+            
+            <div className="flex flex-wrap gap-2">
+              {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-premium border ${
+                    filter === f 
+                    ? 'bg-white text-black border-white' 
+                    : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20'
+                  }`}
+                >
+                  {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
+                </button>
+              ))}
+            </div>
+          </Panel>
+
+          {/* Quick Capture */}
+          <Panel className="glass-panel p-6 space-y-4">
+            <Typography.Label className="text-[10px] font-black uppercase tracking-widest text-white/30">Captura Rápida</Typography.Label>
+            <textarea 
+              value={captureText}
+              onChange={e => setCaptureText(e.target.value)}
+              placeholder="Capturar sinal..."
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:outline-none focus:border-primary/40 transition-premium min-h-[100px] resize-none"
+            />
+            <Button 
+              className="w-full rounded-xl bg-white text-black hover:bg-primary hover:text-white transition-premium"
+              onClick={saveCapture}
+              disabled={!captureText.trim()}
+            >
+              Capturar
+            </Button>
+          </Panel>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+              <Typography.Title className="text-xl font-black">{tasks.filter((t: any) => t.status !== 'done').length}</Typography.Title>
+              <Typography.Label className="text-[9px] text-white/30 uppercase font-black tracking-widest">Tarefas</Typography.Label>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
+              <Typography.Title className="text-xl font-black">{meetings.length}</Typography.Title>
+              <Typography.Label className="text-[9px] text-white/30 uppercase font-black tracking-widest">Reuniões</Typography.Label>
+            </div>
+          </div>
+        </Stack>
+      </Grid>
+    </PageContainer>
+  );
+}
+
+function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArchive: () => void; onDelete: () => void }) {
+  const config = typeConfig[item.type] || typeConfig.note;
+  const Icon = config.icon;
+
+  return (
+    <Panel className="glass-panel p-5 group hover:border-white/20 transition-premium interactive-scale">
+      <div className="flex items-start gap-5">
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white/5 transition-premium group-hover:scale-110 group-hover:bg-white/5`}>
+          <Icon className="w-5 h-5 text-white/40 group-hover:text-white transition-premium" />
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-3">
+            <Badge variant={config.variant} className="text-[9px] uppercase tracking-widest px-2 py-0.5">
+              {config.label}
+            </Badge>
+            <Typography.Caption className="text-[10px] text-white/20 font-black uppercase tracking-tighter">
+              {timeAgo(item.createdAt)}
+            </Typography.Caption>
+          </div>
+          
+          <Typography.Title className="text-sm font-bold truncate group-hover:text-primary transition-colors">
+            {item.title}
+          </Typography.Title>
+
+          {item.type === 'meeting' && item.raw?.meeting_date && (
+            <div className="flex items-center gap-2 text-[10px] text-white/30 font-medium">
+              <Clock className="w-3 h-3" />
+              {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </div>
           )}
 
-          {/* Capture panel */}
-          <div className="glass-card p-6 space-y-6">
-            <div className="flex gap-2 p-1.5 bg-black/20 rounded-2xl border border-white/5 w-fit">
-              {['note', 'task', 'idea', 'link'].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setCaptureType(t)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-premium ${captureType === t ? 'bg-white/10 text-white' : 'text-white/20 hover:text-white/40'}`}
-                >
-                  {t === 'note' ? 'Note' : t === 'task' ? 'Task' : t === 'idea' ? 'Idea' : 'Link'}
-                </button>
-              ))}
+          {item.type === 'task' && item.raw?.due_date && (
+            <div className="flex items-center gap-2 text-[10px] text-white/30 font-medium">
+              <Target className="w-3 h-3" />
+              Prazo: {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
             </div>
-            <textarea
-              value={captureText}
-              onChange={(e) => setCaptureText(e.target.value)}
-              placeholder="Inject raw data for cognitive processing..."
-              rows={3}
-              className="w-full px-6 py-4 rounded-2xl bg-white/[0.03] border border-white/10 text-[15px] text-white placeholder:text-white/10 focus:outline-none focus:border-primary/40 focus:bg-white/[0.05] transition-premium resize-none font-medium"
-            />
-            <div className="flex justify-end">
-              <button 
-                onClick={saveCapture} 
-                disabled={!captureText.trim()} 
-                className="px-8 py-3 rounded-2xl bg-white text-black text-[11px] font-black uppercase tracking-widest hover:bg-primary hover:text-white disabled:opacity-20 transition-premium shadow-xl interactive-scale"
-              >
-                Capture Signal
-              </button>
-            </div>
-          </div>
-
-          {/* Signal Stream */}
-          <div className="space-y-10">
-            {filteredUnprocessed.length > 0 && (
-              <div>
-                <h3 className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase mb-6 font-mono px-2">Unprocessed Signal Stream</h3>
-                <div className="space-y-4">
-                  {filteredUnprocessed.map((c: any) => (
-                    <div key={c._id || c.id} className="group flex items-start gap-5 p-5 rounded-2xl glass-card-v2 interactive-scale">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-white/80 leading-relaxed mb-3">{c.content}</p>
-                        <div className="flex items-center gap-3">
-                          <span className={`text-[9px] font-black tracking-widest px-2.5 py-1 rounded-lg border ${typeColors[c.type] || typeColors.note} uppercase`}>
-                            {typeLabels[c.type] || 'Note'}
-                          </span>
-                          <span className="text-[10px] font-bold text-white/20 uppercase tracking-tighter">{timeAgo(c.createdAt || c.created_at || new Date().toISOString())}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-premium shrink-0 scale-95 group-hover:scale-100">
-                        <button onClick={() => convertToTask.mutate(c)} className="p-3 rounded-xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent hover:text-white transition-premium" title="Convert to Task">
-                          <CheckSquare className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => archiveCapture.mutate(c._id || c.id)} className="p-3 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:text-white transition-premium" title="Archive Signal">
-                          <Archive className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => deleteCapture.mutate(c._id || c.id)} className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white transition-premium" title="Delete Signal">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {filteredProcessed.length > 0 && (
-              <div className="opacity-40">
-                <h3 className="text-[10px] font-black text-white/20 tracking-[0.4em] uppercase mb-6 font-mono px-2">Processed Archives</h3>
-                <div className="space-y-4">
-                  {filteredProcessed.map((c: any) => (
-                    <div key={c._id || c.id} className="flex items-start gap-5 p-5 rounded-2xl bg-white/[0.02] border border-white/5">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-medium text-white/40 line-through leading-relaxed mb-3">{c.content}</p>
-                        <span className={`text-[9px] font-black tracking-widest px-2.5 py-1 rounded-lg border ${typeColors[c.type] || typeColors.note} uppercase opacity-60`}>
-                          {typeLabels[c.type] || 'Note'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Right - Operations Deck */}
-        <div className="flex-[3] space-y-8 lg:sticky lg:top-8 self-start">
-          <div className="glass-panel p-8 bg-black/60 shadow-2xl">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <CheckSquare className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/30 font-mono">Operations Deck</h3>
-            </div>
-
-            {/* New Signal Target */}
-            <div className="flex gap-2 p-1.5 bg-black/40 rounded-2xl border border-white/10 mb-8 focus-within:border-primary/40 transition-premium group">
-              <input
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && createTask()}
-                placeholder="New Operation Marker..."
-                className="flex-1 px-4 py-2.5 bg-transparent text-[13px] text-white placeholder:text-white/10 focus:outline-none font-medium"
-              />
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-premium">
+          {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
+            <>
               <button 
-                onClick={createTask}
-                className="w-10 h-10 rounded-xl bg-white/5 text-white/20 hover:bg-primary hover:text-white transition-premium flex items-center justify-center interactive-scale"
+                onClick={onArchive}
+                className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white hover:text-black transition-premium"
+                title="Arquivar"
               >
-                <Plus className="w-4 h-4" />
+                <Archive className="w-4 h-4" />
               </button>
-            </div>
-
-            {/* Signal Stats */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
-              <div className="text-center p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                <p className="text-2xl font-black text-white tracking-tighter mb-0.5">{pendingTasks.length}</p>
-                <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">Open</p>
-              </div>
-              <div className="text-center p-4 rounded-2xl bg-primary/10 border border-primary/20">
-                <p className="text-2xl font-black text-primary tracking-tighter mb-0.5">{todayTasks.length}</p>
-                <p className="text-[9px] font-black text-primary/40 uppercase tracking-widest">Current</p>
-              </div>
-              <div className="text-center p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                <p className="text-2xl font-black text-white/20 tracking-tighter mb-0.5">{doneTasks.length}</p>
-                <p className="text-[9px] font-black text-white/10 uppercase tracking-widest">Synced</p>
-              </div>
-            </div>
-
-            {/* Operation Stream */}
-            <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 scrollbar-hide">
-              {pendingTasks
-                .sort((a: any, b: any) => {
-                  const order: Record<string, number> = { high: 0, normal: 1, low: 2 };
-                  return (order[a.priority] ?? 1) - (order[b.priority] ?? 1);
-                })
-                .map((t: any) => (
-                  <div key={t._id || t.id} className="group flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-primary/20 transition-premium interactive-scale">
-                    <div className="w-2.5 h-2.5 rounded-full border-2 border-white/20 shrink-0 group-hover:border-primary group-hover:bg-primary/20 transition-premium shadow-[0_0_8px_rgba(168,85,247,0)] group-hover:shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
-                    <span className="text-[13px] font-medium text-white/70 flex-1 truncate group-hover:text-white transition-colors">{t.title}</span>
-                    <span className={`text-[8px] font-black tracking-[0.2em] px-2 py-0.5 rounded-lg border shrink-0 uppercase ${priorityColors[t.priority] || priorityColors.normal}`}>
-                      {priorityLabels[t.priority] || 'NML'}
-                    </span>
-                    <button
-                      onClick={() => deleteTask.mutate(t._id || t.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-premium transform translate-x-4 group-hover:translate-x-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-            </div>
-          </div>
+              <button 
+                onClick={onDelete}
+                className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-premium"
+                title="Deletar"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <button 
+              className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-premium"
+              title="Abrir"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
+

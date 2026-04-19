@@ -16,6 +16,8 @@ export interface SemanticMemoryRecord {
   source_id?: string | null;
   metadata?: Record<string, any> | null;
   memory_type?: string;
+  usage_count?: number;
+  last_accessed_at?: string;
   created_at?: string;
   distance?: number;
 }
@@ -61,10 +63,16 @@ export class MemoryService {
   }
 
   private detectMemoryType(content: string, override?: string): string {
-    if (override && ['operational', 'contextual', 'problem_solution'].includes(override)) {
+    if (override && ['operational', 'contextual', 'problem_solution', 'personal'].includes(override)) {
         return override;
     }
     const text = content.toLowerCase();
+
+    // Heuristics for personal
+    const personalKeywords = ['gosto', 'prefiro', 'minha preferência', 'minha escolha', 'meu estilo', 'sou do tipo', 'interessado em'];
+    if (personalKeywords.some(k => text.includes(k))) {
+        return 'personal';
+    }
 
     // Heuristics for problem_solution
     const solutionKeywords = ['resolveu', 'consertou', 'fix', 'solucionado', 'resultado final', 'sucesso', 'concluído com êxito'];
@@ -79,7 +87,7 @@ export class MemoryService {
     }
 
     return 'contextual';
-  }
+}
 
   public async search(embedding: number[], limit = 5): Promise<SemanticMemoryRecord[]> {
     const parsed = MemorySearchSchema.parse({ embedding, limit });
@@ -98,8 +106,19 @@ export class MemoryService {
     const ranked = rankSemanticMemories(rows, { 
       limit: parsed.limit,
       similarityWeight: ParameterStore.get('memoryWeight'),
-      recencyWeight: ParameterStore.get('recencyWeight')
+      recencyWeight: ParameterStore.get('recencyWeight'),
+      usageWeight: 0.1 // Default usage weight
     });
+
+    // Background: Track usage
+    if (ranked.length > 0) {
+        const ids = ranked.map(r => r.id).filter(Boolean);
+        if (ids.length > 0) {
+            query(`UPDATE memory_items SET usage_count = usage_count + 1, last_accessed_at = NOW() WHERE id = ANY($1)`, [ids])
+                .catch(err => logger.error('memory.usage.update.failed', { err }));
+        }
+    }
+
     logger.info('memory.search', {
       requested: parsed.limit,
       scanned: rows.length,

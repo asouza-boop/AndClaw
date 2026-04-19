@@ -4,6 +4,7 @@ import { ListTodo, AlertTriangle, Video, Inbox, Send } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from '@/stores/toastStore';
 import { DashboardSkeleton } from '@/components/PageSkeletons';
+import { DailyBriefing } from '@/components/dashboard/DailyBriefing';
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: number; sub: string; color: string }) {
   return (
@@ -28,16 +29,26 @@ export default function Dashboard() {
   const { data: meetings, isLoading: loadingMeetings } = useQuery({ queryKey: ['meetings'], queryFn: () => apiFetch('/api/meetings').catch(() => []).then(ensureArray) });
 
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ role: string; content: string; suggestions?: any[] }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
 
   const pendingTasks = tasks?.filter((t: any) => t.status !== 'done') || [];
   const highPriority = tasks?.filter((t: any) => t.priority === 'high' && t.status !== 'done') || [];
   const unprocessed = captures?.filter((c: any) => c.status !== 'processed') || [];
 
-  if (loadingTasks || loadingCaptures || loadingMeetings) {
-    return <DashboardSkeleton />;
-  }
+  const handleSuggestion = async (s: any) => {
+    try {
+      if (s.action === 'create_task') {
+        await apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify(s.data) });
+        toast(`Task criada: ${s.data.title}`, 'success');
+      } else if (s.action === 'store_memory') {
+        await apiFetch('/api/memory', { method: 'POST', body: JSON.stringify({ type: 'note', content: s.data.content }) });
+        toast('Salvo na memória!', 'success');
+      }
+    } catch (err: any) {
+      toast(err.message, 'error');
+    }
+  };
 
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
@@ -48,9 +59,13 @@ export default function Dashboard() {
     try {
       const res = await apiFetch<any>('/api/agent', {
         method: 'POST',
-        body: JSON.stringify({ message: msg, conversation: 'pwa-user' }),
+        body: JSON.stringify({ message: msg, options: { includeSuggestions: true } }),
       });
-      setChatMessages((p) => [...p, { role: 'assistant', content: res.reply || res.reply || res.response || res.message || JSON.stringify(res) }]);
+      setChatMessages((p) => [...p, { 
+        role: 'assistant', 
+        content: res.reply || res.message || JSON.stringify(res),
+        suggestions: res.suggestions || []
+      }]);
     } catch (err: any) {
       toast(err.message, 'error');
     } finally {
@@ -58,12 +73,20 @@ export default function Dashboard() {
     }
   };
 
+  if (loadingTasks || loadingCaptures || loadingMeetings) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
       <header className="px-4">
         <h2 className="text-4xl font-black text-white tracking-tighter mb-2">Command Center</h2>
         <p className="text-white/30 text-[13px] font-medium tracking-wide uppercase">Unified Intelligence & Operations Pipeline</p>
       </header>
+
+      <div className="px-4">
+        <DailyBriefing />
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
@@ -106,6 +129,19 @@ export default function Dashboard() {
                 }`}>
                   {m.content}
                 </div>
+                {m.suggestions && m.suggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3 mb-1 animate-in slide-in-from-left-2 duration-300">
+                    {m.suggestions.map((s, si) => (
+                      <button 
+                        key={si}
+                        onClick={() => handleSuggestion(s)}
+                        className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[9px] text-white/80 font-black uppercase tracking-wider hover:bg-primary hover:text-white transition-premium interactive-scale"
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {chatLoading && (

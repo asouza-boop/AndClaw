@@ -4,6 +4,8 @@ import { MemoryManager } from '@/memory/MemoryManager';
 import { SkillLoader } from '@/skills/SkillLoader';
 import { config } from '@/config/env';
 
+import { SuggestionService } from '@/core/agent/SuggestionService';
+
 export class AgentController {
     private memoryManager: MemoryManager;
     private skillLoader: SkillLoader;
@@ -16,9 +18,9 @@ export class AgentController {
     }
 
     /**
-     * Ponto de entrada processando requisicoes do Telegram.
+     * Ponto de entrada processando requisicoes do Telegram ou PWA.
      */
-    public async processInput(userId: string, input: string, options: any = {}): Promise<string> {
+    public async processInput(userId: string, input: string, options: any = {}): Promise<any> {
         try {
             console.log(`\n[Controller] Novo input de ${userId}`);
             
@@ -43,8 +45,16 @@ export class AgentController {
               { ...options, userId }
             );
 
-            // 5. Salvar e retornar output
+            // 5. Salvar mensagem do assistente
             await this.memoryManager.addMessage(conversationId, 'assistant', result);
+
+            // 6. Proactive Intelligence
+            const suggestions = SuggestionService.detect(result);
+            const memorable = MemoryDigestionService.isMemorable(input, result);
+
+            if (options.includeSuggestions) {
+                return { reply: result, suggestions, memorable };
+            }
             return result;
         } catch (e: any) {
             console.error(`[Controller] Falha crítica no pipeline:`, e);

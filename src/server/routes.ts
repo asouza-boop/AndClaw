@@ -16,6 +16,7 @@ import { listRaindropCollections, listRaindrops, saveToRaindrop } from '@/integr
 import { AgentController } from '@/core/AgentController';
 import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { config } from '@/config/env';
+import { DailyPlannerService } from '@/core/agent/DailyPlannerService';
 import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/server/settings';
 import { getRequestId, sendApiError, setRetryHeaders } from '@/server/http';
 import { metrics } from '@/infra/metrics/MetricsService';
@@ -80,6 +81,8 @@ function mapMeetingRow(meeting: any) {
     date: meeting.meeting_date,
     transcript: meeting.transcript_text,
     action_items: Array.isArray(meeting.action_items) ? meeting.action_items : [],
+    decisions: Array.isArray(meeting.decisions) ? meeting.decisions : [],
+    ideas: Array.isArray(meeting.ideas) ? meeting.ideas : [],
     skills_used: meeting.skills_used || [],
     participants: meeting.participants || [],
   };
@@ -1037,7 +1040,7 @@ router.post('/meetings/:id/upload-audio', async (req: Request, res: Response) =>
 });
 
 router.post('/meetings/:id/process', async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const { action = 'summarize' } = req.body || {};
   const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
   const meeting = rows[0];
@@ -1065,16 +1068,11 @@ router.post('/meetings/:id/process', async (req: Request, res: Response) => {
   }
 
   if (action === 'extract_actions') {
-    const prompt = `Extraia próximas ações objetivas da transcrição abaixo. Responda em lista markdown.\n\n${meeting.transcript_text}`;
-    const reply = await agent.processInput('pwa-user', prompt);
-    const actionItems = reply
-      .split('\n')
-      .map(line => line.replace(/^[-*0-9.\s]+/, '').trim())
-      .filter(Boolean)
-      .slice(0, 10)
-      .map(text => ({ text, done: false }));
-    const updated = await query<any>(`UPDATE meetings SET action_items = $1::jsonb, status = 'completed' WHERE id = $2 RETURNING *`, [JSON.stringify(actionItems), id]);
-    return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+    await MeetingService.processIntelligence(id, meeting.transcript_text, agent);
+    
+    // Fetch updated meeting to return fresh state (including decisions/ideas)
+    const updatedRows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
+    return res.json({ ok: true, item: mapMeetingRow(updatedRows[0]) });
   }
 
   const prompt = `Resuma a reunião abaixo em markdown com decisões, riscos e próximos passos.\n\n${meeting.transcript_text}`;
@@ -1182,6 +1180,19 @@ router.post('/push/test', async (_req: Request, res: Response) => {
 router.post('/jobs/import-google', async (_req: Request, res: Response) => {
   await importGoogleEvents();
   res.json({ ok: true });
+});
+router.get('/daily-briefing', async (req: Request, res: Response) => {
+  const userId = (req.query.userId as string) || 'pwa-user';
+  const briefing = await DailyPlannerService.getDailyBriefing(userId);
+  res.json({ ok: true, briefing });
+});
+
+router.post('/daily-briefing/generate', async (req: Request, res: Response) => {
+  const userId = (req.body.userId as string) || 'pwa-user';
+  // To force re-generation, we clear today's entry first
+  await query(`DELETE FROM daily_briefings WHERE user_id = $1 AND briefing_date = CURRENT_DATE`, [userId]);
+  const briefing = await DailyPlannerService.getDailyBriefing(userId);
+  res.json({ ok: true, briefing });
 });
 
 export default router;

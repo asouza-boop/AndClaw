@@ -21,11 +21,12 @@ function recencyScore(createdAt?: string | null, now = Date.now()): number {
 
 export function rankSemanticMemories(
   records: SemanticMemoryRecord[],
-  options: { now?: number; limit?: number; similarityWeight?: number; recencyWeight?: number } = {},
+  options: { now?: number; limit?: number; similarityWeight?: number; recencyWeight?: number; usageWeight?: number } = {},
 ): RankedSemanticMemory[] {
   const now = options.now ?? Date.now();
   const similarityWeight = options.similarityWeight ?? 1;
   const recencyWeight = options.recencyWeight ?? 0.15;
+  const usageWeight = options.usageWeight ?? 0.1;
   const limit = options.limit ?? records.length;
 
   const ranked = records
@@ -33,17 +34,19 @@ export function rankSemanticMemories(
     .map((record) => {
       const similarity = Number.isFinite(record.distance) ? Number(record.distance) : Number.POSITIVE_INFINITY;
       const recency = recencyScore(record.created_at, now);
+      const usage = Math.log1p(record.usage_count || 0) / 5; // Normalized usage score
       
       // Memory type bias (lower is better)
       let typeBias = 0;
-      if (record.memory_type === 'problem_solution') typeBias = -0.1;
+      if (record.memory_type === 'personal') typeBias = -0.15;
+      else if (record.memory_type === 'problem_solution') typeBias = -0.1;
       else if (record.memory_type === 'operational') typeBias = -0.05;
 
       return {
         ...record,
         similarityScore: similarity,
         recencyScore: recency,
-        rankScore: (similarity * similarityWeight) - (recency * recencyWeight) + typeBias,
+        rankScore: (similarity * similarityWeight) - (recency * recencyWeight) - (usage * usageWeight) + typeBias,
       };
     })
     .sort((a, b) => {
