@@ -14,6 +14,7 @@ import { IntentDetector, DetectedIntent } from '@/core/planner/IntentDetector';
 import { ActionPlanner, ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 import { AgentRunInputSchema } from '@/contracts/agent';
 import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
+import { LLMClient, ILLMClient } from '@/core/llm/LLMClient';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
@@ -588,14 +589,14 @@ export class AgentLoop {
       const messages = initialMessages
         ? initialMessages.map((message) => ({ ...message }))
         : this.buildInitialMessages(parsed);
+      const llmClient = new LLMClient(provider);
       let iterations = 0;
-
       while (iterations < this.maxIterations) {
         iterations++;
         logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
 
         try {
-          const response = await provider.generateResponse(composedSystemPrompt, messages, availableTools);
+          const response = await llmClient.generate(composedSystemPrompt, messages, availableTools, parsed.options);
 
           if (response.toolCalls && response.toolCalls.length > 0) {
             // --- 3. Spec Governance Verification ---
@@ -690,7 +691,9 @@ export class AgentLoop {
               logger.error('memory.digestion.async.failed', { requestId, error: err.message });
             });
           }
-          addStep('agent.run.complete', 'success');
+          addStep('agent.run.complete', 'success', { 
+            provider: response?.providerUsed || this.providerName 
+          });
           logger.info('agent.run.complete', {
             provider: this.providerName,
             answerLength: response.text.length,

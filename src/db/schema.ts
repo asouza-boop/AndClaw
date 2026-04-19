@@ -262,6 +262,20 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS capture_id BIGINT`);
 
   await query(`
+    CREATE TABLE IF NOT EXISTS llm_providers (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      api_key TEXT,
+      base_url TEXT,
+      model TEXT NOT NULL,
+      priority INTEGER DEFAULT 0,
+      enabled BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  await query(`
     CREATE TABLE IF NOT EXISTS daily_briefings (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT,

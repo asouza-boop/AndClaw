@@ -17,6 +17,7 @@ import { listRaindropCollections, listRaindrops, saveToRaindrop } from '@/integr
 import { AgentController } from '@/core/AgentController';
 import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { config } from '@/config/env';
+import { ProviderFactory } from '@/providers/ProviderFactory';
 import { DailyPlannerService } from '@/core/agent/DailyPlannerService';
 import { setSetting, loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/server/settings';
 import { getRequestId, sendApiError, setRetryHeaders } from '@/server/http';
@@ -1194,6 +1195,57 @@ router.post('/daily-briefing/generate', async (req: Request, res: Response) => {
   await query(`DELETE FROM daily_briefings WHERE user_id = $1 AND briefing_date = CURRENT_DATE`, [userId]);
   const briefing = await DailyPlannerService.getDailyBriefing(userId);
   res.json({ ok: true, briefing });
+});
+
+// --- LLM Provider Management (Phase 4) ---
+
+router.get('/llm/providers', async (_req: Request, res: Response) => {
+  const rows = await query(`SELECT * FROM llm_providers ORDER BY priority DESC, created_at ASC`);
+  res.json({ ok: true, items: rows });
+});
+
+router.post('/llm/providers', async (req: Request, res: Response) => {
+  const { id, name, api_key, base_url, model, priority } = req.body;
+  const rows = await query(
+    `INSERT INTO llm_providers (id, name, api_key, base_url, model, priority)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [id, name, api_key, base_url, model, priority || 0]
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.patch('/llm/providers/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { enabled, priority, api_key, model, base_url } = req.body;
+  const rows = await query(
+    `UPDATE llm_providers 
+     SET enabled = COALESCE($1, enabled),
+         priority = COALESCE($2, priority),
+         api_key = COALESCE($3, api_key),
+         model = COALESCE($4, model),
+         base_url = COALESCE($5, base_url),
+         updated_at = NOW()
+     WHERE id = $6 RETURNING *`,
+    [enabled, priority, api_key, model, base_url, id]
+  );
+  res.json({ ok: true, item: rows[0] });
+});
+
+router.delete('/llm/providers/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await query(`DELETE FROM llm_providers WHERE id = $1`, [id]);
+  res.json({ ok: true });
+});
+
+router.post('/llm/providers/test', async (req: Request, res: Response) => {
+  const { name } = req.body;
+  try {
+    const provider = ProviderFactory.getProvider(name);
+    await provider.initialize();
+    res.json({ ok: true, message: `Conexão com ${name} estabelecida com sucesso.` });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 export default router;

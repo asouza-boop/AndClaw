@@ -1,6 +1,8 @@
 export interface LLMResponse {
   text: string;
   toolCalls?: ToolCall[];
+  providerUsed?: string;
+  latency?: number;
 }
 
 export interface ToolCall {

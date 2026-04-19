@@ -41,8 +41,11 @@ interface AgentState {
     UI_TRACE_ENHANCED: boolean;
     UI_MEMORY_INSPECTOR_V2: boolean;
     UI_LEARNING_INSIGHTS: boolean;
+    AGENT_PRESENCE: boolean;
+    MULTI_LLM: boolean;
+    PROVIDER_ROUTING: boolean;
   };
-  toggleFeatureFlag: (flag: 'UI_TRACE_ENHANCED' | 'UI_MEMORY_INSPECTOR_V2' | 'UI_LEARNING_INSIGHTS') => void;
+  toggleFeatureFlag: (flag: 'UI_TRACE_ENHANCED' | 'UI_MEMORY_INSPECTOR_V2' | 'UI_LEARNING_INSIGHTS' | 'AGENT_PRESENCE' | 'MULTI_LLM' | 'PROVIDER_ROUTING') => void;
   
   // Real-time trace update helper
   addTraceStep: (step: TraceStep) => void;
@@ -58,6 +61,9 @@ export const useAgentStore = create<AgentState>((set) => ({
     UI_TRACE_ENHANCED: false,
     UI_MEMORY_INSPECTOR_V2: false,
     UI_LEARNING_INSIGHTS: false,
+    AGENT_PRESENCE: false,
+    MULTI_LLM: false,
+    PROVIDER_ROUTING: false,
   },
   
   setUIMode: (mode) => {

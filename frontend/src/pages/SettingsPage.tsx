@@ -3,6 +3,7 @@ import { apiFetch } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState } from 'react';
 import { Server, Database, Brain, Clock, ExternalLink, X, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const integrations = [
   { key: 'google_calendar', label: 'Google Calendar', icon: '📅', desc: 'Sincronize sua agenda' },
@@ -16,6 +17,7 @@ const integrations = [
 
 export default function SettingsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { data: status } = useQuery({ queryKey: ['status'], queryFn: () => apiFetch<any>('/api/status').catch(() => null) });
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: () => apiFetch<any>('/api/settings').catch(() => null) });
   const { data: metricsData, isFetching: metricsLoading, refetch: refetchMetrics } = useQuery({
@@ -109,7 +111,14 @@ export default function SettingsPage() {
           {integrations.map((int) => (
             <button
               key={int.key}
-              onClick={() => { setActiveModal(int.key); setConfigValue(''); }}
+              onClick={() => {
+                if (int.key === 'ai') {
+                  navigate('/settings/providers');
+                } else {
+                  setActiveModal(int.key);
+                  setConfigValue('');
+                }
+              }}
               className="flex items-center gap-4 p-4 rounded-xl bg-surface glow-border text-left transition-colors hover:bg-surface-2 group"
             >
               <span className="text-2xl">{int.icon}</span>

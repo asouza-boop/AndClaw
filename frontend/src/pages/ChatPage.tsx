@@ -49,6 +49,7 @@ export default function ChatPage() {
     setTrace,
     currentTrace,
     isPaused,
+    featureFlags,
   } = useAgentStore();
 
   const { data: history } = useQuery({
@@ -299,8 +300,7 @@ export default function ChatPage() {
                 )}
               </div>
             ))}
-
-            {loading && (
+            {loading && !featureFlags.AGENT_PRESENCE && (
               <div className="flex items-end gap-3 animate-in fade-in duration-300">
                 <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
                   <Bot className="h-4 w-4" />
@@ -308,15 +308,15 @@ export default function ChatPage() {
                 <div className="rounded-[22px] border border-white/[0.08] bg-surface/70 px-2 py-1.5">
                   <TypingIndicator />
                 </div>
-                {uiMode === 'debug' && currentTrace && currentStepLabel && (
-                  <Caption className="px-2 text-primary animate-pulse">
-                    {currentStepLabel}...
-                  </Caption>
-                )}
               </div>
             )}
             <div ref={endRef} />
           </div>
+        </div>
+
+        {/* Presence Indicator (Phase 5) */}
+        <div className="px-6 py-2 flex justify-center">
+            <AgentPresence />
         </div>
 
         {/* Composer */}

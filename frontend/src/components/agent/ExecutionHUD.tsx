@@ -54,6 +54,11 @@ export function ExecutionHUD() {
           <div className="px-4 py-3 bg-black/20 text-[10px] font-mono whitespace-nowrap overflow-hidden text-muted-foreground uppercase tracking-widest flex items-center gap-2">
             <Info className="w-3 h-3" />
             <span>Trace ID: {currentRequestId || 'HISTÓRICO'}</span>
+            {currentTrace?.steps.find(s => s.type === 'agent.run.complete')?.data?.provider && (
+              <span className="px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 ml-2">
+                Active Provider: {currentTrace.steps.find(s => s.type === 'agent.run.complete')?.data?.provider}
+              </span>
+            )}
             <span className="ml-auto opacity-50">v1.glass_engine</span>
           </div>
         )}
