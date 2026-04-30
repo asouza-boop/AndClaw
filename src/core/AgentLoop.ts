@@ -7,13 +7,13 @@ import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
 import { EmbeddingService } from '@/core/embedding/EmbeddingService';
 import { MemoryService } from '@/core/memory/MemoryService';
 import { SemanticCacheService } from '@/core/cache/SemanticCacheService';
+import { CacheService } from './agent/CacheService';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { ContextBuilder } from '@/core/ContextBuilder';
 import { IntentDetector, DetectedIntent } from '@/core/planner/IntentDetector';
 import { ActionPlanner, ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 import { AgentRunInputSchema } from '@/contracts/agent';
-import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
 import { LLMClient, ILLMClient } from '@/core/llm/LLMClient';
 import { ToolInputSchema, ToolExecutionResultSchema } from '@/contracts/tool';
 import { logger } from '@/infra/logger';
@@ -23,18 +23,20 @@ import { z } from 'zod';
 
 import { PromptInjectionDetector } from '../modules/tools/security/promptInjectionDetector';
 import { ExecutionOrchestrator } from './execution/ExecutionOrchestrator';
-import { SpecService } from './spec/SpecService';
-import { AgentEvaluator } from './evaluation/AgentEvaluator';
 import { TaskDecomposer } from './agent/TaskDecomposer';
 import { TaskService } from './agent/TaskService';
 import { SubAgentSpawner } from './agent/SubAgentSpawner';
 import { ResultAggregator } from './agent/ResultAggregator';
-import { FeedbackCollector, FeedbackEntry } from './learning/FeedbackCollector';
+import { FeedbackEntry } from './learning/FeedbackCollector';
 import { MeetingService } from './agent/MeetingService';
 import { ProjectService } from './agent/ProjectService';
-import { OptimizationEngine } from './learning/OptimizationEngine';
 import { ExperimentEngine, ExperimentVariant } from './experiments/ExperimentEngine';
 import { ExecutionTrace, TraceStep, AgentControlState } from '@/contracts/trace';
+import { EvaluationService } from './agent/EvaluationService';
+import { ClassificationService } from './agent/ClassificationService';
+import { DigestService } from './agent/DigestService';
+import { PlannerService } from './agent/PlannerService';
+import { ToolExecutor } from './agent/ToolExecutor';
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -63,11 +65,15 @@ export class AgentLoop {
     private embeddingService: EmbeddingService;
     private memoryService: MemoryService;
     private memoryManager: MemoryManager;
-    private cacheService: SemanticCacheService;
+    private cacheService: CacheService;
+    private evaluationService: EvaluationService;
+    private classificationService: ClassificationService;
+    private digestService: DigestService;
+    private plannerService: PlannerService;
+    private toolExecutor: ToolExecutor;
     private providerOverride?: ILLMProvider;
     private contextBuilder: ContextBuilder;
     private intentDetector: IntentDetector;
-    private actionPlanner: ActionPlanner;
     private skillLoader: SkillLoader;
     private pauseTimeoutMs: number;
 
@@ -86,11 +92,39 @@ export class AgentLoop {
         this.embeddingService = embeddingService;
         this.memoryService = memoryService;
         this.memoryManager = memoryManager;
-        this.cacheService = deps.cacheService || new SemanticCacheService();
+        this.cacheService = new CacheService(deps.cacheService || new SemanticCacheService());
+        this.evaluationService = new EvaluationService();
+        this.classificationService = new ClassificationService();
+        this.digestService = new DigestService({
+          addSemanticMemory: this.memoryManager.addSemanticMemory.bind(this.memoryManager),
+        });
         this.providerOverride = deps.provider;
         this.contextBuilder = deps.contextBuilder || new ContextBuilder();
         this.intentDetector = deps.intentDetector || new IntentDetector();
-        this.actionPlanner = deps.actionPlanner || new ActionPlanner();
+        this.plannerService = new PlannerService({
+          actionPlanner: deps.actionPlanner || new ActionPlanner(),
+        });
+        this.toolExecutor = new ToolExecutor({
+          providerName: this.providerName,
+          registry: this.registry,
+          providerOverride: this.providerOverride,
+          maxIterations: this.maxIterations,
+          memoryManager: this.memoryManager,
+          contextBuilder: this.contextBuilder,
+          embeddingService: this.embeddingService,
+          cacheService: this.cacheService,
+          plannerService: this.plannerService,
+          digestService: this.digestService,
+          getProvider: () => this.providerOverride || ProviderFactory.getChain(),
+          buildInitialMessages: this.buildInitialMessages.bind(this),
+          buildCacheInput: this.buildCacheInput.bind(this),
+          composeSkillSystemPrompt: this.composeSkillSystemPrompt.bind(this),
+          normalizeProfileEntries: this.normalizeProfileEntries.bind(this),
+          resolvePlannedToolInput: this.resolvePlannedToolInput.bind(this),
+          normalizeToolArguments: this.normalizeToolArguments.bind(this),
+          handleTraceStep: () => undefined,
+          checkpoint: async () => undefined,
+        });
         this.skillLoader = deps.skillLoader || new SkillLoader();
         this.pauseTimeoutMs = config.llm.pauseTimeoutMs || 30_000;
     }
@@ -177,7 +211,7 @@ export class AgentLoop {
         }
 
             // --- Decision Layer: Classification ---
-            const classification = this.classifyInput(parsed.userInput);
+            const classification = this.classificationService.classifyInput(parsed.userInput);
             addStep('agent.classification.result', 'success', classification);
             logger.info('agent.classification.result', { requestId, ...classification });
 
@@ -199,14 +233,6 @@ export class AgentLoop {
                 
                 // Track metrics for sub-agents
                 const multiAgentSuccess = subResults.every(r => r.success);
-                AgentEvaluator.evaluateRun({
-                    success: multiAgentSuccess,
-                    latencyMs: Date.now() - startedAt,
-                    toolUsageCount: subResults.length,
-                    errorCount: subResults.filter(r => !r.success).length,
-                    totalIterations: 1
-                }, variant);
-
                 // --- Passive Learning: Multi-Agent path ---
                 const multiAgentFeedback: FeedbackEntry = {
                     requestId,
@@ -217,7 +243,16 @@ export class AgentLoop {
                     errorCount: subResults.filter(r => !r.success).length,
                     timestamp: new Date().toISOString(),
                 };
-                FeedbackCollector.collect(multiAgentFeedback);
+                this.evaluationService.recordRun({
+                    success: multiAgentSuccess,
+                    latencyMs: Date.now() - startedAt,
+                    toolUsageCount: subResults.length,
+                    errorCount: subResults.filter(r => !r.success).length,
+                    totalIterations: 1
+                }, variant, multiAgentFeedback, {
+                    backgroundSafe: false,
+                    processOptimization: false,
+                });
 
                 return finalResponse(ResultAggregator.aggregate(subResults));
             }
@@ -250,7 +285,7 @@ export class AgentLoop {
                 reason: intent.reason,
               });
 
-              const plan = this.actionPlanner.plan(intent, this.registry.getAllTools(), availableSkills, variant);
+              const plan = this.plannerService.plan(intent, this.registry.getAllTools(), availableSkills, variant);
               if (!plan) {
                   logger.warn('agent.plan.failed', { requestId, intent: intent.name });
                   addStep('agent.plan.failed', 'failure', { intent: intent.name });
@@ -281,7 +316,7 @@ export class AgentLoop {
                     const skill = availableSkills.find((item) => item.metadata.name === skillName) || null;
 
                     if (skill) {
-                      const skillResult = await this.executeSkillPlan({
+                      const skillResult = await this.toolExecutor.executeSkillPlan({
                         parsed,
                         intent,
                         skill,
@@ -350,7 +385,7 @@ export class AgentLoop {
                   }
                 } else {
                   const actionPlan = plan as ToolActionPlan;
-                    const actionResult = await this.executeActionPlan({
+                  const actionResult = await this.toolExecutor.executeActionPlan({
                     parsed,
                     intent,
                     plan: actionPlan,
@@ -393,7 +428,7 @@ export class AgentLoop {
                     profile,
                     semanticContext,
                   });
-                  const fallbackReply = await this.executeLLMFlow({
+                  const fallbackReply = await this.toolExecutor.executeLLMFlow({
                     provider,
                     composedSystemPrompt,
                     initialMessages: actionResult.messages,
@@ -448,7 +483,7 @@ export class AgentLoop {
               semanticContext,
             });
 
-            const llmReply = await this.executeLLMFlow({
+            const llmReply = await this.toolExecutor.executeLLMFlow({
                 provider,
                 composedSystemPrompt,
                 availableTools,
@@ -473,32 +508,23 @@ export class AgentLoop {
             if (errorCount === 0) executionPath = 'llm-flow';
           }
           success = success || errorCount === 0;
-          AgentEvaluator.evaluateRun({
+          this.evaluationService.recordRun({
               success,
               latencyMs: Date.now() - evaluationStartTime,
               toolUsageCount,
               errorCount,
               totalIterations: totalIterations || 1,
               isFallback
-          }, variant);
-
-          // --- Passive Learning: collect feedback & update optimization scores ---
-          try {
-              const feedbackEntry: FeedbackEntry = {
-                  requestId,
-                  success,
-                  latencyMs: Date.now() - evaluationStartTime,
-                  skillId: skillUsed,
-                  toolsUsed: [],
-                  executionPath,
-                  errorCount,
-                  timestamp: new Date().toISOString(),
-              };
-              FeedbackCollector.collect(feedbackEntry);
-              OptimizationEngine.processFeedback(feedbackEntry);
-          } catch {
-              // Background-safe: learning errors must never break the agent
-          }
+          }, variant, {
+              requestId,
+              success,
+              latencyMs: Date.now() - evaluationStartTime,
+              skillId: skillUsed,
+              toolsUsed: [],
+              executionPath,
+              errorCount,
+              timestamp: new Date().toISOString(),
+          });
         }
     }
 
@@ -563,7 +589,7 @@ export class AgentLoop {
       }
 
       const provider = this.providerOverride || ProviderFactory.getChain();
-      const output = await this.executeLLMFlow({
+      const output = await this.toolExecutor.executeLLMFlow({
         provider,
         composedSystemPrompt,
         availableTools,
@@ -627,7 +653,7 @@ export class AgentLoop {
 
           if (response.toolCalls && response.toolCalls.length > 0) {
             // --- 3. Spec Governance Verification ---
-            const planValidation = SpecService.validatePlan(response.toolCalls);
+            const planValidation = this.plannerService.validate(response.toolCalls);
             if (!planValidation.isValid) {
                 logger.warn('agent.spec.violation', { reason: planValidation.reason, requestId });
                 return `[Bloqueio de Governança] ${planValidation.reason}`;
@@ -702,22 +728,10 @@ export class AgentLoop {
           }, trace);
 
           // PHASE 4: Autonomous Learning (Background)
-          if (MemoryDigestionService.isMemorable(parsed.userInput, response.text)) {
-            MemoryDigestionService.digest(parsed.userInput, response.text, provider).then((fact: string | null) => {
-              if (fact) {
-                this.memoryManager.addSemanticMemory(fact, {
-                  type: 'digested_fact',
-                  source_type: 'chat',
-                  source_id: requestId || 'chat',
-                  userId
-                }).then(() => {
-                  logger.info('memory.digestion.completed', { requestId, factLength: fact.length });
-                });
-              }
-            }).catch((err: Error) => {
-              logger.error('memory.digestion.async.failed', { requestId, error: err.message });
-            });
-          }
+          void this.digestService.process(parsed.userInput, response.text, provider, {
+            requestId,
+            userId,
+          });
           addStep('agent.run.complete', 'success', { 
             provider: response?.providerUsed || this.providerName 
           });
@@ -803,38 +817,6 @@ export class AgentLoop {
       }
 
       return false;
-    }
-
-    private classifyInput(input: string): { type: "task" | "note" | "link" | "meeting" | "project", confidence: number } {
-        const text = input.toLowerCase();
-
-        // Heuristics
-        if (text.includes('http://') || text.includes('https://') || text.includes('www.')) {
-            return { type: 'link', confidence: 1.0 };
-        }
-
-        if (text.includes('reunião') || text.includes('meeting') || text.includes('call') || text.includes('agendar')) {
-            return { type: 'meeting', confidence: 0.95 };
-        }
-
-        if (text.includes('fazer') || text.includes('todo') || text.includes('preciso') || text.includes('task') || text.includes('devo')) {
-            return { type: 'task', confidence: 0.9 };
-        }
-
-        if (text.includes('projeto') || text.includes('project') || text.includes('roadmap') || text.includes('iniciar plano')) {
-            return { type: 'project', confidence: 0.85 };
-        }
-
-        if (text.includes('reunião') || text.includes('meeting') || text.includes('call') || text.includes('vídeo') || text.includes('conversa agendada')) {
-            return { type: 'meeting', confidence: 0.95 };
-        }
-
-        // Default to note for long text or fallback
-        const isLongText = input.length > 250 || (input.match(/\n/g) || []).length >= 3;
-        return { 
-            type: 'note', 
-            confidence: isLongText ? 0.9 : 0.7 
-        };
     }
 
     private async routeToCapture(input: string, classification: { type: string, confidence: number }, requestId?: string): Promise<string | null> {

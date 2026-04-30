@@ -1,0 +1,69 @@
+import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
+import { FeedbackCollector, FeedbackEntry } from '@/core/learning/FeedbackCollector';
+import { OptimizationEngine } from '@/core/learning/OptimizationEngine';
+import type { ExperimentVariant } from '@/core/experiments/ExperimentEngine';
+
+export type EvaluationServiceMetrics = {
+  success: boolean;
+  latencyMs: number;
+  toolUsageCount: number;
+  errorCount: number;
+  totalIterations: number;
+  isFallback?: boolean;
+};
+
+export type EvaluationServiceDeps = {
+  evaluateRun?: typeof AgentEvaluator.evaluateRun;
+  collect?: typeof FeedbackCollector.collect;
+  processFeedback?: typeof OptimizationEngine.processFeedback;
+};
+
+export type EvaluationServiceRecordOptions = {
+  backgroundSafe?: boolean;
+  processOptimization?: boolean;
+};
+
+export class EvaluationService {
+  constructor(private readonly deps: EvaluationServiceDeps = {}) {}
+
+  public recordRun(
+    metrics: EvaluationServiceMetrics,
+    variant: ExperimentVariant = 'A',
+    feedbackEntry?: FeedbackEntry,
+    options: EvaluationServiceRecordOptions = {},
+  ): void {
+    const evaluateRun = this.deps.evaluateRun || ((metrics: EvaluationServiceMetrics, activeVariant: ExperimentVariant) => {
+      AgentEvaluator.evaluateRun(metrics, activeVariant);
+    });
+    const collect = this.deps.collect || ((entry: FeedbackEntry) => {
+      FeedbackCollector.collect(entry);
+    });
+    const processFeedback = this.deps.processFeedback || ((entry: FeedbackEntry) => {
+      OptimizationEngine.processFeedback(entry);
+    });
+    const backgroundSafe = options.backgroundSafe !== false;
+    const processOptimization = options.processOptimization !== false;
+
+    evaluateRun(metrics, variant);
+
+    if (!feedbackEntry) return;
+
+    const collectFeedback = () => {
+      collect(feedbackEntry);
+      if (processOptimization) {
+        processFeedback(feedbackEntry);
+      }
+    };
+
+    if (backgroundSafe) {
+      try {
+        collectFeedback();
+      } catch {
+        // Background-safe: telemetry errors must never break the agent
+      }
+      return;
+    }
+
+    collectFeedback();
+  }
+}
