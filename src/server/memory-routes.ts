@@ -23,7 +23,7 @@ export function createMemoryRoutes(overrides: Partial<MemoryRouteDeps> = {}) {
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [type, content, source_type || null, source_id || null]
       );
-      return res.json({ ok: true, item: rows[0] });
+      return res.status(201).json({ ok: true, id: rows[0]?.id, item: rows[0] });
     } catch (error) {
       return next(error);
     }
@@ -49,16 +49,23 @@ export function createMemoryRoutes(overrides: Partial<MemoryRouteDeps> = {}) {
 
   router.post('/knowledge', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const body = MemoryUpsertRequestSchema.extend({
+      const body = z.object({
+        type: z.string().min(1),
+        content: z.string().optional(),
         title: z.string().optional(),
-      }).passthrough().parse(req.body || {});
+        source_type: z.string().optional(),
+        source_id: z.string().optional(),
+      }).passthrough().refine((value) => Boolean(value.content || value.title), {
+        message: 'content required',
+        path: ['content'],
+      }).parse(req.body || {});
       const actualContent = body.content || (body as any).title;
       const rows = await deps.query(
         `INSERT INTO memory_items (type, content, source_type, source_id)
          VALUES ($1, $2, $3, $4) RETURNING *`,
         [body.type, actualContent, body.source_type || null, body.source_id || null]
       );
-      return res.json({ ok: true, item: rows[0] });
+      return res.status(201).json({ ok: true, id: rows[0]?.id, item: rows[0] });
     } catch (error) {
       return next(error);
     }

@@ -98,8 +98,20 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
     res.json({ token });
   });
 
-  authRoutes.get('/auth/me', async (_req: Request, res: Response) => {
-    res.json({ ok: true });
+  authRoutes.get('/auth/me', async (req: Request, res: Response) => {
+    const userId = (req as any).user?.sub || 'pwa-user';
+    const profile = await getProfileValues(deps, userId, 'profile');
+    res.json({
+      ok: true,
+      id: userId,
+      email: profile.email || null,
+      fullName: profile.fullName || null,
+      name: profile.fullName || null,
+      company: profile.company || null,
+      role: profile.role || null,
+      photoUrl: profile.photoUrl || null,
+      profile,
+    });
   });
 
   authRoutes.get('/profile', async (req: Request, res: Response) => {

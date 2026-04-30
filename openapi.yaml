@@ -224,9 +224,181 @@ paths:
       summary: Verify token and get current user
       responses:
         '200':
-          description: Token valid
+          description: Current user payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: string }
+                  email: { type: [string, 'null'] }
+                  fullName: { type: [string, 'null'] }
+                  name: { type: [string, 'null'] }
+                  company: { type: [string, 'null'] }
+                  role: { type: [string, 'null'] }
+                  photoUrl: { type: [string, 'null'] }
+                  profile:
+                    type: object
+                    additionalProperties: { type: string }
         '401':
           description: Unauthorized
+
+  /api/projects:
+    post:
+      tags: [Projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                status: { type: string, default: active }
+                summary: { type: string }
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: integer }
+                  item:
+                    type: object
+                    additionalProperties: true
+
+  /api/messages:
+    post:
+      tags: [Messages]
+      summary: Create a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string }
+                conversationId: { type: string, default: default }
+                client_message_id: { type: string }
+                sender: { type: string }
+                role: { type: string }
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: integer }
+                  item:
+                    type: object
+                    additionalProperties: true
+                  message:
+                    type: object
+                    additionalProperties: true
+
+  /api/memory:
+    post:
+      tags: [Memory]
+      summary: Create a memory item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, content]
+              properties:
+                type: { type: string }
+                content: { type: string }
+                source_type: { type: string }
+                source_id: { type: string }
+      responses:
+        '201':
+          description: Memory item created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: integer }
+                  item:
+                    type: object
+                    additionalProperties: true
+
+  /api/knowledge:
+    post:
+      tags: [Memory]
+      summary: Create a knowledge item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type: { type: string }
+                title: { type: string, description: "Alias for content" }
+                content: { type: string, description: "Main text content" }
+                source_type: { type: string }
+                source_id: { type: string }
+      responses:
+        '201':
+          description: Knowledge item created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: integer }
+                  item:
+                    type: object
+                    additionalProperties: true
+
+  /api/llm/providers:
+    post:
+      tags: [LLM]
+      summary: Create a provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, api_key]
+              properties:
+                id: { type: string }
+                name: { type: string }
+                api_key: { type: string, writeOnly: true }
+                base_url: { type: string }
+                model: { type: string }
+                priority: { type: integer, default: 0 }
+      responses:
+        '201':
+          description: Provider created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: string }
+                  item:
+                    type: object
+                    additionalProperties: true
 
   # ── CAPTURES (INBOX) ────────────────────────────────────────
   /api/captures:
@@ -265,6 +437,7 @@ paths:
                 title:      { type: string, description: "Alias for content" }
                 source:     { type: string, default: pwa }
                 type:       { type: string, enum: [note, task, idea, link], default: note }
+                status:     { type: string, enum: [new, processed, archived], default: new }
                 tags:       { type: array, items: { type: string } }
                 project_id: { type: integer }
                 due_date:   { type: string, format: date-time }
@@ -436,12 +609,16 @@ paths:
       summary: List all agents
       responses:
         '200':
-          description: Array of agents
+          description: Enveloped list of agents
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/Agent' }
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Agent' }
 
     post:
       tags: [Agents]

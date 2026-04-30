@@ -346,8 +346,7 @@ router.get('/agents', async (_req: Request, res: Response) => {
     skills: skillMap.get(String(agent.id)) || [],
     tags: tagMap.get(String(agent.id)) || [],
   }));
-  // Return raw array for REST clients; PWA handles both formats
-  res.json(items);
+  res.json({ ok: true, items });
 });
 
 router.post('/agents', async (req: Request, res: Response) => {
@@ -677,7 +676,7 @@ router.post('/messages', async (req: Request, res: Response) => {
      RETURNING *`,
     [conversationId, resolvedRole, content, client_message_id || null]
   );
-  res.json({ ok: true, message: rows[0] || null });
+  res.status(201).json({ ok: true, id: rows[0]?.id, message: rows[0] || null, item: rows[0] || null });
 });
 
 router.get('/messages', async (req: Request, res: Response) => {
@@ -744,7 +743,7 @@ router.post('/captures', async (req: Request, res: Response) => {
   const body = req.body || {};
   // Accept 'title' as alias for 'content' (REST convention compatibility)
   const content = body.content || body.title;
-  const { source = 'pwa', type = 'note', tags = [], project_id, due_date, metadata = {}, status = 'pending' } = body;
+  const { source = 'pwa', type = 'note', tags = [], project_id, due_date, metadata = {}, status = 'new' } = body;
   if (!content) return res.status(400).json({ error: 'content is required', note: 'Also accepts title as alias for content' });
   const rows = await query(
     `INSERT INTO captures (content, source, type, tags, project_id, due_date, metadata, status)
@@ -1101,7 +1100,7 @@ router.post('/projects', async (req: Request, res: Response) => {
     `INSERT INTO projects (name, status, summary) VALUES ($1, $2, $3) RETURNING *`,
     [name, status, summary || null]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, id: rows[0]?.id, item: rows[0] });
 });
 
 router.get('/projects', async (_req: Request, res: Response) => {
