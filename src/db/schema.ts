@@ -58,6 +58,7 @@ export async function ensureSchema(): Promise<void> {
       id BIGSERIAL PRIMARY KEY,
       title TEXT NOT NULL,
       description TEXT,
+      metadata JSONB,
       status TEXT DEFAULT 'pending',
       priority TEXT DEFAULT 'normal',
       due_date TIMESTAMPTZ,
@@ -241,6 +242,7 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT`);
+  await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS metadata JSONB`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS agent_id BIGINT REFERENCES agents(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS skill_ids TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'scheduled'`);

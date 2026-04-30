@@ -90,6 +90,12 @@ function mapMeetingRow(meeting: any) {
   };
 }
 
+function maskLlmProvider(row: any) {
+  if (!row) return row;
+  const { api_key: _apiKey, ...safe } = row;
+  return safe;
+}
+
 router.use(authRoutes);
 router.use(systemRoutes);
 router.use(agentRoutes);
@@ -1201,7 +1207,7 @@ router.post('/daily-briefing/generate', async (req: Request, res: Response) => {
 
 router.get('/llm/providers', async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM llm_providers ORDER BY priority DESC, created_at ASC`);
-  res.json({ ok: true, items: rows });
+  res.json({ ok: true, items: rows.map(maskLlmProvider) });
 });
 
 router.post('/llm/providers', async (req: Request, res: Response) => {
@@ -1211,7 +1217,7 @@ router.post('/llm/providers', async (req: Request, res: Response) => {
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
     [id, name, api_key, base_url, model, priority || 0]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.status(201).json({ ok: true, item: maskLlmProvider(rows[0]), id: rows[0]?.id });
 });
 
 router.patch('/llm/providers/:id', async (req: Request, res: Response) => {
@@ -1228,7 +1234,7 @@ router.patch('/llm/providers/:id', async (req: Request, res: Response) => {
      WHERE id = $6 RETURNING *`,
     [enabled, priority, api_key, model, base_url, id]
   );
-  res.json({ ok: true, item: rows[0] });
+  res.json({ ok: true, item: maskLlmProvider(rows[0]) });
 });
 
 router.delete('/llm/providers/:id', async (req: Request, res: Response) => {

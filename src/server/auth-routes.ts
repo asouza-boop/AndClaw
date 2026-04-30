@@ -95,7 +95,7 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
     deps.config.auth.tokenSecret = secret;
 
     const token = deps.issueToken('andclaw-user');
-    res.json({ token, tokenSecret: secret });
+    res.json({ token });
   });
 
   authRoutes.get('/auth/me', async (_req: Request, res: Response) => {
