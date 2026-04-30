@@ -39,7 +39,7 @@ export class SkillLoader {
     const skills: Skill[] = [];
     const possiblePaths = [
       this.skillsPath,
-      path.join(process.cwd(), '.agents', 'skill'),
+      path.join(process.cwd(), '.agents', 'skills'),
       path.join(process.cwd(), 'Agents', 'skills'),
       path.join(process.cwd(), 'Agents', 'skill')
     ];

@@ -23,6 +23,7 @@ export const config = {
     defaultProvider: process.env.DEFAULT_LLM_PROVIDER || 'gemini',
     providerChain: (process.env.LLM_PROVIDER_CHAIN || 'gemini-flash,gemini-flash-lite,openrouter,deepseek').split(',').map(p => p.trim()),
     maxIterations: parseInt(process.env.MAX_ITERATIONS || '5', 10),
+    pauseTimeoutMs: parseInt(process.env.PAUSE_TIMEOUT_MS || '30000', 10),
   },
   db: {
     url: process.env.DATABASE_URL || '',

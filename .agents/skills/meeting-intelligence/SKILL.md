@@ -1,4 +1,4 @@
------
+---
 name: meeting-intelligence
 description: Skill de alto nível para preparação de pautas e análise comportamental de reuniões. Use para criar agendas ricas no Notion (Pre-Meeting) e extrair insights, padrões de comunicação e feedback de transcrições (Post-Meeting). Integre sempre com o AndClaw Hub.
 allowed-tools: notion_api, read_file, write_file, ls, glob, grep

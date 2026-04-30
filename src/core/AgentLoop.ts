@@ -38,6 +38,13 @@ import { ExecutionTrace, TraceStep, AgentControlState } from '@/contracts/trace'
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+export class PauseTimeoutError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'PauseTimeoutError';
+    }
+}
+
 type AgentLoopDeps = {
     provider?: ILLMProvider;
     profileRepo?: ProfileRepository;
@@ -62,6 +69,7 @@ export class AgentLoop {
     private intentDetector: IntentDetector;
     private actionPlanner: ActionPlanner;
     private skillLoader: SkillLoader;
+    private pauseTimeoutMs: number;
 
     constructor(
       providerName: string,
@@ -84,6 +92,7 @@ export class AgentLoop {
         this.intentDetector = deps.intentDetector || new IntentDetector();
         this.actionPlanner = deps.actionPlanner || new ActionPlanner();
         this.skillLoader = deps.skillLoader || new SkillLoader();
+        this.pauseTimeoutMs = config.llm.pauseTimeoutMs || 30_000;
     }
 
     /**
@@ -129,7 +138,11 @@ export class AgentLoop {
         const checkpoint = async () => {
             if (!requestId) return;
             let pausedOnce = false;
+            const pausedAt = Date.now();
             while (AgentControlState.isPaused(requestId)) {
+                if (Date.now() - pausedAt >= this.pauseTimeoutMs) {
+                    throw new PauseTimeoutError(`Pause timeout exceeded after ${this.pauseTimeoutMs}ms for request ${requestId}`);
+                }
                 if (!pausedOnce) {
                     addStep('agent.control.paused', 'pending', { requestId });
                     pausedOnce = true;
@@ -279,7 +292,10 @@ export class AgentLoop {
                         startedAt,
                         trace,
                         addStep,
-                        checkpoint
+                        checkpoint,
+                        onIteration: () => {
+                          totalIterations++;
+                        }
                       });
 
                       if (skillResult.ok && skillResult.output) {
@@ -334,7 +350,7 @@ export class AgentLoop {
                   }
                 } else {
                   const actionPlan = plan as ToolActionPlan;
-                  const actionResult = await this.executeActionPlan({
+                    const actionResult = await this.executeActionPlan({
                     parsed,
                     intent,
                     plan: actionPlan,
@@ -388,7 +404,10 @@ export class AgentLoop {
                     startedAt,
                     trace,
                     addStep,
-                    checkpoint
+                    checkpoint,
+                    onIteration: () => {
+                      totalIterations++;
+                    }
                   });
                   return finalResponse(fallbackReply);
                 }
@@ -439,7 +458,10 @@ export class AgentLoop {
                 startedAt,
                 trace,
                 addStep,
-                checkpoint
+                checkpoint,
+                onIteration: () => {
+                  totalIterations++;
+                }
             });
             return finalResponse(llmReply);
         } catch (error) {
@@ -492,8 +514,9 @@ export class AgentLoop {
       trace: ExecutionTrace;
       addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
       checkpoint: () => Promise<void>;
+      onIteration?: () => void;
     }): Promise<{ ok: boolean; output?: string }> {
-      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt, trace, addStep, checkpoint } = params;
+      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt, trace, addStep, checkpoint, onIteration } = params;
       const normalizedProfile = this.normalizeProfileEntries(profile);
       const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
       const composedSystemPrompt = this.contextBuilder.build({
@@ -551,7 +574,8 @@ export class AgentLoop {
         cacheContext: { cacheInput, cacheEmbedding },
         trace,
         addStep,
-        checkpoint
+        checkpoint,
+        onIteration
       });
 
       return { ok: true, output };
@@ -570,6 +594,7 @@ export class AgentLoop {
       trace: ExecutionTrace;
       addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
       checkpoint: () => Promise<void>;
+      onIteration?: () => void;
     }): Promise<string> {
       const {
         provider,
@@ -583,7 +608,8 @@ export class AgentLoop {
         initialMessages,
         trace,
         addStep,
-        checkpoint
+        checkpoint,
+        onIteration,
       } = params;
 
       const messages = initialMessages
@@ -593,6 +619,7 @@ export class AgentLoop {
       let iterations = 0;
       while (iterations < this.maxIterations) {
         iterations++;
+        onIteration?.();
         logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
 
         try {
@@ -875,7 +902,7 @@ export class AgentLoop {
             return actionMessage;
         } catch (err: any) {
             logger.warn('agent.routing.failed', { requestId, error: err.message });
-            return null;
+            throw err;
         }
     }
 
