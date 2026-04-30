@@ -8,7 +8,13 @@ export function getPool(): Pool {
     if (!config.db.url) {
       throw new Error('DATABASE_URL is not configured.');
     }
-    pool = new Pool({ connectionString: config.db.url });
+    pool = new Pool({ 
+      connectionString: config.db.url,
+      ssl: { rejectUnauthorized: false },
+      max: process.env.POOL_MAX_CONNECTIONS ? parseInt(process.env.POOL_MAX_CONNECTIONS, 10) : 5,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000
+    });
   }
   return pool;
 }
