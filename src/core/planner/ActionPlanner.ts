@@ -17,6 +17,7 @@ export type SkillActionPlan = {
   type: 'skill';
   intent: IntentName;
   skills: string[]; // Prioritized list of candidate skills
+  skill?: string;
 };
 
 export type ToolActionPlan = {
@@ -57,6 +58,7 @@ export class ActionPlanner {
         type: 'skill',
         intent: intent.name,
         skills: prioritizedSkills,
+        skill: prioritizedSkills[0],
       };
     }
 

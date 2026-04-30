@@ -30,6 +30,7 @@ export async function ensureSchema(): Promise<void> {
       content TEXT NOT NULL,
       source TEXT DEFAULT 'pwa',
       status TEXT DEFAULT 'new',
+      metadata JSONB,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       processed_at TIMESTAMPTZ
     );
@@ -98,6 +99,9 @@ export async function ensureSchema(): Promise<void> {
       source_id TEXT,
       metadata JSONB DEFAULT '{}'::jsonb,
       embedding vector(1536),
+      memory_type TEXT DEFAULT 'contextual',
+      usage_count INTEGER DEFAULT 0,
+      last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -240,7 +244,7 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS project_id BIGINT REFERENCES projects(id) ON DELETE SET NULL`);
   await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS due_date TIMESTAMPTZ`);
-  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
+  await query(`ALTER TABLE captures ADD COLUMN IF NOT EXISTS metadata JSONB`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS metadata JSONB`);
   await query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS agent_id BIGINT REFERENCES agents(id) ON DELETE SET NULL`);
