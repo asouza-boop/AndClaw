@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { buildBatchInsert } from '@/db/utils';
 import { config } from '@/config/env';
 import { ensureSchema } from '@/db/schema';
 import { query } from '@/db/postgres';
@@ -120,6 +121,8 @@ export async function importGoogleEvents(): Promise<void> {
   const timeMin = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString();
   const timeMax = new Date(Date.now() + 1000 * 60 * 60 * 24 * 60).toISOString();
 
+  const batchRows: any[][] = [];
+  
   for (const account of accounts) {
     const calendar = getClient(account);
     const calendars = await calendar.calendarList.list();
@@ -140,21 +143,33 @@ export async function importGoogleEvents(): Promise<void> {
         const externalId = event.id || '';
         if (!externalId) continue;
 
-        await query(
-          `INSERT INTO calendar_events (account_email, calendar_id, external_event_id, summary, start_time, end_time, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, NOW())
-           ON CONFLICT (account_email, calendar_id, external_event_id)
-           DO UPDATE SET summary = EXCLUDED.summary, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = NOW()`,
-          [
-            account.email,
-            calendarId,
-            externalId,
-            event.summary || '',
-            event.start?.dateTime || event.start?.date || null,
-            event.end?.dateTime || event.end?.date || null,
-          ]
-        );
+        batchRows.push([
+          account.email,
+          calendarId,
+          externalId,
+          event.summary || '',
+          event.start?.dateTime || event.start?.date || null,
+          event.end?.dateTime || event.end?.date || null,
+        ]);
       }
+    }
+  }
+
+  if (batchRows.length > 0) {
+    const { text, values } = buildBatchInsert(
+      'calendar_events',
+      ['account_email', 'calendar_id', 'external_event_id', 'summary', 'start_time', 'end_time', 'updated_at'],
+      batchRows.map(r => [...r, new Date().toISOString()]),
+      'ON CONFLICT (account_email, calendar_id, external_event_id) DO UPDATE SET summary = EXCLUDED.summary, start_time = EXCLUDED.start_time, end_time = EXCLUDED.end_time, updated_at = EXCLUDED.updated_at'
+    );
+
+    await query('BEGIN');
+    try {
+      await query(text, values);
+      await query('COMMIT');
+    } catch (err) {
+      await query('ROLLBACK');
+      throw err;
     }
   }
 }

@@ -1,4 +1,5 @@
 import { AgentController } from '@/core/AgentController';
+import { buildBatchInsert } from '@/db/utils';
 
 export const agent = new AgentController();
 
@@ -68,15 +69,22 @@ export async function upsertTags(
   const unique = Array.from(new Set(names.map(n => n.trim()).filter(Boolean)));
   if (!unique.length) return new Map<string, number>();
   const idMap = new Map<string, number>();
-  for (const name of unique) {
-    const rows = await query<{ id: number }>(
-      `INSERT INTO tags (name) VALUES ($1)
-       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-       RETURNING id`,
-      [name]
-    );
-    if (rows[0]) idMap.set(name, rows[0].id);
+  
+  const rowsList = unique.map(name => [name]);
+  const batch = buildBatchInsert('tags', ['name'], rowsList, 'ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name');
+  
+  await query('BEGIN');
+  try {
+    const rows = await query<{ id: number, name: string }>(batch.text, batch.values);
+    for (const row of rows) {
+      idMap.set(row.name, row.id);
+    }
+    await query('COMMIT');
+  } catch (err) {
+    await query('ROLLBACK');
+    throw err;
   }
+  
   return idMap;
 }
 
@@ -88,12 +96,17 @@ export async function setEntityTags(
 ) {
   await query(`DELETE FROM entity_tags WHERE entity_type = $1 AND entity_id = $2`, [entityType, entityId]);
   const idMap = await upsertTags(query, tagNames);
-  for (const [name, tagId] of idMap.entries()) {
-    await query(
-      `INSERT INTO entity_tags (tag_id, entity_type, entity_id)
-       VALUES ($1, $2, $3)
-       ON CONFLICT DO NOTHING`,
-      [tagId, entityType, entityId]
-    );
+  
+  const rowsList = Array.from(idMap.entries()).map(([, tagId]) => [tagId, entityType, entityId]);
+  if (rowsList.length > 0) {
+    const batch = buildBatchInsert('entity_tags', ['tag_id', 'entity_type', 'entity_id'], rowsList, 'ON CONFLICT DO NOTHING');
+    await query('BEGIN');
+    try {
+      await query(batch.text, batch.values);
+      await query('COMMIT');
+    } catch (err) {
+      await query('ROLLBACK');
+      throw err;
+    }
   }
 }

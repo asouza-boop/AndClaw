@@ -1,4 +1,5 @@
 import { query } from '@/db/postgres';
+import { buildBatchInsert } from '@/db/utils';
 import { logger } from '@/infra/logger';
 import { TaskService } from './TaskService';
 import { MemoryManager } from '@/memory/MemoryManager';
@@ -65,8 +66,43 @@ ${transcript}`;
                 priority: t.priority || 'medium' 
             }));
             
-            for (const item of actionItems) {
-                await TaskService.createFromMeetingAction(meetingId, item.text);
+            if (actionItems.length > 0) {
+                const existing = await query(
+                    `SELECT title FROM tasks WHERE metadata->>'meeting_id' = $1`,
+                    [String(meetingId)]
+                );
+                const existingTitles = new Set(existing.map((r: any) => r.title));
+                const newItems = actionItems.filter((item: any) => !existingTitles.has(item.text));
+                
+                if (newItems.length > 0) {
+                    const batchRows = newItems.map((item: any) => [
+                        item.text,
+                        'pending',
+                        JSON.stringify({
+                            source: 'meeting',
+                            meeting_id: meetingId,
+                            created_at: new Date().toISOString()
+                        })
+                    ]);
+                    const batch = buildBatchInsert('tasks', ['title', 'status', 'metadata'], batchRows);
+                    await query('BEGIN');
+                    try {
+                        await query(batch.text, batch.values);
+                        await query('COMMIT');
+                        for (const item of newItems) {
+                            logger.info('task.meeting_bridge.created', { meetingId, title: item.text });
+                        }
+                    } catch (err: any) {
+                        await query('ROLLBACK');
+                        logger.error('task.meeting_bridge.failed', { meetingId, error: err.message });
+                    }
+                }
+                
+                for (const item of actionItems) {
+                    if (existingTitles.has(item.text)) {
+                        logger.info('task.meeting_bridge.skipped', { meetingId, title: item.text, reason: 'duplicate' });
+                    }
+                }
             }
 
             // 2. Persist Decisions to Long-term Memory
