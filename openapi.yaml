@@ -31,8 +31,8 @@ components:
         type:       { type: string, enum: [note, task, idea, link] }
         status:     { type: string, enum: [new, processed, archived] }
         tags:       { type: array, items: { type: string } }
-        project_id: { type: integer, nullable: true }
-        due_date:   { type: string, format: date-time, nullable: true }
+        project_id: { type: [integer, "null"] }
+        due_date:   { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
     Task:
@@ -42,8 +42,8 @@ components:
         title:      { type: string }
         status:     { type: string, enum: [open, in_progress, done] }
         priority:   { type: string, enum: [low, normal, high] }
-        due_date:   { type: string, format: date-time, nullable: true }
-        project_id: { type: integer, nullable: true }
+        due_date:   { type: [string, "null"], format: date-time }
+        project_id: { type: [integer, "null"] }
         created_at: { type: string, format: date-time }
 
     Agent:
@@ -53,7 +53,7 @@ components:
         name:        { type: string }
         level:       { type: string, enum: [Estrategico, Tatico, Operacional] }
         status:      { type: string }
-        description: { type: string, nullable: true }
+        description: { type: [string, "null"] }
         areas:       { type: array, items: { type: string } }
         skills:      { type: array, items: { type: string } }
         tags:        { type: array, items: { type: object } }
@@ -73,8 +73,8 @@ components:
       properties:
         id:               { type: integer }
         title:            { type: string }
-        meeting_date:     { type: string, format: date-time, nullable: true }
-        transcript_text:  { type: string, nullable: true }
+        meeting_date:     { type: [string, "null"], format: date-time }
+        transcript_text:  { type: [string, "null"] }
         created_at:       { type: string, format: date-time }
 
     Favorite:
@@ -84,7 +84,7 @@ components:
         title:      { type: string }
         url:        { type: string, format: uri }
         source:     { type: string }
-        external_id: { type: string, nullable: true }
+        external_id: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
 
     Tag:
@@ -245,9 +245,27 @@ paths:
           description: Unauthorized
 
   /api/projects:
+    get:
+      tags: [Projects]
+      summary: List all projects
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
     post:
       tags: [Projects]
       summary: Create a project
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -273,10 +291,77 @@ paths:
                     type: object
                     additionalProperties: true
 
+  /api/daily-briefing:
+    get:
+      tags: [Daily Briefing]
+      summary: Get daily briefing summary
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema: { type: string, default: pwa-user }
+      responses:
+        '200':
+          description: Briefing data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  briefing: { type: object }
+
+  /api/daily-briefing/generate:
+    post:
+      tags: [Daily Briefing]
+      summary: Force generate daily briefing
+      security:
+        - BearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string, default: pwa-user }
+      responses:
+        '200':
+          description: New briefing generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  briefing: { type: object }
+
   /api/messages:
+    get:
+      tags: [Messages]
+      summary: List messages
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
     post:
       tags: [Messages]
       summary: Create a message
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -307,10 +392,98 @@ paths:
                     type: object
                     additionalProperties: true
 
+  /api/messages/conversation/{id}:
+    get:
+      tags: [Messages]
+      operationId: getMessagesByConversation
+      summary: List messages by conversation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, maximum: 500, default: 200 }
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+  /api/messages/{id}/trace:
+    get:
+      tags: [Messages]
+      summary: Get message execution trace
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Execution trace
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  trace: { type: object }
+
+  /api/conversations/{id}/latest-trace:
+    get:
+      tags: [Messages]
+      summary: Get latest conversation trace
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Latest trace
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  trace: { type: object }
+
   /api/memory:
+    get:
+      tags: [Memory]
+      summary: List memory items
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of memory items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
     post:
       tags: [Memory]
       summary: Create a memory item
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -338,9 +511,27 @@ paths:
                     additionalProperties: true
 
   /api/knowledge:
+    get:
+      tags: [Memory]
+      summary: List knowledge items
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of knowledge items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
     post:
       tags: [Memory]
       summary: Create a knowledge item
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -368,10 +559,76 @@ paths:
                     type: object
                     additionalProperties: true
 
+  /api/knowledge/{id}:
+    patch:
+      tags: [Memory]
+      summary: Update a knowledge item
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content: { type: string }
+                title: { type: string }
+                type: { type: string }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  item: { type: object }
+
+    delete:
+      tags: [Memory]
+      summary: Delete a knowledge item
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+
   /api/llm/providers:
+    get:
+      tags: [LLM]
+      summary: List all providers
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
     post:
       tags: [LLM]
       summary: Create a provider
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -399,6 +656,82 @@ paths:
                   item:
                     type: object
                     additionalProperties: true
+
+  /api/llm/providers/{id}:
+    patch:
+      tags: [LLM]
+      summary: Update a provider
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                priority: { type: integer }
+                api_key: { type: string }
+                model: { type: string }
+                base_url: { type: string }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  item: { type: object }
+
+    delete:
+      tags: [LLM]
+      summary: Delete a provider
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+
+  /api/llm/providers/test:
+    post:
+      tags: [LLM]
+      summary: Test provider connection
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '200':
+          description: Test successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  message: { type: string }
 
   # ── CAPTURES (INBOX) ────────────────────────────────────────
   /api/captures:
@@ -798,6 +1131,8 @@ paths:
     get:
       tags: [Meetings]
       summary: List meetings
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: List of meetings
@@ -812,6 +1147,8 @@ paths:
     post:
       tags: [Meetings]
       summary: Create a meeting
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -823,6 +1160,13 @@ paths:
                 title:           { type: string }
                 meeting_date:    { type: string, format: date-time }
                 transcript_text: { type: string }
+                status:          { type: string }
+                duration:        { type: integer }
+                participants:    { type: array, items: { type: string } }
+                summary:         { type: string }
+                action_items:    { type: array, items: { type: object } }
+                skills_used:     { type: array, items: { type: string } }
+                notes:           { type: string }
       responses:
         '201':
           description: Meeting created
@@ -835,10 +1179,71 @@ paths:
                   id:   { type: integer }
                   item: { $ref: '#/components/schemas/Meeting' }
 
+  /api/meetings/{id}:
+    get:
+      tags: [Meetings]
+      summary: Get meeting details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Meeting data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  item: { $ref: '#/components/schemas/Meeting' }
+
+    put:
+      tags: [Meetings]
+      summary: Update a meeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:           { type: string }
+                meeting_date:    { type: string, format: date-time }
+                transcript_text: { type: string }
+                status:          { type: string }
+                duration:        { type: integer }
+                participants:    { type: array, items: { type: string } }
+                summary:         { type: string }
+                action_items:    { type: array, items: { type: object } }
+                skills_used:     { type: array, items: { type: string } }
+                notes:           { type: string }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  item: { $ref: '#/components/schemas/Meeting' }
+
   /api/meetings/analyze:
     post:
       tags: [Meetings]
       summary: Analyze meeting transcript with AI
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -859,11 +1264,194 @@ paths:
                   ok:      { type: boolean }
                   insight: { type: string }
 
+  /api/meetings/{id}/upload-audio:
+    post:
+      tags: [Meetings]
+      summary: Upload audio for meeting
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audio received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  item: { $ref: '#/components/schemas/Meeting' }
+
+  /api/meetings/{id}/process:
+    post:
+      tags: [Meetings]
+      summary: Process meeting transcript/audio
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action: { type: string, enum: [summarize, transcribe, extract_actions], default: summarize }
+      responses:
+        '200':
+          description: Processing triggered/completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:   { type: boolean }
+                  item: { $ref: '#/components/schemas/Meeting' }
+
+  /api/calendar/events:
+    get:
+      tags: [Calendar]
+      summary: List calendar events
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+  /api/calendar/combined:
+    get:
+      tags: [Calendar]
+      summary: Get combined calendar data
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from
+          in: query
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Combined events and tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+  /api/calendar/sync:
+    post:
+      tags: [Calendar]
+      summary: Trigger manual calendar sync
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Sync triggered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+
+  # ── FAVORITES ───────────────────────────────────────────────
+  # ── GOOGLE OAUTH ────────────────────────────────────────────
+  /api/google/auth/url:
+    get:
+      tags: [Google OAuth]
+      summary: Get Google authorization URL
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Authorization URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+
+  /api/google/accounts:
+    get:
+      tags: [Google OAuth]
+      summary: List connected Google accounts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Connected accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  accounts: { type: array, items: { type: object } }
+
+  /api/google/oauth/callback:
+    get:
+      tags: [Google OAuth]
+      summary: Google OAuth callback endpoint
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to frontend
+
+  /api/jobs/import-google:
+    post:
+      tags: [Google OAuth]
+      summary: Run Google import job
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Job triggered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+
+  # ── GITVAULT ────────────────────────────────────────────────
+  /api/gitvault/export:
+    post:
+      tags: [GitVault]
+      summary: Export daily data to GitVault
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Export successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+
   # ── FAVORITES ───────────────────────────────────────────────
   /api/favorites:
     get:
       tags: [Favorites]
       summary: List favorites
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: List of favorites
@@ -878,6 +1466,8 @@ paths:
     post:
       tags: [Favorites]
       summary: Add a favorite
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -901,10 +1491,56 @@ paths:
                   id:   { type: integer }
                   item: { $ref: '#/components/schemas/Favorite' }
 
+  /api/raindrop/collections:
+    get:
+      tags: [Favorites]
+      summary: List Raindrop.io collections
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+  /api/raindrop/items:
+    get:
+      tags: [Favorites]
+      summary: List Raindrop.io items
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: collectionId
+          in: query
+          schema: { type: string }
+        - name: perpage
+          in: query
+          schema: { type: integer, default: 30 }
+        - name: page
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
   /api/raindrop/sync:
     post:
       tags: [Favorites]
       summary: Sync bookmarks from Raindrop.io
+      security:
+        - BearerAuth: []
       requestBody:
         content:
           application/json:
@@ -925,11 +1561,61 @@ paths:
                   ok:    { type: boolean }
                   count: { type: integer }
 
+  # ── LINKS ───────────────────────────────────────────────────
+  /api/links:
+    get:
+      tags: [Links]
+      summary: List all page links
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of links
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+    post:
+      tags: [Links]
+      summary: Create a link between entities
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_type, from_id, to_type, to_id]
+              properties:
+                from_type: { type: string }
+                from_id: { type: string }
+                to_type: { type: string }
+                to_id: { type: string }
+                label: { type: string }
+      responses:
+        '201':
+          description: Link created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: integer }
+                  item: { type: object }
+
   # ── TAGS ────────────────────────────────────────────────────
   /api/tags:
     get:
       tags: [Tags]
       summary: List tags
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: List of tags
@@ -944,6 +1630,8 @@ paths:
     post:
       tags: [Tags]
       summary: Create a tag
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -970,6 +1658,8 @@ paths:
     delete:
       tags: [Tags]
       summary: Delete a tag
+      security:
+        - BearerAuth: []
       parameters:
         - name: id
           in: path
@@ -984,6 +1674,8 @@ paths:
     get:
       tags: [Settings]
       summary: Get current settings (masked)
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Settings
@@ -998,6 +1690,8 @@ paths:
     post:
       tags: [Settings]
       summary: Update settings
+      security:
+        - BearerAuth: []
       requestBody:
         content:
           application/json:
@@ -1024,6 +1718,8 @@ paths:
     post:
       tags: [Settings]
       summary: Trigger Render deploy
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Deploy triggered
@@ -1033,6 +1729,8 @@ paths:
     get:
       tags: [Profile]
       summary: Get user profile
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Profile data
@@ -1040,6 +1738,8 @@ paths:
     post:
       tags: [Profile]
       summary: Update user profile
+      security:
+        - BearerAuth: []
       requestBody:
         content:
           application/json:
@@ -1059,6 +1759,8 @@ paths:
     get:
       tags: [Profile]
       summary: Get user preferences
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Preferences
@@ -1066,6 +1768,8 @@ paths:
     post:
       tags: [Profile]
       summary: Update preferences
+      security:
+        - BearerAuth: []
       requestBody:
         content:
           application/json:
@@ -1085,6 +1789,8 @@ paths:
     get:
       tags: [Push]
       summary: Get VAPID public key
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: VAPID key
@@ -1093,6 +1799,8 @@ paths:
     post:
       tags: [Push]
       summary: Subscribe device for push notifications
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1110,6 +1818,80 @@ paths:
     post:
       tags: [Push]
       summary: Send test push notification
+      security:
+        - BearerAuth: []
       responses:
         '200':
           description: Push sent
+
+  # ── OPS ─────────────────────────────────────────────────────
+  /api/admin/metrics:
+    get:
+      tags: [Ops]
+      summary: Get real-time system metrics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Metrics payload
+
+  /api/experiments:
+    get:
+      tags: [Ops]
+      summary: Get active experiment stats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Experiment data
+
+  /api/notifications:
+    get:
+      tags: [Ops]
+      summary: Get system notifications
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  items: { type: array, items: { type: object } }
+
+  # ── LEARNING ────────────────────────────────────────────────
+  /api/learning/dashboard:
+    get:
+      tags: [Learning]
+      summary: Get learning performance dashboard
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+
+  /api/learning/params:
+    get:
+      tags: [Learning]
+      summary: List all tuned parameters
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Parameters list
+
+  /api/learning/params/reset:
+    post:
+      tags: [Learning]
+      summary: Reset parameters to factory defaults
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Reset successful
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
