@@ -291,4 +291,9 @@ export async function ensureSchema(): Promise<void> {
       UNIQUE(user_id, briefing_date)
     );
   `);
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS tasks_title_meeting_id_uidx
+    ON tasks (title, (metadata->>'meeting_id'))
+    WHERE metadata->>'meeting_id' IS NOT NULL;
+  `);
 }

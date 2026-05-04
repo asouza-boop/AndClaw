@@ -1,7 +1,7 @@
 import { query } from '@/db/postgres';
 import { logger } from '@/infra/logger';
-import { TaskService } from './TaskService';
 import { MemoryManager } from '@/memory/MemoryManager';
+import { buildBatchInsert } from '@/db/utils';
 
 export class MeetingService {
     /**
@@ -65,8 +65,34 @@ ${transcript}`;
                 priority: t.priority || 'medium' 
             }));
             
-            for (const item of actionItems) {
-                await TaskService.createFromMeetingAction(meetingId, item.text);
+            if (actionItems.length > 0) {
+                const batchRows = actionItems.map(item => [
+                    item.text,
+                    'pending',
+                    JSON.stringify({
+                        source: 'meeting',
+                        meeting_id: String(meetingId),
+                        created_at: new Date().toISOString()
+                    })
+                ]);
+
+                const { text, values } = buildBatchInsert(
+                    'tasks',
+                    ['title', 'status', 'metadata'],
+                    batchRows,
+                    `ON CONFLICT (title, (metadata->>'meeting_id')) 
+                     WHERE metadata->>'meeting_id' IS NOT NULL 
+                     DO NOTHING`
+                );
+
+                await query('BEGIN');
+                try {
+                    await query(text, values);
+                    await query('COMMIT');
+                } catch (err) {
+                    await query('ROLLBACK');
+                    throw err;
+                }
             }
 
             // 2. Persist Decisions to Long-term Memory
