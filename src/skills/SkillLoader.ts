@@ -24,15 +24,15 @@ export class SkillLoader {
     }
   }
 
-  private skillsCache: Skill[] | null = null;
-  private cacheTimestamp: number = 0;
-  private readonly CACHE_TTL_MS = 60_000; // 60 segundos
+  private static skillsCache: Skill[] | null = null;
+  private static cacheTimestamp: number = 0;
+  private static readonly CACHE_TTL_MS = 60_000; // 60 segundos
 
   public fetchSkills(): Skill[] {
     const now = Date.now();
-    if (this.skillsCache && (now - this.cacheTimestamp) < this.CACHE_TTL_MS) {
-      // console.log(`[SkillLoader] Servindo ${this.skillsCache.length} skills do cache.`);
-      return this.skillsCache;
+    if (SkillLoader.skillsCache && (now - SkillLoader.cacheTimestamp) < SkillLoader.CACHE_TTL_MS) {
+      // console.log(`[SkillLoader] Servindo ${SkillLoader.skillsCache.length} skills do cache.`);
+      return SkillLoader.skillsCache;
     }
 
     console.log(`[SkillLoader] Cache vazio. Carregando skills do disco...`);
@@ -88,8 +88,8 @@ export class SkillLoader {
       }
     }
     
-    this.skillsCache = skills;
-    this.cacheTimestamp = Date.now();
+    SkillLoader.skillsCache = skills;
+    SkillLoader.cacheTimestamp = Date.now();
     return skills;
   }
 
@@ -97,11 +97,11 @@ export class SkillLoader {
    * Promote an experimental skill to active
    */
   public promoteSkill(skillName: string): boolean {
-    if (!this.skillsCache) return false;
+    if (!SkillLoader.skillsCache) return false;
     
-    const skillIndex = this.skillsCache.findIndex(s => s.metadata.name === skillName);
+    const skillIndex = SkillLoader.skillsCache.findIndex(s => s.metadata.name === skillName);
     if (skillIndex !== -1) {
-      const skill = this.skillsCache[skillIndex];
+      const skill = SkillLoader.skillsCache[skillIndex];
       skill.metadata.status = 'active';
       skill.metadata.plannerEnabled = true;
       console.log(`[Observability] skill.promoted: '${skillName}'`);
@@ -122,7 +122,18 @@ export class SkillLoader {
    * Força a limpeza do cache de skills (útil se o usuário adicionar uma skill nova "on the fly")
    */
   public clearCache(): void {
-    this.skillsCache = null;
+    SkillLoader.skillsCache = null;
+  }
+
+  public static invalidate(slug: string): void {
+    if (SkillLoader.skillsCache) {
+      SkillLoader.skillsCache = SkillLoader.skillsCache.filter(s => s.metadata.name !== slug && s.folderName !== slug);
+    }
+  }
+
+  public static invalidateAll(): void {
+    SkillLoader.skillsCache = null;
+    SkillLoader.cacheTimestamp = 0;
   }
 
   private parseFrontmatter(content: string): { metadata: SkillMetadata, markdown: string } | null {

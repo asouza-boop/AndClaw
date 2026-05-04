@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { config } from '@/config/env';
 import { parseSkillDocument } from './shared';
+import { SkillLoader } from '@/skills/SkillLoader';
 
 const router = Router();
 
@@ -77,6 +78,7 @@ router.post('/skills', async (req: Request, res: Response) => {
   if (!slug || !title) return res.status(400).json({ error: 'slug/name and title are required', required_fields: ['slug (or name)', 'title'], optional_fields: ['description', 'content', 'allowedTools'] });
   const safeSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
+  SkillLoader.invalidateAll();
   res.status(201).json({ ok: true, slug: safeSlug, name: safeSlug, title, id: safeSlug });
 });
 
@@ -85,12 +87,14 @@ router.put('/skills/:id', async (req: Request, res: Response) => {
   const { content } = req.body || {};
   if (!content) return res.status(400).json({ error: 'content is required' });
   await updateSkillOnDisk(slug, String(content));
+  SkillLoader.invalidate(slug);
   res.json({ ok: true, id: slug });
 });
 
 router.delete('/skills/:id', async (req: Request, res: Response) => {
   const slug = String(req.params.id);
   await deleteSkillOnDisk(slug);
+  SkillLoader.invalidate(slug);
   res.json({ ok: true, id: slug });
 });
 
