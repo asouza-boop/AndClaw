@@ -66,7 +66,7 @@ ${transcript}`;
             }));
             
             if (actionItems.length > 0) {
-                const batchRows = actionItems.map(item => [
+                const batchRows = actionItems.map((item: any) => [
                     item.text,
                     'pending',
                     JSON.stringify({
