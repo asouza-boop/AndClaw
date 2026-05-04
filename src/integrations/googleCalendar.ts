@@ -3,6 +3,7 @@ import { buildBatchInsert } from '@/db/utils';
 import { config } from '@/config/env';
 import { ensureSchema } from '@/db/schema';
 import { query } from '@/db/postgres';
+import { encrypt, decrypt } from '@/lib/crypto';
 
 interface GoogleAccountConfig {
   email: string;
@@ -35,7 +36,7 @@ async function loadAccounts(): Promise<GoogleAccountConfig[]> {
   if (dbAccounts.length > 0) {
     return dbAccounts.map(acc => ({
       email: acc.account_email,
-      refreshToken: acc.refresh_token,
+      refreshToken: decrypt(acc.refresh_token),
       clientId: config.google.oauthClientId,
       clientSecret: config.google.oauthClientSecret,
       redirectUri: config.google.oauthRedirectUri,
@@ -109,7 +110,7 @@ export async function handleGoogleOAuthCallback(code: string): Promise<void> {
        refresh_token = EXCLUDED.refresh_token,
        access_token = EXCLUDED.access_token,
        expires_at = EXCLUDED.expires_at`,
-    [email, tokens.refresh_token, tokens.access_token || null, expiresAt]
+    [email, encrypt(tokens.refresh_token), tokens.access_token || null, expiresAt]
   );
 }
 
