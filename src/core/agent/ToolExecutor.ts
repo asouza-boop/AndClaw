@@ -15,6 +15,7 @@ import { MemoryManager } from '@/memory/MemoryManager';
 import { PlannerService } from '@/core/agent/PlannerService';
 import { CacheService } from '@/core/agent/CacheService';
 import { DigestService } from '@/core/agent/DigestService';
+import { EvaluationService } from '@/core/agent/EvaluationService';
 import type { ExecutionTrace, TraceStep } from '@/contracts/trace';
 import type { ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 
