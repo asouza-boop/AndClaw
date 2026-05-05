@@ -1,5 +1,6 @@
 import { query } from '@/db/postgres';
 import { logger } from '@/infra/logger';
+import { agentEvents, TASK_MUTATED } from '@/core/events/AgentEvents';
 
 export class TaskService {
     /**
@@ -15,9 +16,9 @@ export class TaskService {
         if (capture.type !== 'task') return;
 
         try {
-            await query(
+            const rows = await query(
                 `INSERT INTO tasks (title, status, due_date, project_id, capture_id)
-                 VALUES ($1, $2, $3, $4, $5)`,
+                 VALUES ($1, $2, $3, $4, $5) RETURNING id, title, due_date`,
                 [
                     capture.content,
                     'pending',
@@ -27,6 +28,10 @@ export class TaskService {
                 ]
             );
             logger.info('task.bridge.created', { captureId: capture.id });
+            const task = rows[0];
+            if (task && task.due_date) {
+                agentEvents.emit(TASK_MUTATED, { taskId: String(task.id), due_date: task.due_date, title: task.title });
+            }
         } catch (err: any) {
             logger.error('task.bridge.failed', { captureId: capture.id, error: err.message });
         }
@@ -65,5 +70,58 @@ export class TaskService {
         } catch (err: any) {
             logger.error('task.meeting_bridge.failed', { meetingId, error: err.message });
         }
+    }
+
+    /**
+     * General task creation.
+     */
+    static async create(data: any): Promise<any> {
+        const { title, description, status, priority, due_date, project_id, agent_id, skill_ids, meeting_id } = data;
+        const rows = await query<any>(
+            `INSERT INTO tasks (title, description, status, priority, due_date, project_id, agent_id, skill_ids, meeting_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [title, description || null, status || 'open', priority || 'normal', due_date || null, project_id || null, agent_id || null, skill_ids || [], meeting_id || null]
+        );
+        const task = rows[0];
+        if (task && task.due_date) {
+            agentEvents.emit(TASK_MUTATED, { taskId: String(task.id), due_date: task.due_date, title: task.title });
+        }
+        return task;
+    }
+
+    /**
+     * General task update.
+     */
+    static async update(id: string | number, data: any): Promise<any> {
+        const updates: string[] = [];
+        const params: any[] = [];
+        const fields = ['title', 'description', 'status', 'priority', 'due_date', 'agent_id', 'skill_ids'];
+        
+        for (const field of fields) {
+            if (data[field] !== undefined) {
+                params.push(data[field] === '' && field === 'due_date' ? null : data[field]);
+                updates.push(`${field} = $${params.length}`);
+            }
+        }
+        
+        if (!updates.length) return null;
+        
+        params.push(id);
+        const rows = await query<any>(
+            `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+            params
+        );
+        const task = rows[0];
+        if (task && task.due_date) {
+            agentEvents.emit(TASK_MUTATED, { taskId: String(task.id), due_date: task.due_date, title: task.title });
+        }
+        return task;
+    }
+
+    /**
+     * General task deletion.
+     */
+    static async delete(id: string | number): Promise<void> {
+        await query('DELETE FROM tasks WHERE id = $1', [id]);
     }
 }

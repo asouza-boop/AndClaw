@@ -1,70 +1,28 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
-@import './styles/theme.css';
-
+@import './styles/tokens.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 222 50% 7%;
-    --foreground: 228 60% 95%;
-
-    --card: 222 40% 9%;
-    --card-foreground: 228 60% 95%;
-
-    --popover: 222 40% 9%;
-    --popover-foreground: 228 60% 95%;
-
-    --primary: 263 84% 66%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 222 35% 14%;
-    --secondary-foreground: 228 60% 95%;
-
-    --muted: 222 25% 18%;
-    --muted-foreground: 222 20% 55%;
-
-    --accent: 187 90% 53%;
-    --accent-foreground: 222 50% 7%;
-
-    --destructive: 347 77% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 160 60% 40%;
-    --success-foreground: 0 0% 100%;
-
-    --warn: 38 92% 50%;
-    --warn-foreground: 0 0% 100%;
-
-    --border: 0 0% 100% / 0.07;
-    --input: 222 35% 14%;
-    --ring: 263 84% 66%;
-
-    --radius: 0.75rem;
-
-    --surface: 222 40% 9%;
-    --surface-2: 222 38% 13%;
-    --surface-3: 222 33% 16%;
-
-    --sidebar-background: 222 40% 9%;
-    --sidebar-foreground: 228 60% 95%;
-    --sidebar-primary: 263 84% 66%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 33% 16%;
-    --sidebar-accent-foreground: 228 60% 95%;
-    --sidebar-border: 0 0% 100% / 0.07;
-    --sidebar-ring: 263 84% 66%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
   body {
-    @apply bg-background text-foreground font-outfit antialiased;
+    font-family: var(--font-sans);
+    color: var(--color-text-primary);
+    background: var(--color-bg-primary);
+    font-size: var(--text-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  ::selection {
+    background: var(--color-accent-subtle);
   }
 
   /* Scrollbar styling */
@@ -76,75 +34,20 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.3);
-    border-radius: 3px;
+    background: var(--color-border-strong);
+    border-radius: var(--radius-sm);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.5);
+    background: var(--color-text-tertiary);
   }
 }
 
 @layer utilities {
-  .glass-card {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl transition-premium;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  }
-  
-  .glass-card:hover {
-    @apply border-white/20 bg-white/10 scale-[1.01];
-    box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.5), 0 0 30px -5px hsl(var(--primary) / 0.1);
-  }
-
-  .glass-sidebar {
-    @apply bg-black/40 backdrop-blur-2xl border-r border-white/5;
-  }
-
-  .glass-panel {
-    @apply bg-black/40 backdrop-blur-2xl border border-white/5 shadow-2xl rounded-2xl;
-  }
-
-  .glass-surface {
-    @apply bg-white/[0.02] backdrop-blur-sm border border-white/5 rounded-2xl;
-  }
-
-  .glass-glow-primary {
-    @apply shadow-[0_0_30px_-10px_rgba(168,85,247,0.4)];
-  }
-
-  .glass-glow-accent {
-    @apply shadow-[0_0_30px_-10px_rgba(6,182,212,0.4)];
-  }
-
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
-  }
-
-  .glow-border {
-    @apply border border-white/[0.07] transition-all duration-300 ease-out;
-  }
-  .glow-border:hover {
-    border-color: hsl(var(--primary) / 0.3);
-    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.15);
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 0.3; transform: scale(0.8); }
-    50% { opacity: 1; transform: scale(1); }
-  }
-
-  .animate-pulse-dot {
-    animation: pulse-dot 1.4s ease-in-out infinite;
-  }
-
-  .text-gradient {
-    @apply bg-gradient-to-r from-white to-white/40 bg-clip-text text-transparent;
-  }
-
-  .text-gradient-primary {
-    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
   }
 }

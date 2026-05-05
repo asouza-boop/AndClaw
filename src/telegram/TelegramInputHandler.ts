@@ -1,6 +1,7 @@
 import { Bot, Context } from 'grammy';
 import { AgentController } from '@/core/AgentController';
 import { config } from '@/config/env';
+import { sanitizeMarkdownV2 } from '@/lib/telegramMarkdown';
 import fs from 'fs';
 import path from 'path';
 const pdf = require('pdf-parse');
@@ -61,14 +62,13 @@ export class TelegramInputHandler {
                     }
                 );
                 
-                clearInterval(typingInterval);
                 await this.safeReply(ctx, response);
-
-        } catch (e: any) {
-            clearInterval(typingInterval);
-            console.error(`[TelegramInput] Erro ao processar áudio:`, e);
-            await this.safeReply(ctx, `[Sistema] Erro ao processar seu áudio: ${e.message}`);
-        }
+            } catch (e: any) {
+                console.error(`[TelegramInput] Erro ao processar áudio:`, e);
+                await this.safeReply(ctx, `[Sistema] Erro ao processar seu áudio: ${e.message}`);
+            } finally {
+                clearInterval(typingInterval);
+            }
     });
 
     // Document Handler (PDF, MD, Excel)
@@ -77,8 +77,6 @@ export class TelegramInputHandler {
         const doc = ctx.message.document;
         const fileName = doc.file_name || 'documento';
         
-        console.log(`[TelegramInput] Recebido documento de ${userId}: ${fileName}`);
-
         ctx.replyWithChatAction('typing').catch(console.error);
         const typingInterval = this.startTypingEffect(ctx, 'typing');
 
@@ -100,27 +98,25 @@ export class TelegramInputHandler {
                 const worksheet = workbook.Sheets[sheetName];
                 content = XLSX.utils.sheet_to_csv(worksheet);
             } else {
-                clearInterval(typingInterval);
                 return ctx.reply("⚠️ No momento, só consigo processar texto estruturado (.md), áudio, PDF e Excel.");
             }
 
             const fullInput = `Arquivo: ${fileName}\nConteúdo:\n${content}\n\nLegenda: ${ctx.message.caption || ''}`;
             const result = await this.controller.processInput(userId, fullInput);
             
-            clearInterval(typingInterval);
             await this.safeReply(ctx, result);
-
         } catch (e: any) {
-            clearInterval(typingInterval);
             console.error(`[TelegramInput] Erro ao processar documento:`, e);
             await this.safeReply(ctx, `[Sistema] Erro ao processar seu documento: ${e.message}`);
+        } finally {
+            clearInterval(typingInterval);
         }
     });
 
         // Basic Info Commands
         this.bot.command('start', (ctx) => {
             const userName = process.env.AGENT_USER_NAME || 'usuário';
-            ctx.reply(`👋 Olá ${userName}! Sou o AndClaw, seu agente pessoal.\nUse /ping para status ou /help para ver os comandos disponíveis.`);
+            ctx.reply(sanitizeMarkdownV2(`👋 Olá ${userName}! Sou o AndClaw, seu agente pessoal.\nUse /ping para status ou /help para ver os comandos disponíveis.`), { parse_mode: 'MarkdownV2' });
         });
 
         this.bot.command('ping', (ctx) => {
@@ -130,14 +126,16 @@ export class TelegramInputHandler {
         // Comando /help
         this.bot.command('help', (ctx) => {
             ctx.reply(
-                `🤖 *Comandos disponíveis:*\n\n` +
-                `/start — Apresentação\n` +
-                `/ping — Status do agente\n` +
-                `/clear — Limpar histórico da conversa\n` +
-                `/skills — Listar skills carregadas\n` +
-                `/provider — Ver provider LLM ativo\n` +
-                `/help — Esta mensagem`,
-                { parse_mode: 'Markdown' }
+                sanitizeMarkdownV2(
+                    `🤖 *Comandos disponíveis:*\n\n` +
+                    `/start — Apresentação\n` +
+                    `/ping — Status do agente\n` +
+                    `/clear — Limpar histórico da conversa\n` +
+                    `/skills — Listar skills carregadas\n` +
+                    `/provider — Ver provider LLM ativo\n` +
+                    `/help — Esta mensagem`
+                ),
+                { parse_mode: 'MarkdownV2' }
             );
         });
 
@@ -160,16 +158,18 @@ export class TelegramInputHandler {
                 return ctx.reply('Nenhuma skill carregada no momento.');
             }
             const list = skills.map(s => `• *${s.metadata.name}*: ${s.metadata.description}`).join('\n');
-            ctx.reply(`⚡ *Skills ativas (${skills.length}):*\n\n${list}`, { parse_mode: 'Markdown' });
+            ctx.reply(sanitizeMarkdownV2(`⚡ *Skills ativas (${skills.length}):*\n\n${list}`), { parse_mode: 'MarkdownV2' });
         });
 
         // Comando /provider — mostra provider ativo e chain configurada
         this.bot.command('provider', (ctx) => {
             const chain = config.llm.providerChain.join(' → ');
             ctx.reply(
-                `🧠 *Provider ativo:* ${config.llm.defaultProvider.toUpperCase()}\n` +
-                `🔗 *Chain de fallback:* ${chain}`,
-                { parse_mode: 'Markdown' }
+                sanitizeMarkdownV2(
+                    `🧠 *Provider ativo:* ${config.llm.defaultProvider.toUpperCase()}\n` +
+                    `🔗 *Chain de fallback:* ${chain}`
+                ),
+                { parse_mode: 'MarkdownV2' }
             );
         });
 
@@ -200,12 +200,12 @@ export class TelegramInputHandler {
 
         try {
             const response = await this.controller.processInput(userId, text);
-            clearInterval(typingInterval);
             await this.safeReply(ctx, response);
         } catch (e: any) {
-            clearInterval(typingInterval);
             console.error(`[TelegramInput] Erro ao processar mensagem:`, e);
             await this.safeReply(ctx, `[Sistema] Ocorreu um erro interno: ${e.message}`);
+        } finally {
+            clearInterval(typingInterval);
         }
     }
 
@@ -226,16 +226,16 @@ export class TelegramInputHandler {
         }
 
         try {
-            await ctx.reply(text, { parse_mode: 'Markdown' });
+            // Using MarkdownV2 with sanitizer for reliable formatting
+            await ctx.reply(sanitizeMarkdownV2(text), { parse_mode: 'MarkdownV2' });
         } catch (e: any) {
-            // Em caso de QUALQUER erro (Markdown, rede, etc), tenta texto plano.
-            console.warn('[TelegramInput] Falha no reply (Markdown), tentando texto plano:', e.message);
+            // Fallback is no longer needed with the sanitizer, but keeping a simple log just in case
+            console.error('[TelegramInput] Falha crítica ao enviar resposta final (MarkdownV2):', e.message);
+            // If even sanitizer fails, send as plain text
             try {
-                // Remove caracteres que costumam quebrar o Markdown apenas para garantir
-                const safeText = text.replace(/[*_`]/g, '');
-                await ctx.reply(safeText);
+                await ctx.reply(text);
             } catch (innerError: any) {
-                console.error('[TelegramInput] Falha crítica ao enviar resposta final:', innerError.message);
+                console.error('[TelegramInput] Falha total ao enviar resposta:', innerError.message);
             }
         }
     }

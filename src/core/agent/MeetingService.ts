@@ -2,6 +2,7 @@ import { query } from '@/db/postgres';
 import { logger } from '@/infra/logger';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { buildBatchInsert } from '@/db/utils';
+import { agentEvents, MEETING_MUTATED } from '@/core/events/AgentEvents';
 
 export class MeetingService {
     /**
@@ -16,9 +17,9 @@ export class MeetingService {
         if (capture.type !== 'meeting') return;
 
         try {
-            await query(
+            const rows = await query(
                 `INSERT INTO meetings (title, status, meeting_date, notes)
-                 VALUES ($1, $2, $3, $4)`,
+                 VALUES ($1, $2, $3, $4) RETURNING id, title, meeting_date`,
                 [
                     capture.content || 'Nova Reunião',
                     'scheduled',
@@ -27,6 +28,14 @@ export class MeetingService {
                 ]
             );
             logger.info('meeting.bridge.created', { captureId: capture.id });
+            const meeting = rows[0];
+            if (meeting && meeting.meeting_date) {
+                agentEvents.emit(MEETING_MUTATED, { 
+                    meetingId: String(meeting.id), 
+                    start_time: meeting.meeting_date, 
+                    title: meeting.title 
+                });
+            }
         } catch (err: any) {
             logger.error('meeting.bridge.failed', { captureId: capture.id, error: err.message });
         }
@@ -131,5 +140,75 @@ ${transcript}`;
             logger.error('meeting.intelligence.failed', { meetingId, error: err.message });
             throw err;
         }
+    }
+
+    /**
+     * General meeting creation.
+     */
+    static async create(data: any): Promise<any> {
+        const { title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes } = data;
+        const rows = await query<any>(
+            `INSERT INTO meetings (title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) RETURNING *`,
+            [
+                title,
+                meeting_date || null,
+                transcript_text || null,
+                status || 'scheduled',
+                duration || null,
+                participants || [],
+                summary || null,
+                JSON.stringify(action_items || []),
+                skills_used || [],
+                notes || null
+            ]
+        );
+        const meeting = rows[0];
+        if (meeting && meeting.meeting_date) {
+            agentEvents.emit(MEETING_MUTATED, { 
+                meetingId: String(meeting.id), 
+                start_time: meeting.meeting_date, 
+                title: meeting.title 
+            });
+        }
+        return meeting;
+    }
+
+    /**
+     * General meeting update.
+     */
+    static async update(id: string | number, data: any): Promise<any> {
+        const updates: string[] = [];
+        const params: any[] = [];
+        const fields = ['title', 'meeting_date', 'transcript_text', 'status', 'duration', 'participants', 'summary', 'action_items', 'skills_used', 'notes'];
+        
+        for (const field of fields) {
+            if (data[field] !== undefined) {
+                if (field === 'action_items') {
+                    params.push(JSON.stringify(data[field]));
+                    updates.push(`${field} = $${params.length}::jsonb`);
+                } else {
+                    params.push(data[field]);
+                    updates.push(`${field} = $${params.length}`);
+                }
+            }
+        }
+        
+        if (!updates.length) return null;
+        
+        params.push(id);
+        const rows = await query<any>(
+            `UPDATE meetings SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
+            params
+        );
+        const meeting = rows[0];
+        if (meeting && meeting.meeting_date) {
+            agentEvents.emit(MEETING_MUTATED, { 
+                meetingId: String(meeting.id), 
+                start_time: meeting.meeting_date, 
+                title: meeting.title 
+            });
+        }
+        return meeting;
     }
 }

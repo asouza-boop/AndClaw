@@ -11,6 +11,7 @@ import { errorHandler } from '@/server/error-handler';
 import { config } from '@/config/env';
 import { metrics } from '@/infra/metrics/MetricsService';
 import eventsRouter from '@/server/routes/events.routes';
+import { registerCalendarSyncListener } from '@/core/listeners/CalendarSyncListener';
 
 export function createApp() {
   const app = express();
@@ -64,6 +65,7 @@ export function createApp() {
 
   app.use('/api', routes);
   app.use('/api/events', eventsRouter);
+  registerCalendarSyncListener();
   app.get('/admin/metrics', (req, res, next) => {
     bootstrapGuard(req, res, () => authMiddleware(req, res, next));
   }, (_req, res) => {

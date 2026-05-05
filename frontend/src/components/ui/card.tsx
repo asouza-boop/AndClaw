@@ -1,47 +1,122 @@
-import * as React from "react";
+import React from 'react';
 
-import { cn } from "@/lib/utils";
-
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "glass";
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  border?: boolean;
+  shadow?: 'none' | 'sm' | 'md';
 }
 
-const Card = React.forwardRef<HTMLDivElement, CardProps>(({ className, variant = "default", ...props }, ref) => (
-  <div ref={ref} className={cn(variant === "default" ? "rounded-lg border bg-card text-card-foreground shadow-sm" : "glass-card", className)} {...props} />
-));
-Card.displayName = "Card";
+export function Card({ 
+  padding = 'md', 
+  border = true, 
+  shadow = 'sm', 
+  children, 
+  className = '', 
+  style, 
+  ...props 
+}: CardProps) {
+  
+  const paddingMap = {
+    none: '0',
+    sm: 'var(--space-3)',
+    md: 'var(--space-5)',
+    lg: 'var(--space-8)',
+  };
 
-const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
-  ),
-);
-CardHeader.displayName = "CardHeader";
+  const shadowMap = {
+    none: 'none',
+    sm: 'var(--shadow-sm)',
+    md: 'var(--shadow-md)',
+  };
 
-const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
-  ),
-);
-CardTitle.displayName = "CardTitle";
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: 'var(--color-bg-secondary)',
+    borderRadius: 'var(--radius-lg)',
+    padding: paddingMap[padding],
+    border: border ? '1px solid var(--color-border)' : 'none',
+    boxShadow: shadowMap[shadow],
+    ...style,
+  };
 
-const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn("text-sm text-muted-foreground", className)} {...props} />
-  ),
-);
-CardDescription.displayName = "CardDescription";
+  return (
+    <div style={cardStyle} className={className} {...props}>
+      {children}
+    </div>
+  );
+}
 
-const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />,
-);
-CardContent.displayName = "CardContent";
+export function CardHeader({ className = '', style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-1)',
+        padding: 'var(--space-6) var(--space-6) 0 var(--space-6)',
+        ...style,
+      }}
+      className={className}
+      {...props}
+    />
+  );
+}
 
-const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
-  ),
-);
-CardFooter.displayName = "CardFooter";
+export function CardTitle({ className = '', style, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3
+      style={{
+        fontSize: 'var(--text-lg)',
+        fontWeight: 'var(--font-semibold)',
+        color: 'var(--color-text-primary)',
+        margin: 0,
+        ...style,
+      }}
+      className={className}
+      {...props}
+    />
+  );
+}
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };
+export function CardDescription({ className = '', style, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p
+      style={{
+        fontSize: 'var(--text-sm)',
+        color: 'var(--color-text-secondary)',
+        margin: 0,
+        ...style,
+      }}
+      className={className}
+      {...props}
+    />
+  );
+}
+
+export function CardContent({ className = '', style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      style={{
+        padding: 'var(--space-6)',
+        ...style,
+      }}
+      className={className}
+      {...props}
+    />
+  );
+}
+
+export function CardFooter({ className = '', style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 var(--space-6) var(--space-6) var(--space-6)',
+        ...style,
+      }}
+      className={className}
+      {...props}
+    />
+  );
+}
+

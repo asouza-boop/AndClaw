@@ -8,38 +8,8 @@ import { agent, inferActionItems, mapMeetingRow } from './shared';
 const router = Router();
 
 router.post('/meetings', async (req: Request, res: Response) => {
-  const {
-    title,
-    meeting_date,
-    date,
-    transcript_text,
-    transcript,
-    status = 'scheduled',
-    duration = null,
-    participants = [],
-    summary = null,
-    action_items = [],
-    skills_used = [],
-    notes = null,
-  } = req.body || {};
-  if (!title) return res.status(400).json({ error: 'title is required' });
-  const rows = await query(
-    `INSERT INTO meetings (title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) RETURNING *`,
-    [
-      title,
-      meeting_date || date || null,
-      transcript_text || transcript || null,
-      status,
-      duration,
-      participants,
-      summary,
-      JSON.stringify(action_items || []),
-      skills_used,
-      notes,
-    ]
-  );
-  res.status(201).json({ ok: true, item: mapMeetingRow(rows[0]), id: rows[0]?.id });
+  const meeting = await MeetingService.create(req.body);
+  res.status(201).json({ ok: true, item: mapMeetingRow(meeting), id: meeting?.id });
 });
 
 router.post('/meetings/analyze', async (req: Request, res: Response) => {
@@ -75,23 +45,9 @@ router.get('/meetings/:id', async (req: Request, res: Response) => {
 
 router.put('/meetings/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { title, date, meeting_date, transcript, transcript_text, status, duration, participants, summary, action_items, skills_used, notes } = req.body || {};
-  const updates: string[] = [];
-  const params: any[] = [];
-  if (title !== undefined) { params.push(title); updates.push(`title = $${params.length}`); }
-  if (date !== undefined || meeting_date !== undefined) { params.push(meeting_date || date || null); updates.push(`meeting_date = $${params.length}`); }
-  if (transcript !== undefined || transcript_text !== undefined) { params.push(transcript_text || transcript || null); updates.push(`transcript_text = $${params.length}`); }
-  if (status !== undefined) { params.push(status); updates.push(`status = $${params.length}`); }
-  if (duration !== undefined) { params.push(duration); updates.push(`duration = $${params.length}`); }
-  if (participants !== undefined) { params.push(participants); updates.push(`participants = $${params.length}`); }
-  if (summary !== undefined) { params.push(summary); updates.push(`summary = $${params.length}`); }
-  if (action_items !== undefined) { params.push(JSON.stringify(action_items)); updates.push(`action_items = $${params.length}::jsonb`); }
-  if (skills_used !== undefined) { params.push(skills_used); updates.push(`skills_used = $${params.length}`); }
-  if (notes !== undefined) { params.push(notes); updates.push(`notes = $${params.length}`); }
-  if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
-  params.push(id);
-  const rows = await query<any>(`UPDATE meetings SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
-  res.json({ ok: true, item: mapMeetingRow(rows[0]) });
+  const meeting = await MeetingService.update(id, req.body);
+  if (!meeting) return res.status(400).json({ error: 'nothing to update or meeting not found' });
+  res.json({ ok: true, item: mapMeetingRow(meeting) });
 });
 
 router.post('/meetings/:id/upload-audio', async (req: Request, res: Response) => {

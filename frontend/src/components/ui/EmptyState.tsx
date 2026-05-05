@@ -1,43 +1,59 @@
-import * as React from "react"
-import { LucideIcon } from "lucide-react"
-import { cn } from "@/lib/ui"
+import React from 'react';
 
 interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
-  icon?: LucideIcon
-  title: string
-  description?: string
-  action?: React.ReactNode
+  icon?: React.ReactNode;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
 }
 
-export function EmptyState({
-  className,
-  icon: Icon,
-  title,
-  description,
-  action,
-  ...props
-}: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action, className = '', style, ...props }: EmptyStateProps) {
+  
+  const containerStyle: React.CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    padding: 'var(--space-12) var(--space-6)',
+    fontFamily: 'var(--font-sans)',
+    ...style,
+  };
+
+  const iconContainerStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '40px',
+    height: '40px',
+    color: 'var(--color-text-tertiary)',
+    marginBottom: 'var(--space-4)',
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: 'var(--text-lg)',
+    fontWeight: 'var(--font-medium)',
+    color: 'var(--color-text-primary)',
+    marginBottom: 'var(--space-2)',
+  };
+
+  const descStyle: React.CSSProperties = {
+    fontSize: 'var(--text-base)',
+    color: 'var(--color-text-secondary)',
+    maxWidth: '400px',
+    marginBottom: action ? 'var(--space-6)' : 0,
+  };
+
   return (
-    <div
-      className={cn(
-        "flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500",
-        "rounded-[28px] border border-dashed border-white/10 bg-white/[0.02]",
-        className
-      )}
-      {...props}
-    >
-      {Icon && (
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
-          <Icon className="h-6 w-6" />
+    <div style={containerStyle} className={className} {...props}>
+      {icon && (
+        <div style={iconContainerStyle}>
+          {icon}
         </div>
       )}
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      {description && (
-        <p className="mt-2 text-sm leading-6 text-muted-foreground max-w-xs mx-auto">
-          {description}
-        </p>
-      )}
-      {action && <div className="mt-6">{action}</div>}
+      <h3 style={titleStyle}>{title}</h3>
+      {description && <p style={descStyle}>{description}</p>}
+      {action && <div>{action}</div>}
     </div>
-  )
+  );
 }

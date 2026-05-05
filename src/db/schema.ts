@@ -86,6 +86,7 @@ export async function ensureSchema(): Promise<void> {
       skills_used TEXT[] DEFAULT '{}',
       notes TEXT,
       audio_file_name TEXT,
+      gcal_event_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -260,6 +261,7 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS skills_used TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS notes TEXT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS audio_file_name TEXT`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS gcal_event_id TEXT`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS embedding vector(1536)`);
   await query(`ALTER TABLE memory_items ADD COLUMN IF NOT EXISTS memory_type TEXT DEFAULT 'contextual'`);

@@ -43,80 +43,165 @@ export function AppSidebar() {
   const logout = useAuthStore((s) => s.logout);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
 
+  const sidebarStyle: React.CSSProperties = {
+    width: '240px',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
+    position: 'sticky',
+    top: 0,
+    backgroundColor: 'var(--color-bg-secondary)',
+    borderRight: '1px solid var(--color-border)',
+    fontFamily: 'var(--font-sans)',
+  };
+
+  const navItemStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-3)',
+    height: '36px',
+    padding: '0 var(--space-4)',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: 'var(--font-medium)',
+    textDecoration: 'none',
+    transition: 'all var(--transition-base)',
+  };
+
+  const sectionLabelStyle: React.CSSProperties = {
+    padding: '0 var(--space-4)',
+    marginBottom: 'var(--space-2)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--font-medium)',
+    color: 'var(--color-text-tertiary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  };
+
   return (
-    <aside className="w-[280px] h-screen flex flex-col shrink-0 sticky top-0 bg-transparent p-6 pr-0">
-      <div className="flex-1 flex flex-col glass-panel-v2 border-white/5 shadow-2xl overflow-hidden">
-        {/* Logo */}
-        <div className="px-6 py-8 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-black text-white shadow-xl shadow-primary/20 interactive-scale transition-premium">
-            AC
-          </div>
-          <div>
-            <p className="text-sm font-black tracking-tight text-white leading-none">AndClaw</p>
-            <p className="text-[9px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">Intelligence</p>
-          </div>
+    <aside style={sidebarStyle}>
+      {/* Logo */}
+      <div style={{ padding: 'var(--space-8) var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <div style={{ 
+          width: '32px', 
+          height: '32px', 
+          borderRadius: 'var(--radius-md)', 
+          backgroundColor: 'var(--color-accent)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          color: 'var(--color-text-inverse)',
+          fontWeight: 'bold',
+          fontSize: '14px'
+        }}>
+          AC
         </div>
+        <span style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text-primary)' }}>
+          AndClaw
+        </span>
+      </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-4 space-y-8 pb-8 scrollbar-hide">
-          {sections.map((section) => (
-            <div key={section.label}>
-              <p className="px-4 mb-4 text-[10px] font-black text-white/20 tracking-[0.2em] uppercase">
-                {section.label}
-              </p>
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const active = location.pathname === item.to;
-                  return (
-                    <RouterNavLink
-                      key={item.to}
-                      to={item.to}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold transition-premium group relative ${
-                        active
-                          ? 'bg-primary/10 text-primary shadow-[0_0_20px_-5px_rgba(168,85,247,0.2)]'
-                          : 'text-white/50 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      {active && (
-                        <div className="absolute left-0 w-1 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
-                      )}
-                      <item.icon className={`w-4 h-4 transition-premium ${active ? 'text-primary' : 'group-hover:text-white group-hover:scale-110'}`} />
-                      <span className="flex-1 tracking-tight">{item.label}</span>
-                      {item.to === '/inbox' && unreadCount > 0 && (
-                        <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-[10px] font-black shadow-lg shadow-primary/30">
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                      )}
-                    </RouterNavLink>
-                  );
-                })}
-              </div>
+      {/* Nav */}
+      <nav style={{ flex: 1, overflowY: 'auto', padding: '0 var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+        {sections.map((section) => (
+          <div key={section.label}>
+            <p style={sectionLabelStyle}>{section.label}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {section.items.map((item) => {
+                const active = location.pathname === item.to;
+                return (
+                  <RouterNavLink
+                    key={item.to}
+                    to={item.to}
+                    style={{
+                      ...navItemStyle,
+                      backgroundColor: active ? 'var(--color-accent-subtle)' : 'transparent',
+                      color: active ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.color = 'var(--color-text-primary)';
+                        e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.color = 'var(--color-text-secondary)';
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <item.icon size={16} strokeWidth={active ? 2.5 : 2} />
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {item.to === '/inbox' && unreadCount > 0 && (
+                      <span style={{ 
+                        fontSize: '10px', 
+                        padding: '0 6px', 
+                        height: '18px', 
+                        borderRadius: '10px', 
+                        backgroundColor: active ? 'var(--color-accent)' : 'var(--color-border-strong)',
+                        color: active ? 'var(--color-text-inverse)' : 'var(--color-text-primary)',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </RouterNavLink>
+                );
+              })}
             </div>
-          ))}
-        </nav>
+          </div>
+        ))}
+      </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-white/5 bg-black/20">
-          <RouterNavLink
-            to="/settings"
-            className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold transition-premium ${
-              location.pathname === '/settings'
-                ? 'bg-white/10 text-white'
-                : 'text-white/40 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Settings className="w-4 h-4" />
-            <span>Configurações</span>
-          </RouterNavLink>
-          
-          <button 
-            onClick={logout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold text-rose-400/60 hover:text-rose-400 hover:bg-rose-400/5 transition-premium mt-1"
-          >
-            <Radio className="w-3 h-3 animate-pulse" />
-            <span>Encerrar Sessão</span>
-          </button>
-        </div>
+      {/* Footer */}
+      <div style={{ padding: 'var(--space-4)', borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        <RouterNavLink
+          to="/settings"
+          style={{
+            ...navItemStyle,
+            backgroundColor: location.pathname === '/settings' ? 'var(--color-accent-subtle)' : 'transparent',
+            color: location.pathname === '/settings' ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+          }}
+          onMouseEnter={(e) => {
+            if (location.pathname !== '/settings') {
+              e.currentTarget.style.color = 'var(--color-text-primary)';
+              e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (location.pathname !== '/settings') {
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
+        >
+          <Settings size={16} />
+          <span>Configurações</span>
+        </RouterNavLink>
+        
+        <button 
+          onClick={logout}
+          style={{
+            ...navItemStyle,
+            color: 'var(--color-error)',
+            backgroundColor: 'transparent',
+            border: 'none',
+            textAlign: 'left',
+            width: '100%',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          <Radio size={16} />
+          <span>Encerrar Sessão</span>
+        </button>
       </div>
     </aside>
   );

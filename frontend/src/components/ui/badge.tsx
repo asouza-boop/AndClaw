@@ -1,35 +1,45 @@
-import * as React from "react";
-import { cva, type VariantProps } from "class-variance-authority";
+import React from 'react';
 
-import { cn } from "@/lib/utils";
-
-const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-  {
-    variants: {
-      variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
-        glass: "bg-surface/40 backdrop-blur-md border-[0.5px] border-white/10 text-white shadow-sm",
-        success: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 backdrop-blur-md",
-        error: "bg-red-500/10 border-red-500/20 text-red-500 backdrop-blur-md",
-        fallback: "bg-amber-500/10 border-amber-500/20 text-amber-500 backdrop-blur-md",
-        cached: "bg-accent/10 border-accent/20 text-accent backdrop-blur-md",
-        optimizing: "bg-primary/10 border-primary/20 text-primary backdrop-blur-md",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  },
-);
-
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info';
 }
 
-export { Badge, badgeVariants };
+export function Badge({ variant = 'default', children, className = '', style, ...props }: BadgeProps) {
+  
+  const colorMap = {
+    default: 'var(--color-text-secondary)',
+    success: 'var(--color-success)',
+    warning: 'var(--color-warning)',
+    error: 'var(--color-error)',
+    info: 'var(--color-info)',
+  };
+
+  const bgMap = {
+    default: 'rgba(107, 107, 107, 0.12)', // approximating secondary at 12%
+    success: 'rgba(22, 163, 74, 0.12)',
+    warning: 'rgba(217, 119, 6, 0.12)',
+    error: 'rgba(220, 38, 38, 0.12)',
+    info: 'rgba(37, 99, 235, 0.12)',
+  };
+
+  const badgeStyle: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '24px',
+    padding: '0 var(--space-2)',
+    fontSize: 'var(--text-xs)',
+    fontWeight: 'var(--font-medium)',
+    fontFamily: 'var(--font-sans)',
+    borderRadius: 'var(--radius-sm)',
+    color: colorMap[variant],
+    backgroundColor: bgMap[variant],
+    ...style,
+  };
+
+  return (
+    <span style={badgeStyle} className={className} {...props}>
+      {children}
+    </span>
+  );
+}

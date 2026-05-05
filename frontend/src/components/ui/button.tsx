@@ -1,49 +1,105 @@
-import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
+import React from 'react';
+import { Spinner } from './Spinner';
 
-import { cn } from "@/lib/utils";
-
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        glass: "bg-white/5 backdrop-blur-xl border border-white/10 text-foreground hover:bg-white/10 hover:border-white/20 shadow-sm transition-premium",
-        subtle: "bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground transition-colors",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
-);
-
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
-  },
-);
-Button.displayName = "Button";
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = 'primary', size = 'md', loading = false, children, className = '', disabled, style, ...props }, ref) => {
+    const baseStyle: React.CSSProperties = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'var(--font-sans)',
+      fontWeight: 'var(--font-medium)',
+      borderRadius: 'var(--radius-md)',
+      transition: 'all var(--transition-base)',
+      cursor: disabled || loading ? 'not-allowed' : 'pointer',
+      opacity: disabled && !loading ? 0.4 : 1,
+      outline: 'none',
+      border: '1px solid transparent',
+      position: 'relative',
+    };
 
-export { Button, buttonVariants };
+    const variantStyles: Record<string, React.CSSProperties> = {
+      primary: {
+        backgroundColor: 'var(--color-accent)',
+        color: 'var(--color-text-inverse)',
+      },
+      secondary: {
+        backgroundColor: 'transparent',
+        color: 'var(--color-text-primary)',
+        borderColor: 'var(--color-border)',
+      },
+      ghost: {
+        backgroundColor: 'transparent',
+        color: 'var(--color-text-primary)',
+        borderColor: 'transparent',
+      },
+      danger: {
+        backgroundColor: 'var(--color-error)',
+        color: 'var(--color-text-inverse)',
+      },
+    };
+
+    const hoverStyles: Record<string, React.CSSProperties> = {
+      primary: { backgroundColor: 'var(--color-accent-hover)' },
+      secondary: { backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-strong)' },
+      ghost: { backgroundColor: 'var(--color-bg-secondary)' },
+      danger: { opacity: 0.9 }, // simple fallback for danger hover
+    };
+
+    const sizeStyles: Record<string, React.CSSProperties> = {
+      sm: {
+        height: '32px',
+        padding: '0 var(--space-3)',
+        fontSize: 'var(--text-sm)',
+      },
+      md: {
+        height: '40px',
+        padding: '0 var(--space-4)',
+        fontSize: 'var(--text-base)',
+      },
+      lg: {
+        height: '48px',
+        padding: '0 var(--space-6)',
+        fontSize: 'var(--text-lg)',
+      },
+    };
+
+    const [isHovered, setIsHovered] = React.useState(false);
+
+    const mergedStyle: React.CSSProperties = {
+      ...baseStyle,
+      ...variantStyles[variant],
+      ...sizeStyles[size],
+      ...(isHovered && !disabled && !loading ? hoverStyles[variant] : {}),
+      ...style,
+    };
+
+    return (
+      <button
+        ref={ref}
+        disabled={disabled || loading}
+        style={mergedStyle}
+        className={className}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        {...props}
+      >
+        {loading && (
+          <span style={{ position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Spinner size={size === 'lg' ? 'md' : 'sm'} />
+          </span>
+        )}
+        <span style={{ opacity: loading ? 0 : 1, display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {children}
+        </span>
+      </button>
+    );
+  }
+);
+Button.displayName = 'Button';

@@ -3,9 +3,15 @@
   "short_name": "AndClaw",
   "description": "Personal AI agent command center",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#8b5cf6",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "shortcuts": [],
+  "screenshots": [],
   "icons": [
     {
       "src": "/icon-192.png",
