@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { MemoryCard, MemoryItem, CATEGORY_META } from '@/components/memory/MemoryCard';
 import { MemoryInspector } from '@/components/memory/MemoryInspector';
+import { useDigestEvents } from '@/hooks/useDigestEvents';
 
 function parseMemory(memory: any) {
   const content = memory.content?.trim() || '';
@@ -29,6 +30,11 @@ function parseMemory(memory: any) {
 
 export default function KnowledgePage() {
   const qc = useQueryClient();
+  
+  useDigestEvents(() => {
+    toast('Memória atualizada', 'success');
+  });
+
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [entryDialog, setEntryDialog] = useState(false);

@@ -1,6 +1,7 @@
 import { ILLMProvider } from '@/providers/ILLMProvider';
 import { logger } from '@/infra/logger';
 import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
+import { agentEvents, MEMORY_DIGESTED } from '../events/AgentEvents';
 
 export type DigestServiceDeps = {
   isMemorable?: typeof MemoryDigestionService.isMemorable;
@@ -34,6 +35,7 @@ export class DigestService {
           userId: context.userId,
         }).then(() => {
           telemetry.info('memory.digestion.completed', { requestId: context.requestId, factLength: fact.length });
+          agentEvents.emit(MEMORY_DIGESTED, { timestamp: new Date().toISOString() });
         });
       }
     }).catch((err: Error) => {

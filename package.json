@@ -13,7 +13,7 @@
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
     "frontend:test": "npm --prefix frontend run test",
-    "test": "tsx test_spec.ts && tsx test_orchestrator.ts && tsx test_eval.ts && tsx test_learning.ts && tsx test_optimized_planner.ts && node -e \"process.env.OAUTH_ENCRYPTION_KEY=require('crypto').randomBytes(32).toString('hex');require('child_process').execSync('npx tsx src/lib/crypto.test.ts',{stdio:'inherit',env:process.env})\" && tsx src/skills/SkillLoader.test.ts && tsx src/server/routes/skills.routes.test.ts",
+    "test": "tsx test_spec.ts && tsx test_orchestrator.ts && tsx test_eval.ts && tsx test_learning.ts && tsx test_optimized_planner.ts && node -e \"process.env.OAUTH_ENCRYPTION_KEY=require('crypto').randomBytes(32).toString('hex');require('child_process').execSync('npx tsx src/lib/crypto.test.ts',{stdio:'inherit',env:process.env})\" && tsx src/skills/SkillLoader.test.ts && tsx src/server/routes/skills.routes.test.ts && tsx src/core/agent/DigestService.test.ts && tsx src/server/routes/events.routes.test.ts",
     "frontend:sync-public": "node scripts/sync-frontend-dist.js"
   },
   "repository": {

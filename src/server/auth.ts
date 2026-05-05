@@ -54,7 +54,13 @@ export function verifyLoginPassword(password: string): boolean {
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  let token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  
+  // Support token in query for SSE (EventSource doesn't support headers)
+  if (!token && req.query.token) {
+    token = String(req.query.token);
+  }
+
   const verified = token ? verifyToken(token) : null;
   if (!verified) {
     return res.status(401).json({ error: 'unauthorized' });
