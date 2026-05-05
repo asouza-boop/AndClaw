@@ -29,6 +29,7 @@ export type ToolExecutorDeps = {
   cacheService: CacheService;
   plannerService: PlannerService;
   digestService: DigestService;
+  evaluationService: EvaluationService;
   getProvider: () => ILLMProvider;
   buildInitialMessages: (parsed: ReturnType<typeof AgentRunInputSchema.parse>) => Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
   buildCacheInput: (systemPrompt: string, history: Array<{ role: string; content: string }>, userInput: string, profile: Array<{ key: string; value: string }>, userId: string, options: any) => string;
@@ -182,32 +183,54 @@ export class ToolExecutor {
             if (!tool) {
               observation = `Erro: Ferramenta '${call.name}' não existe no ToolRegistry local.`;
             } else {
-              try {
-                const normalizedCall = ToolInputSchema.safeParse({
-                  name: call.name,
-                  arguments: call.arguments,
-                });
-                if (!normalizedCall.success) {
-                  throw new Error(normalizedCall.error.message);
+              let attempts = 0;
+              const maxAttempts = 3;
+              while (attempts < maxAttempts) {
+                try {
+                  const normalizedCall = ToolInputSchema.safeParse({
+                    name: call.name,
+                    arguments: call.arguments,
+                  });
+                  if (!normalizedCall.success) {
+                    throw new Error(normalizedCall.error.message);
+                  }
+
+                  const normalizedArgs = this.deps.normalizeToolArguments(normalizedCall.data.arguments);
+                  const toolArgs = tool.inputSchema
+                    ? tool.inputSchema.parse(normalizedArgs)
+                    : z.object({}).passthrough().parse(normalizedArgs);
+
+                  const orchestrator = new ExecutionOrchestrator(this.deps.registry);
+                  const executionResults = await orchestrator.executeSteps([{
+                    name: call.name,
+                    arguments: toolArgs
+                  }]);
+                  
+                  observation = executionResults[0]?.observation || 'No output';
+                  ToolExecutionResultSchema.parse(observation);
+                  metrics.increment('tool.execution.count');
+                  break;
+                } catch (e: any) {
+                  if (this.isTransientError(e) && attempts < maxAttempts - 1) {
+                    const delay = 500 * Math.pow(2, attempts);
+                    logger.warn('agent.tool.retry', { tool: call.name, error: e.message, attempt: attempts + 1, delay, requestId });
+                    await new Promise(r => setTimeout(r, delay));
+                    attempts++;
+                  } else {
+                    observation = `Falha ao executar ${call.name}: ${e.message}`;
+                    logger.warn('agent.tool.error', { tool: call.name, error: e.message, requestId });
+                    metrics.increment('tool.execution.error');
+                    break;
+                  }
                 }
+              }
 
-                const normalizedArgs = this.deps.normalizeToolArguments(normalizedCall.data.arguments);
-                const toolArgs = tool.inputSchema
-                  ? tool.inputSchema.parse(normalizedArgs)
-                  : z.object({}).passthrough().parse(normalizedArgs);
-
-                const orchestrator = new ExecutionOrchestrator(this.deps.registry);
-                const executionResults = await orchestrator.executeSteps([{
-                  name: call.name,
-                  arguments: toolArgs
-                }]);
-                observation = executionResults[0]?.observation || 'No output';
-                ToolExecutionResultSchema.parse(observation);
-                metrics.increment('tool.execution.count');
-              } catch (e: any) {
-                observation = `Falha ao executar ${call.name}: ${e.message}`;
-                logger.warn('agent.tool.error', { tool: call.name, error: e.message, requestId });
-                metrics.increment('tool.execution.error');
+              if (!observation.startsWith('Falha ao executar')) {
+                const check = this.deps.evaluationService.evaluateStep(call.name, observation);
+                if (!check.passed) {
+                  observation = `[Bloqueio de Governança] ${check.reason}`;
+                  logger.warn('agent.governance.block', { tool: call.name, reason: check.reason, requestId });
+                }
               }
             }
 
@@ -317,5 +340,30 @@ export class ToolExecutor {
     });
 
     return { ok: true, output: summary, messages };
+  }
+
+  private isTransientError(error: unknown): boolean {
+    if (!error) return false;
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    
+    // Network/Transient Errors
+    const transientCodes = ['econoreset', 'etimedout', 'enotfound', 'fetch failed'];
+    if (transientCodes.some(code => message.includes(code))) return true;
+    
+    // Transient HTTP Status
+    if (message.includes('429') || message.includes('503') || message.includes('504')) return true;
+    
+    // Transient Keywords
+    const transientKeywords = ['timeout', 'rate limit', 'temporarily'];
+    if (transientKeywords.some(kw => message.includes(kw))) return true;
+    
+    // Explicit Non-transient
+    const fatalCodes = ['400', '401', '403', '404'];
+    if (fatalCodes.some(code => message.includes(code))) return false;
+    
+    const fatalKeywords = ['not found', 'unauthorized', 'forbidden'];
+    if (fatalKeywords.some(kw => message.includes(kw))) return false;
+    
+    return false;
   }
 }

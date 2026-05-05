@@ -66,4 +66,24 @@ export class EvaluationService {
 
     collectFeedback();
   }
+
+  public evaluateStep(toolName: string, result: unknown): { passed: boolean; reason?: string } {
+    const stringifiedResult = typeof result === 'string' ? result : JSON.stringify(result);
+    const lowercaseResult = stringifiedResult.toLowerCase();
+    
+    const blockedKeywords = ['error', 'unauthorized', 'blocked', 'forbidden'];
+    for (const keyword of blockedKeywords) {
+      if (lowercaseResult.includes(keyword)) {
+        return { passed: false, reason: `Detecção de termo restrito no resultado: ${keyword}` };
+      }
+    }
+    
+    // Blocked tools list - currently empty as per spec
+    const blockedTools: string[] = [];
+    if (blockedTools.includes(toolName)) {
+      return { passed: false, reason: `Ferramenta bloqueada pela governança: ${toolName}` };
+    }
+    
+    return { passed: true };
+  }
 }

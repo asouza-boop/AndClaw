@@ -115,6 +115,7 @@ export class AgentLoop {
           cacheService: this.cacheService,
           plannerService: this.plannerService,
           digestService: this.digestService,
+          evaluationService: this.evaluationService,
           getProvider: () => this.providerOverride || ProviderFactory.getChain(),
           buildInitialMessages: this.buildInitialMessages.bind(this),
           buildCacheInput: this.buildCacheInput.bind(this),
