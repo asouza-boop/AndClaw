@@ -20,43 +20,56 @@ import KnowledgePage from "./pages/KnowledgePage";
 import ArchivePage from "./pages/ArchivePage";
 import EvolutionDashboard from "./pages/EvolutionDashboard";
 import LearningDashboard from "./pages/LearningDashboard";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ColdStartBanner } from "./components/ColdStartBanner";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 15000),
+      staleTime: 30000,
+    },
+  },
+});
 
 const App = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastContainer />
-      {!isAuthenticated ? (
-        <LoginModal />
-      ) : (
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<AppShell />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="inbox" element={<InboxPage />} />
-              <Route path="chat" element={<ChatPage />} />
-              <Route path="agents" element={<AgentsPage />} />
-              <Route path="skills" element={<SkillsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="settings/providers" element={<SettingsProviders />} />
-              <Route path="agenda" element={<AgendaPage />} />
-              <Route path="projetos" element={<ProjectsPage />} />
-              <Route path="reunioes" element={<MeetingsPage />} />
-              <Route path="favoritos" element={<FavoritesPage />} />
-              <Route path="conhecimento" element={<KnowledgePage />} />
-              <Route path="arquivo" element={<ArchivePage />} />
-              <Route path="evolucao" element={<EvolutionDashboard />} />
-              <Route path="aprendizado" element={<LearningDashboard />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      )}
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ColdStartBanner />
+        <ToastContainer />
+        {!isAuthenticated ? (
+          <LoginModal />
+        ) : (
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<AppShell />}>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="inbox" element={<InboxPage />} />
+                <Route path="chat" element={<ChatPage />} />
+                <Route path="agents" element={<AgentsPage />} />
+                <Route path="skills" element={<SkillsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="settings/providers" element={<SettingsProviders />} />
+                <Route path="agenda" element={<AgendaPage />} />
+                <Route path="projetos" element={<ProjectsPage />} />
+                <Route path="reunioes" element={<MeetingsPage />} />
+                <Route path="favoritos" element={<FavoritesPage />} />
+                <Route path="conhecimento" element={<KnowledgePage />} />
+                <Route path="arquivo" element={<ArchivePage />} />
+                <Route path="evolucao" element={<EvolutionDashboard />} />
+                <Route path="aprendizado" element={<LearningDashboard />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        )}
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
