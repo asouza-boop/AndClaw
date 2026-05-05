@@ -15,24 +15,31 @@ router.get('/admin/metrics', async (_req: Request, res: Response) => {
   res.json({ ok: true, metrics: metrics.getMetrics(), history: metrics.getHistory() });
 });
 
-router.get('/api/experiments', async (_req: Request, res: Response) => {
+router.get('/experiments', async (_req: Request, res: Response) => {
   res.json({ ok: true, ...AgentEvaluator.getExperimentStats() });
 });
 
-router.get('/api/learning/dashboard', async (_req: Request, res: Response) => {
+router.get('/learning/dashboard', async (_req: Request, res: Response) => {
   try {
     const data = await MetricsService.getDashboardSnapshot();
-    res.json({ ok: true, data });
+    res.json({ 
+      ok: true, 
+      topSkills: data.skills.top.map(s => ({ ...s, avgLatencyMs: s.usageCount > 0 ? Math.round(s.totalLatencyMs / s.usageCount) : 0 })),
+      worstSkills: data.skills.worst.map(s => ({ ...s, avgLatencyMs: s.usageCount > 0 ? Math.round(s.totalLatencyMs / s.usageCount) : 0 })),
+      cacheEfficiency: data.cache.efficiency,
+      fallbackRate: data.planner.fallbackRate,
+      avgLatency: data.memory.avgSearchLatency
+    });
   } catch (error: any) {
     res.status(500).json({ ok: false, error: error.message });
   }
 });
 
-router.get('/api/learning/params', (_req: Request, res: Response) => {
+router.get('/learning/params', (_req: Request, res: Response) => {
   res.json({ ok: true, params: ParameterStore.getAll() });
 });
 
-router.post('/api/learning/params/reset', (_req: Request, res: Response) => {
+router.post('/learning/params/reset', (_req: Request, res: Response) => {
   ParameterStore.resetAll();
   res.json({ ok: true, message: 'Parâmetros resetados para padrões de fábrica.' });
 });
