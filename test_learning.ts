@@ -123,6 +123,13 @@ async function testNoRegression() {
         initialize: async () => {}
     } as any);
 
+    const originalFetch = global.fetch;
+    process.env.EMBEDDING_API_KEY = 'mock';
+    global.fetch = async () => ({
+        ok: true,
+        json: async () => ({ data: [{ embedding: new Array(1536).fill(0.1) }] })
+    }) as any;
+
     const loop = new AgentLoop("mock", registry);
     
     try {
@@ -141,6 +148,7 @@ async function testNoRegression() {
     }
 
     ProviderFactory.getChain = originalProvider;
+    global.fetch = originalFetch;
 }
 
 testNoRegression().then(() => {

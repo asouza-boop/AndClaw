@@ -1,6 +1,6 @@
 import { config } from '@/config/env';
 import { query } from '@/db/postgres';
-import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { toVectorLiteral } from '@/infra/db/vector';
 import { logger } from '@/infra/logger';
 import { metrics } from '@/infra/metrics/MetricsService';
@@ -132,5 +132,32 @@ export class MemoryService {
   public async searchByText(text: string, limit = 5): Promise<SemanticMemoryRecord[]> {
     const embedding = await this.embeddings.generateEmbedding(text);
     return this.search(embedding, limit);
+  }
+
+  public async semanticSearch(queryStr: string, limit = 10): Promise<SemanticMemoryRecord[]> {
+    if (!config.db.url) return [];
+    
+    const embedding = await this.embeddings.generateEmbedding(queryStr);
+    
+    const start = Date.now();
+    metrics.increment('memory.semantic_search.count');
+    
+    const rows = await query<SemanticMemoryRecord>(
+      `SELECT *, 1 - (embedding <=> $1::vector) AS similarity
+       FROM memory_items
+       WHERE embedding IS NOT NULL
+       ORDER BY embedding <=> $1::vector ASC
+       LIMIT $2`,
+      [toVectorLiteral(embedding), limit]
+    );
+
+    logger.info('memory.semantic_search', {
+      requested: limit,
+      returned: rows.length,
+      latencyMs: Date.now() - start,
+    });
+    metrics.observe('memory.semantic_search.latency', Date.now() - start);
+
+    return rows;
   }
 }

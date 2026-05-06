@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { ConversationRepository } from '@/memory/repositories/ConversationRepository';
 import { MessageRepository, Message } from '@/memory/repositories/MessageRepository';
-import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { MemoryService, SemanticMemoryRecord } from '@/core/memory/MemoryService';
 
 export class MemoryManager {
@@ -103,8 +103,9 @@ export class MemoryManager {
   public async addSemanticMemory(
     content: string,
     metadata: Record<string, any> = {},
+    preGeneratedEmbedding?: number[]
   ): Promise<SemanticMemoryRecord | null> {
-    const embedding = await this.embeddingService.generateEmbedding(content);
+    const embedding = preGeneratedEmbedding || await this.embeddingService.generateEmbedding(content);
     return this.memoryService.save(content, embedding, metadata);
   }
 }

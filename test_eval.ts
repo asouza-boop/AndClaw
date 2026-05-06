@@ -15,12 +15,20 @@ async function testMetrics() {
         initialize: async () => {}
     } as any);
 
+    const originalFetch = global.fetch;
+    process.env.EMBEDDING_API_KEY = 'mock';
+    global.fetch = async () => ({
+        ok: true,
+        json: async () => ({ data: [{ embedding: new Array(1536).fill(0.1) }] })
+    }) as any;
+
     const loop = new AgentLoop("mock", registry);
     console.log("--- Executing Test Loop (Success) ---");
     await loop.run("system", [], "test safe");
 
     // Restore provider
     ProviderFactory.getChain = originalProvider;
+    global.fetch = originalFetch;
 }
 
 testMetrics().catch(console.error);

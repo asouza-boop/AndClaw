@@ -10,7 +10,7 @@ import { AgentRunInputSchema } from '@/contracts/agent';
 import type { DetectedIntent } from '@/core/planner/IntentDetector';
 import type { Skill } from '@/skills/SkillLoader';
 import { ContextBuilder } from '@/core/ContextBuilder';
-import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { MemoryManager } from '@/memory/MemoryManager';
 import { PlannerService } from '@/core/agent/PlannerService';
 import { CacheService } from '@/core/agent/CacheService';
