@@ -216,7 +216,7 @@ export default function ChatPage() {
             {isEmpty && (
               <EmptyState
                 className="mx-auto max-w-xl py-16"
-                icon={Bot}
+                icon={<Bot size={48} />}
                 title="Inicie uma conversa"
                 description="Envie uma pergunta, pedido de ação ou contexto."
               />

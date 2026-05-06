@@ -84,7 +84,6 @@ export default function Dashboard() {
       <PageHeader 
         title="AndClaw" 
         subtitle={new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} 
-        titleClassName="font-mono text-sm"
       />
 
       <div className="px-0 sm:px-4">

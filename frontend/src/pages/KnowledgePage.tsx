@@ -144,15 +144,14 @@ export default function KnowledgePage() {
   return (
     <AppLayout sidebar={<AppSidebar />}>
       <PageHeader 
-        title={
-          <div className="flex items-center gap-3">
-            <span>Conhecimento</span>
-            <div className="w-2 h-2 rounded-full bg-success" title="SSE Connected" />
-          </div>
-        } 
+        title="Conhecimento"
         subtitle="Repositório cognitivo consolidado"
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-text-tertiary">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" title="SSE Connected" />
+              <span className="hidden sm:inline">Live</span>
+            </div>
             <Button variant="ghost" size="sm" onClick={() => setLinkDialog(true)}>
               <Link2 size={14} className="mr-2" /> Vínculo
             </Button>
