@@ -238,11 +238,23 @@ export default function ChatPage() {
 
                 <div className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div
-                    className={`max-w-[min(46rem,85%)] px-4 py-3 shadow-sm transition-colors duration-300 ${
-                      m.role === 'user'
-                        ? 'bg-accent text-text-inverse rounded-t-[var(--radius-lg)] rounded-bl-[var(--radius-lg)] rounded-br-[var(--radius-sm)]'
-                        : 'bg-bg-tertiary text-text-primary rounded-t-[var(--radius-lg)] rounded-br-[var(--radius-lg)] rounded-bl-[var(--radius-sm)] border border-border'
-                    }`}
+                    style={{
+                      maxWidth: '72%',
+                      padding: '10px 16px',
+                      borderRadius: m.role === 'user'
+                        ? '16px 16px 4px 16px'
+                        : '16px 16px 16px 4px',
+                      backgroundColor: m.role === 'user'
+                        ? 'var(--color-accent)'
+                        : 'var(--color-bg-tertiary)',
+                      color: m.role === 'user'
+                        ? 'var(--color-text-inverse)'
+                        : 'var(--color-text-primary)',
+                      border: m.role === 'user'
+                        ? 'none'
+                        : '1px solid var(--color-border)',
+                      transition: 'background-color var(--transition-base)',
+                    }}
                   >
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
@@ -293,7 +305,7 @@ export default function ChatPage() {
                     </Button>
                   )}
                 </div>
-                <span className="text-xs text-text-tertiary mt-1 px-1">
+                <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', marginTop: '4px', paddingLeft: '4px', fontFamily: 'var(--font-mono)' }}>
                   {formatTime(m.timestamp)}
                 </span>
               </div>

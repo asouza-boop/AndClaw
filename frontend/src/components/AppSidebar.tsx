@@ -60,8 +60,8 @@ export function AppSidebar() {
     display: 'flex',
     alignItems: 'center',
     gap: 'var(--space-3)',
-    height: '36px',
-    padding: '0 var(--space-4)',
+    height: '34px',
+    padding: '0 12px',
     borderRadius: 'var(--radius-md)',
     fontSize: 'var(--text-sm)',
     fontWeight: 'var(--font-medium)',
@@ -70,7 +70,7 @@ export function AppSidebar() {
   };
 
   const sectionLabelStyle: React.CSSProperties = {
-    padding: '0 var(--space-4)',
+    padding: '0 12px',
     marginBottom: 'var(--space-2)',
     fontSize: 'var(--text-xs)',
     fontWeight: 'var(--font-medium)',
@@ -83,17 +83,18 @@ export function AppSidebar() {
     <aside style={sidebarStyle}>
       {/* Logo */}
       <div style={{ padding: 'var(--space-8) var(--space-6)', display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-        <div style={{ 
-          width: '32px', 
-          height: '32px', 
-          borderRadius: 'var(--radius-md)', 
-          backgroundColor: 'var(--color-accent)', 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: 'var(--radius-md)',
+          backgroundColor: 'var(--color-accent)',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--color-text-inverse)',
+          color: '#ffffff',
           fontWeight: 'bold',
-          fontSize: '14px'
+          fontSize: '14px',
+          flexShrink: 0,
         }}>
           AC
         </div>
@@ -135,15 +136,15 @@ export function AppSidebar() {
                     <item.icon size={16} strokeWidth={active ? 2.5 : 2} />
                     <span style={{ flex: 1 }}>{item.label}</span>
                     {item.to === '/inbox' && unreadCount > 0 && (
-                      <span style={{ 
-                        fontSize: '10px', 
-                        padding: '0 6px', 
-                        height: '18px', 
-                        borderRadius: '10px', 
+                      <span style={{
+                        fontSize: '10px',
+                        padding: '0 6px',
+                        height: '18px',
+                        borderRadius: '10px',
                         backgroundColor: active ? 'var(--color-accent)' : 'var(--color-border-strong)',
-                        color: active ? 'var(--color-text-inverse)' : 'var(--color-text-primary)',
+                        color: active ? '#ffffff' : 'var(--color-text-primary)',
                         display: 'flex',
-                        alignItems: 'center'
+                        alignItems: 'center',
                       }}>
                         {unreadCount}
                       </span>
@@ -181,8 +182,8 @@ export function AppSidebar() {
           <Settings size={16} />
           <span>Configurações</span>
         </RouterNavLink>
-        
-        <button 
+
+        <button
           onClick={logout}
           style={{
             ...navItemStyle,
@@ -193,7 +194,7 @@ export function AppSidebar() {
             width: '100%',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.08)';
+            e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.07)';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';

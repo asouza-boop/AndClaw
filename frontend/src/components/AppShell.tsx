@@ -46,7 +46,7 @@ export function AppShell() {
         <div className="flex-1 flex flex-col glass-panel-v2 border-white/5 overflow-hidden shadow-2xl relative">
           <Topbar title={title} />
           <main className="flex-1 overflow-y-auto scrollbar-hide">
-            <div className="max-w-[1600px] mx-auto w-full min-h-full">
+            <div className="page-content max-w-[1600px] mx-auto w-full min-h-full">
               <Outlet />
             </div>
           </main>

@@ -9,6 +9,7 @@
     color: var(--color-text-primary);
     background: var(--color-bg-primary);
     font-size: var(--text-base);
+    line-height: var(--leading-normal);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -49,5 +50,29 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Section label utility — small uppercase labels inside pages */
+  .section-label {
+    font-size: var(--text-sm);
+    font-weight: var(--font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-tertiary);
+    margin-bottom: 12px;
+  }
+}
+
+/* Page content responsive padding — applied by AppLayout, outside Tailwind layers for specificity */
+.page-content {
+  padding-left: var(--space-page-x-mobile);
+  padding-right: var(--space-page-x-mobile);
+  padding-top: var(--space-page-top);
+}
+
+@media (min-width: 768px) {
+  .page-content {
+    padding-left: var(--space-page-x);
+    padding-right: var(--space-page-x);
   }
 }
