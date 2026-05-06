@@ -2,23 +2,31 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState } from 'react';
-import { Archive, CheckCircle2, Search, RotateCcw, Inbox } from 'lucide-react';
+import { Archive, CheckCircle2, Search, RotateCcw, Inbox, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 const typeLabels: Record<string, string> = { note: 'Nota', task: 'Tarefa', idea: 'Ideia', link: 'Link' };
-const typeColors: Record<string, string> = {
-  note: 'bg-warn/10 text-warn border-warn/20',
-  task: 'bg-accent/10 text-accent border-accent/20',
-  idea: 'bg-primary/10 text-primary border-primary/20',
-  link: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+const typeVariants: Record<string, "primary" | "secondary" | "warning" | "success" | "info"> = {
+  note: 'warning',
+  task: 'secondary',
+  idea: 'primary',
+  link: 'info',
 };
 
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `há ${mins}m`;
+  if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `há ${hrs}h`;
-  return `há ${Math.floor(hrs / 24)}d`;
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
 }
 
 export default function ArchivePage() {
@@ -68,122 +76,144 @@ export default function ArchivePage() {
   const loading = loadingCaptures || loadingTasks;
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold">Arquivo</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Capturas arquivadas e tarefas concluídas.
-        </p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl bg-surface glow-border p-4 flex items-center gap-3">
-          <Archive className="w-5 h-5 text-primary/70" />
-          <div>
-            <p className="text-xl font-semibold">{captures.length}</p>
-            <p className="text-xs text-muted-foreground">Capturas arquivadas</p>
+    <AppLayout sidebar={<AppSidebar />}>
+      <PageHeader 
+        title="Arquivo" 
+        subtitle="Capturas arquivadas e tarefas concluídas"
+        actions={
+          <div style={{ display: 'flex', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <Button
+              variant={tab === 'captures' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setTab('captures')}
+              style={{ borderRadius: 0, border: 'none', fontSize: '11px', textTransform: 'uppercase' }}
+            >
+              Capturas <span style={{ marginLeft: 'var(--space-2)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>({filteredCaptures.length})</span>
+            </Button>
+            <Button
+              variant={tab === 'tasks' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setTab('tasks')}
+              style={{ borderRadius: 0, border: 'none', fontSize: '11px', textTransform: 'uppercase' }}
+            >
+              Tarefas <span style={{ marginLeft: 'var(--space-2)', opacity: 0.5, fontFamily: 'var(--font-mono)' }}>({filteredTasks.length})</span>
+            </Button>
           </div>
-        </div>
-        <div className="rounded-xl bg-surface glow-border p-4 flex items-center gap-3">
-          <CheckCircle2 className="w-5 h-5 text-success/70" />
-          <div>
-            <p className="text-xl font-semibold">{tasks.length}</p>
-            <p className="text-xs text-muted-foreground">Tarefas concluídas</p>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Search + Tabs */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Buscar no arquivo..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-lg bg-surface border border-white/[0.07] text-sm focus:outline-none focus:ring-1 focus:ring-primary/50"
+      <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+        {/* Stats Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-6)' }}>
+          <Card padding="lg" border shadow="sm">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-primary-bg)', color: 'var(--color-primary)' }}>
+                <Archive size={16} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Arquivados</span>
+                <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-black)', fontFamily: 'var(--font-mono)' }}>{captures.length}</span>
+              </div>
+            </div>
+          </Card>
+          <Card padding="lg" border shadow="sm">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)' }}>
+                <CheckCircle2 size={16} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Concluídos</span>
+                <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-black)', fontFamily: 'var(--font-mono)' }}>{tasks.length}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Search */}
+        <div style={{ maxWidth: '400px' }}>
+          <Input 
+            placeholder="Buscar no arquivo..." 
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+            icon={<Search size={16} />}
           />
         </div>
-        <div className="flex rounded-lg overflow-hidden border border-white/[0.07]">
-          <button
-            onClick={() => setTab('captures')}
-            className={`px-4 py-2 text-sm transition-colors ${tab === 'captures' ? 'bg-primary/15 text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'}`}
-          >
-            Capturas ({filteredCaptures.length})
-          </button>
-          <button
-            onClick={() => setTab('tasks')}
-            className={`px-4 py-2 text-sm transition-colors ${tab === 'tasks' ? 'bg-primary/15 text-primary' : 'bg-surface text-muted-foreground hover:text-foreground'}`}
-          >
-            Tarefas ({filteredTasks.length})
-          </button>
-        </div>
-      </div>
 
-      {/* Content */}
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">Carregando...</div>
-      ) : tab === 'captures' ? (
-        <div className="space-y-2">
-          {filteredCaptures.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              {search ? 'Nenhuma captura encontrada.' : 'Nenhuma captura arquivada.'}
-            </div>
-          ) : filteredCaptures.map((item: any) => (
-            <div key={item.id} className="flex items-start gap-3 rounded-xl bg-surface glow-border p-4 group">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm">{item.content}</p>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${typeColors[item.type] || typeColors.note}`}>
-                    {typeLabels[item.type] || 'Nota'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{timeAgo(item.created_at)}</span>
+        {/* Content */}
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-20)', gap: 'var(--space-4)' }}>
+            <Loader2 size={32} className="animate-spin text-primary" />
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Indexando Histórico...</span>
+          </div>
+        ) : tab === 'captures' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {filteredCaptures.length === 0 ? (
+              <EmptyState 
+                icon={<Archive size={48} />}
+                title={search ? "Nenhum resultado" : "Arquivo Vazio"}
+                description={search ? "Tente outros termos de busca." : "Suas capturas arquivadas aparecerão aqui."}
+              />
+            ) : filteredCaptures.map((item: any) => (
+              <Card key={item.id} padding="md" border shadow="none" className="group">
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-4)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 'var(--text-sm)', margin: 0, lineHeight: 1.5 }}>{item.content}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
+                      <Badge variant={typeVariants[item.type] || 'primary'} style={{ fontSize: '9px' }}>
+                        {typeLabels[item.type] || 'Nota'}
+                      </Badge>
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>{timeAgo(item.created_at)}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => restoreCapture.mutate(String(item.id))}
+                    className="opacity-0 group-hover:opacity-100"
+                    style={{ fontSize: '10px' }}
+                  >
+                    <Inbox size={12} className="mr-2" /> Restaurar
+                  </Button>
                 </div>
-              </div>
-              <button
-                onClick={() => restoreCapture.mutate(String(item.id))}
-                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md bg-surface-3 text-xs text-muted-foreground hover:text-foreground transition-all"
-              >
-                <Inbox className="w-3 h-3" />
-                Restaurar
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {filteredTasks.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              {search ? 'Nenhuma tarefa encontrada.' : 'Nenhuma tarefa concluída.'}
-            </div>
-          ) : filteredTasks.map((task: any) => (
-            <div key={task.id} className="flex items-center gap-3 rounded-xl bg-surface glow-border p-4 group">
-              <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm line-through text-muted-foreground">{task.title}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border ${
-                    task.priority === 'high' ? 'bg-destructive/10 text-destructive border-destructive/20' :
-                    task.priority === 'low' ? 'bg-surface-3 text-muted-foreground border-white/10' :
-                    'bg-accent/10 text-accent border-accent/20'
-                  }`}>
-                    {task.priority === 'high' ? 'Alta' : task.priority === 'low' ? 'Baixa' : 'Normal'}
-                  </span>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {filteredTasks.length === 0 ? (
+              <EmptyState 
+                icon={<CheckCircle2 size={48} />}
+                title={search ? "Nenhum resultado" : "Histórico de Tarefas Vazio"}
+                description={search ? "Tente outros termos de busca." : "Suas tarefas concluídas aparecerão aqui."}
+              />
+            ) : filteredTasks.map((task: any) => (
+              <Card key={task.id} padding="md" border shadow="none" className="group">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                  <CheckCircle2 size={14} className="text-success flex-shrink-0" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 'var(--text-sm)', margin: 0, textDecoration: 'line-through', color: 'var(--color-text-tertiary)' }}>{task.title}</p>
+                    <div style={{ marginTop: 'var(--space-1)' }}>
+                      <Badge variant={task.priority === 'high' ? 'danger' : 'ghost'} style={{ fontSize: '9px' }}>
+                        {task.priority === 'high' ? 'Alta' : task.priority === 'low' ? 'Baixa' : 'Normal'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => reopenTask.mutate(String(task.id))}
+                    className="opacity-0 group-hover:opacity-100"
+                    style={{ fontSize: '10px' }}
+                  >
+                    <RotateCcw size={12} className="mr-2" /> Reabrir
+                  </Button>
                 </div>
-              </div>
-              <button
-                onClick={() => reopenTask.mutate(String(task.id))}
-                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md bg-surface-3 text-xs text-muted-foreground hover:text-foreground transition-all"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reabrir
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </AppLayout>
   );
 }
+

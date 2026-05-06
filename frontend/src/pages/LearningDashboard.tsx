@@ -5,11 +5,13 @@ import { IntelligenceInsights } from '@/components/dashboard/IntelligenceInsight
 import { MetricGrid } from '@/components/dashboard/MetricGrid';
 import { useAgentStore } from '@/stores/agentStore';
 import { transformLearningMetrics } from '@/lib/adapters/learningAdapter';
-import { PageContainer, Stack, Section } from '@/components/ui/Layout';
-import { Title, Body, Caption } from '@/components/ui/Typography';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/badge';
-import { BrainCircuit, Activity } from 'lucide-react';
+import { BrainCircuit, Activity, Zap, Loader2 } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/card';
 
 export default function LearningDashboard() {
     const { featureFlags } = useAgentStore();
@@ -29,34 +31,38 @@ export default function LearningDashboard() {
     const avgLatency = metrics?.avgLatency || 0;
 
     const summaryText = !hasData
-        ? 'Agent is still learning. Data will appear as requests are processed.'
+        ? 'Data will appear as requests are processed.'
         : cacheEfficiency > 70
-            ? `High cache efficiency at ${cacheEfficiency.toFixed(0)}% — the agent is operating optimally.`
+            ? `Eficiência de cache em ${cacheEfficiency.toFixed(0)}% — Operação otimizada.`
             : fallbackRate > 30
-                ? `Fallback rate at ${fallbackRate.toFixed(0)}% — some skills may need attention.`
+                ? `Taxa de fallback em ${fallbackRate.toFixed(0)}% — Atenção recomendada.`
                 : avgLatency < 500
-                    ? `Low latency at ${avgLatency.toFixed(0)}ms — response times are excellent.`
-                    : 'The agent is processing and improving with each interaction.';
+                    ? `Latência baixa em ${avgLatency.toFixed(0)}ms — Tempos excelentes.`
+                    : 'Processando e evoluindo com cada interação.';
 
     if (isLoading && !rawMetrics) {
         return (
-            <PageContainer className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-                <Caption>Sincronizando Heurísticas...</Caption>
-            </PageContainer>
+            <AppLayout sidebar={<AppSidebar />}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 'var(--space-4)' }}>
+                    <Loader2 size={32} className="animate-spin text-primary" />
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sincronizando Heurísticas...</span>
+                </div>
+            </AppLayout>
         );
     }
 
     if (!hasData && !isLoading) {
         return (
-            <PageContainer className="flex items-center justify-center h-[60vh]">
-                <EmptyState
-                    icon={BrainCircuit}
-                    title="Agent is still learning"
-                    description="The intelligence engine will start generating insights and metrics as the agent processes real requests."
-                    className="py-16 max-w-lg"
-                />
-            </PageContainer>
+            <AppLayout sidebar={<AppSidebar />}>
+                <PageHeader title="Inteligência" subtitle="Estatísticas de aprendizado do agente" />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+                    <EmptyState
+                        icon={<BrainCircuit size={48} />}
+                        title="O agente ainda está aprendendo"
+                        description="Insights e métricas aparecerão conforme o sistema processa interações reais."
+                    />
+                </div>
+            </AppLayout>
         );
     }
 
@@ -67,72 +73,62 @@ export default function LearningDashboard() {
     const successRate = totalUsage > 0 ? ((totalSuccess / totalUsage) * 100) : 0;
 
     const efficiencyMetrics = [
-        { title: 'Success Rate', value: `${successRate.toFixed(1)}%`, subtitle: 'Overall execution accuracy', trend: successRate > 80 ? 'up' as const : successRate > 50 ? 'neutral' as const : 'down' as const },
-        { title: 'Avg Latency', value: `${(avgLatency).toFixed(0)}ms`, subtitle: 'System-wide response', trend: avgLatency < 500 ? 'up' as const : avgLatency < 2000 ? 'neutral' as const : 'down' as const },
-        { title: 'Cache Efficiency', value: `${cacheEfficiency.toFixed(1)}%`, subtitle: 'Calls saved by cache', trend: cacheEfficiency > 50 ? 'up' as const : cacheEfficiency > 20 ? 'neutral' as const : 'down' as const },
-        { title: 'Fallback Rate', value: `${fallbackRate.toFixed(1)}%`, subtitle: 'Deterministic fallbacks', trend: fallbackRate < 10 ? 'up' as const : fallbackRate < 30 ? 'neutral' as const : 'down' as const },
+        { title: 'Taxa de Sucesso', value: `${successRate.toFixed(1)}%`, subtitle: 'Precisão de execução', trend: successRate > 80 ? 'up' as const : successRate > 50 ? 'neutral' as const : 'down' as const },
+        { title: 'Latência Média', value: `${(avgLatency).toFixed(0)}ms`, subtitle: 'Resposta do sistema', trend: avgLatency < 500 ? 'up' as const : avgLatency < 2000 ? 'neutral' as const : 'down' as const },
+        { title: 'Eficiência Cache', value: `${cacheEfficiency.toFixed(1)}%`, subtitle: 'Chamadas economizadas', trend: cacheEfficiency > 50 ? 'up' as const : cacheEfficiency > 20 ? 'neutral' as const : 'down' as const },
+        { title: 'Taxa de Fallback', value: `${fallbackRate.toFixed(1)}%`, subtitle: 'Recuperação determinística', trend: fallbackRate < 10 ? 'up' as const : fallbackRate < 30 ? 'neutral' as const : 'down' as const },
     ];
 
     const safeInsights = [
         ...mostReliableSkills.map((s, i) => ({ id: `rel-${i}`, type: 'performance', content: `${s.skillId}: ${s.description} (${s.metricValue})`, priority: 'high' as const })),
-        ...failurePatterns.map((s, i) => ({ id: `fail-${i}`, type: 'system', content: `Observing ${s.skillId}: ${s.description} (${s.metricValue})`, priority: 'medium' as const })),
+        ...failurePatterns.map((s, i) => ({ id: `fail-${i}`, type: 'system', content: `Observando ${s.skillId}: ${s.description} (${s.metricValue})`, priority: 'medium' as const })),
         ...mostUsedTools.map((s, i) => ({ id: `tool-${i}`, type: 'cache', content: `Core routing via ${s.skillId} (${s.metricValue})`, priority: 'low' as const })),
         ...improvingSkills.map((s, i) => ({ id: `imp-${i}`, type: 'performance', content: `Optimization engine improved ${s.skillId} to ${s.metricValue}`, priority: 'medium' as const }))
     ];
 
     return (
-        <PageContainer>
-            <Stack className="gap-8">
-                {/* Header */}
-                <Section>
-                    <header className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/10">
-                                <BrainCircuit className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <Title as="h1" className="text-2xl md:text-3xl">Agent Intelligence</Title>
-                                <Body as="p" className="mt-1 max-w-xl">{summaryText}</Body>
-                            </div>
-                        </div>
-                        <div className="hidden sm:flex items-center gap-2">
-                            <Badge variant="glass" className="text-[8px] gap-1">
-                                <Activity className="h-3 w-3 animate-pulse" />
-                                Live
-                            </Badge>
-                        </div>
-                    </header>
-                </Section>
+        <AppLayout sidebar={<AppSidebar />}>
+            <PageHeader 
+                title="Inteligência" 
+                subtitle={summaryText}
+                actions={
+                    <Badge variant="success" style={{ fontSize: '10px', gap: 'var(--space-2)' }}>
+                        <Activity size={12} className="animate-pulse" /> Live
+                    </Badge>
+                }
+            />
 
-                {/* Metrics Grid */}
+            <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+                {/* Metrics Grid Wrapper */}
                 <MetricGrid metrics={efficiencyMetrics} />
 
-                {/* Charts + Insights */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Charts + Insights Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 'var(--space-6)' }} className="lg:grid-cols-3">
                     <div className="lg:col-span-2">
-                        <PerformanceChart
-                            top={metrics?.topSkills || []}
-                            worst={metrics?.worstSkills || []}
-                            worstTitle="Skills Sob Observação"
-                        />
+                        <Card padding="lg" border shadow="sm">
+                            <PerformanceChart
+                                top={metrics?.topSkills || []}
+                                worst={metrics?.worstSkills || []}
+                                worstTitle="Skills Sob Observação"
+                            />
+                        </Card>
                     </div>
 
                     <div>
                         {featureFlags.UI_LEARNING_INSIGHTS ? (
-                            <IntelligenceInsights
-                                insights={safeInsights || []}
-                            />
+                            <IntelligenceInsights insights={safeInsights || []} />
                         ) : (
-                            <div className="glass-card p-6 border-dashed border-white/5 flex flex-col items-center text-center h-full justify-center">
-                                <Caption className="mb-2">Automated Insights Module</Caption>
-                                <Body as="p" className="italic max-w-xs">
-                                    Engine telemetry is running in stealth mode. Toggle the UI_LEARNING_INSIGHTS flag to enable.
-                                </Body>
-                            </div>
+                            <Card padding="lg" border shadow="sm" style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', height: '100%' }}>
+                                <Badge variant="ghost" style={{ marginBottom: 'var(--space-2)' }}>Telemetry Module</Badge>
+                                <p style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic', color: 'var(--color-text-tertiary)', maxWidth: '200px' }}>
+                                    Engine telemetry running in stealth mode. Toggle flag to enable insights.
+                                </p>
+                            </Card>
                         )}
                     </div>
                 </div>
-            </Stack>
-        </PageContainer>
+            </div>
+        </AppLayout>
     );
 }
+

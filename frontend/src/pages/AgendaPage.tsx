@@ -4,8 +4,15 @@ import { toast } from '@/stores/toastStore';
 import { useState, useMemo } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus, Clock, MapPin, Video,
-  CalendarDays, List, Loader2, X, ExternalLink, RefreshCw
+  CalendarDays, List, Loader2, X, RefreshCw
 } from 'lucide-react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 /* ── helpers ─────────────────────────────────────────── */
 
@@ -59,74 +66,76 @@ interface CalendarEvent {
 
 /* ── sub-components ──────────────────────────────────── */
 
-function EventBadge({ event }: { event: CalendarEvent }) {
-  const isGoogle = event.source === 'google' || event.source === 'gcal';
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${
-        isGoogle
-          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
-          : 'bg-primary/10 text-primary border-primary/20'
-      }`}
-    >
-      {isGoogle ? 'Google' : 'Local'}
-    </span>
-  );
-}
-
 function EventCard({ event, compact }: { event: CalendarEvent; compact?: boolean }) {
   const title = event.title || event.summary || 'Sem título';
   const start = event.start || event.startDate;
   const end = event.end || event.endDate;
   const link = event.meetLink || event.meet_link || event.hangoutLink;
+  const isGoogle = event.source === 'google' || event.source === 'gcal';
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[11px] truncate cursor-default hover:bg-primary/20 transition-colors">
-        {start && <span className="shrink-0 font-mono text-[10px]">{formatTime(start)}</span>}
-        <span className="truncate">{title}</span>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 'var(--space-2)',
+        padding: '2px var(--space-2)',
+        borderRadius: 'var(--radius-sm)',
+        backgroundColor: 'var(--color-accent-subtle)',
+        color: 'var(--color-accent)',
+        fontSize: '10px',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
+      }}>
+        {start && <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', opacity: 0.8 }}>{formatTime(start)}</span>}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl bg-surface glow-border p-4 space-y-2 hover:border-primary/30 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <h4 className="text-sm font-semibold leading-tight">{title}</h4>
-        <EventBadge event={event} />
+    <Card padding="sm" border shadow="sm">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-2)' }}>
+        <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', margin: 0 }}>{title}</h4>
+        <Badge variant={isGoogle ? 'info' : 'default'}>
+          {isGoogle ? 'Google' : 'Local'}
+        </Badge>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', marginTop: 'var(--space-2)' }}>
         {start && (
-          <span className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontFamily: 'var(--font-mono)' }}>
+            <Clock size={12} />
             {formatTime(start)}
             {end && ` – ${formatTime(end)}`}
           </span>
         )}
         {event.location && (
-          <span className="flex items-center gap-1">
-            <MapPin className="w-3 h-3" />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+            <MapPin size={12} />
             {event.location}
           </span>
         )}
         {link && (
-          <a
-            href={link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-accent hover:underline"
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => window.open(link, '_blank')}
+            style={{ height: 'auto', padding: 0, fontSize: 'var(--text-xs)', color: 'var(--color-accent)' }}
           >
-            <Video className="w-3 h-3" />
+            <Video size={12} style={{ marginRight: 'var(--space-1)' }} />
             Entrar
-          </a>
+          </Button>
         )}
       </div>
 
       {event.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2">{event.description}</p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--space-2)', margin: 0 }} className="line-clamp-2">
+          {event.description}
+        </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -161,74 +170,83 @@ function NewEventModal({ date, onClose }: { date: Date; onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl bg-surface-2 border border-white/[0.07] p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold">Novo evento</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-3 text-muted-foreground">
-            <X className="w-4 h-4" />
-          </button>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropBlur: '4px' }}>
+      <Card padding="lg" border shadow="md" style={{ width: '100%', maxWidth: '400px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+          <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-semibold)', margin: 0 }}>Novo evento</h3>
+          <Button variant="ghost" size="sm" onClick={onClose}><X size={16} /></Button>
         </div>
 
-        <p className="text-xs text-muted-foreground">{formatDateFull(date)}</p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>{formatDateFull(date)}</p>
 
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Título do evento"
-          className="w-full bg-surface rounded-xl border border-white/[0.07] px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground"
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <Input
+            label="Título"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Título do evento"
+          />
 
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Início</label>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full bg-surface rounded-xl border border-white/[0.07] px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 [color-scheme:dark]"
+          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            <div style={{ flex: 1 }}>
+              <Input
+                label="Início"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input
+                label="Fim"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <Input
+            label="Local"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Local (opcional)"
+          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <label style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-secondary)' }}>Descrição</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descrição (opcional)"
+              rows={2}
+              style={{
+                width: '100%',
+                backgroundColor: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                resize: 'none',
+                outline: 'none',
+                fontFamily: 'var(--font-sans)',
+              }}
             />
           </div>
-          <div className="flex-1">
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Fim</label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full bg-surface rounded-xl border border-white/[0.07] px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 [color-scheme:dark]"
-            />
+
+          <div style={{ display: 'flex', justifyContent: 'end', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button
+              variant="primary"
+              onClick={() => create.mutate()}
+              disabled={!title.trim() || create.isPending}
+            >
+              {create.isPending && <Loader2 size={14} className="animate-spin mr-2" />}
+              Criar evento
+            </Button>
           </div>
         </div>
-
-        <input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Local (opcional)"
-          className="w-full bg-surface rounded-xl border border-white/[0.07] px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground"
-        />
-
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Descrição (opcional)"
-          rows={2}
-          className="w-full bg-surface rounded-xl border border-white/[0.07] px-4 py-2.5 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground resize-none"
-        />
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-muted-foreground hover:bg-surface-3 transition-colors">
-            Cancelar
-          </button>
-          <button
-            onClick={() => create.mutate()}
-            disabled={!title.trim() || create.isPending}
-            className="px-5 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-primary to-accent text-white disabled:opacity-50 hover:opacity-90 transition-opacity flex items-center gap-2"
-          >
-            {create.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Criar evento
-          </button>
-        </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -321,215 +339,218 @@ export default function AgendaPage() {
     setSelectedDate(today);
   };
 
-  /* ── render ──────────────────────────────────────────── */
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Agenda</h1>
-          <p className="text-sm text-muted-foreground">
-            {events.length} evento{events.length !== 1 && 's'} carregado{events.length !== 1 && 's'}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => syncGoogle.mutate()}
-            disabled={syncGoogle.isPending}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncGoogle.isPending ? 'animate-spin' : ''}`} />
-            Sincronizar Google
-          </button>
+    <AppLayout sidebar={<AppSidebar />}>
+      <PageHeader 
+        title="Agenda" 
+        subtitle={`${events.length} evento${events.length !== 1 ? 's' : ''} carregado${events.length !== 1 ? 's' : ''}`}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => syncGoogle.mutate()}
+              disabled={syncGoogle.isPending}
+            >
+              <RefreshCw size={14} className={`mr-2 ${syncGoogle.isPending ? 'animate-spin' : ''}`} />
+              Sincronizar Google
+            </Button>
 
-          <div className="flex rounded-xl border border-white/[0.07] overflow-hidden">
-            <button
-              onClick={() => setView('month')}
-              className={`px-3 py-2 text-xs transition-colors ${view === 'month' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-surface-3'}`}
+            <div style={{ display: 'flex', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <Button
+                variant={view === 'month' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setView('month')}
+                style={{ borderRadius: 0, border: 'none' }}
+              >
+                <CalendarDays size={14} />
+              </Button>
+              <Button
+                variant={view === 'list' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setView('list')}
+                style={{ borderRadius: 0, border: 'none' }}
+              >
+                <List size={14} />
+              </Button>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setNewEventModal(true)}
             >
-              <CalendarDays className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setView('list')}
-              className={`px-3 py-2 text-xs transition-colors ${view === 'list' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-surface-3'}`}
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
+              <Plus size={14} className="mr-2" />
+              Novo evento
+            </Button>
           </div>
+        }
+      />
 
-          <button
-            onClick={() => setNewEventModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium bg-gradient-to-r from-primary to-accent text-white hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Novo evento
-          </button>
-        </div>
+      <div style={{ marginTop: 'var(--space-8)' }}>
+        {isLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'center', padding: 'var(--space-20)' }}>
+            <Loader2 size={32} className="animate-spin text-accent" />
+          </div>
+        ) : view === 'month' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-8)' }} className="lg:grid-cols-[1fr_340px]">
+            {/* Calendar Grid */}
+            <Card padding="md" border shadow="sm">
+              <div style={{ display: 'flex', alignItems: 'center', justifyHeight: 'space-between', marginBottom: 'var(--space-6)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                  <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft size={16} /></Button>
+                  <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--font-semibold)', minWidth: '160px', textAlign: 'center', margin: 0 }}>
+                    {MONTHS[currentMonth]} {currentYear}
+                  </h2>
+                  <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight size={16} /></Button>
+                </div>
+                <Button variant="secondary" size="sm" onClick={goToToday}>Hoje</Button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 'var(--space-1)' }}>
+                {WEEKDAYS.map((wd) => (
+                  <div key={wd} style={{ textAlign: 'center', fontSize: '10px', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', padding: 'var(--space-2) 0' }}>
+                    {wd}
+                  </div>
+                ))}
+                {calendarDays.map((day, i) => {
+                  if (day === null) return <div key={`empty-${i}`} style={{ minHeight: '100px' }} />;
+                  const date = new Date(currentYear, currentMonth, day);
+                  const isToday = isSameDay(date, today);
+                  const isSelected = isSameDay(date, selectedDate);
+                  const dayEvents = eventsForDay(day);
+
+                  return (
+                    <div
+                      key={day}
+                      onClick={() => setSelectedDate(date)}
+                      style={{
+                        minHeight: '100px',
+                        padding: 'var(--space-2)',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: isSelected ? 'var(--color-accent-subtle)' : 'transparent',
+                        borderColor: isSelected ? 'var(--color-accent)' : 'var(--color-border)',
+                        cursor: 'pointer',
+                        transition: 'all var(--transition-base)'
+                      }}
+                      onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = 'var(--color-bg-tertiary)'; }}
+                      onMouseLeave={(e) => { if(!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    >
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        fontSize: '12px',
+                        fontWeight: 'var(--font-medium)',
+                        backgroundColor: isToday ? 'var(--color-accent)' : 'transparent',
+                        color: isToday ? 'var(--color-text-inverse)' : isSelected ? 'var(--color-accent)' : 'var(--color-text-primary)'
+                      }}>
+                        {day}
+                      </span>
+                      <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                        {dayEvents.slice(0, 2).map((ev: CalendarEvent) => (
+                          <EventCard key={ev.id} event={ev} compact />
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <span style={{ fontSize: '9px', color: 'var(--color-text-tertiary)', padding: '0 4px' }}>
+                            +{dayEvents.length - 2} mais
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Side Details */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+              <Card padding="md" border shadow="sm">
+                <div style={{ display: 'flex', alignItems: 'center', justifyHeight: 'space-between', marginBottom: 'var(--space-4)' }}>
+                  <div>
+                    <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-semibold)', margin: 0 }}>
+                      {selectedDate.getDate()} de {MONTHS[selectedDate.getMonth()]}
+                    </h3>
+                    <p style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', textTransform: 'capitalize', margin: 0 }}>
+                      {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setNewEventModal(true)}><Plus size={16} /></Button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {selectedDayEvents.length === 0 ? (
+                    <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: 'var(--space-8) 0' }}>
+                      Nenhum evento neste dia
+                    </p>
+                  ) : (
+                    selectedDayEvents.map((ev: CalendarEvent) => (
+                      <EventCard key={ev.id} event={ev} />
+                    ))
+                  )}
+                </div>
+              </Card>
+
+              <Card padding="md" border shadow="sm">
+                <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
+                  Próximos eventos
+                </h3>
+                {upcomingEvents.length === 0 ? (
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>Nenhum evento futuro</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                    {upcomingEvents.map((ev: CalendarEvent) => {
+                      const start = ev.start || ev.startDate || '';
+                      const d = new Date(start);
+                      return (
+                        <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', fontSize: 'var(--text-xs)' }}>
+                          <div style={{ width: '40px', textAlign: 'center', flexShrink: 0 }}>
+                            <p style={{ fontWeight: 'var(--font-semibold)', margin: 0 }}>{d.getDate()}</p>
+                            <p style={{ fontSize: '9px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', margin: 0 }}>
+                              {MONTHS[d.getMonth()]?.slice(0, 3)}
+                            </p>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ color: 'var(--color-text-primary)', fontWeight: 'var(--font-medium)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {ev.title || ev.summary}
+                            </p>
+                            <p style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', margin: 0 }}>{formatTime(start)}</p>
+                          </div>
+                          <Badge variant={ev.source === 'google' || ev.source === 'gcal' ? 'info' : 'default'}>
+                            {ev.source === 'google' || ev.source === 'gcal' ? 'G' : 'L'}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Card>
+            </div>
+          </div>
+        ) : (
+          /* List View */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: '800px' }}>
+            {upcomingEvents.length === 0 ? (
+              <Card padding="lg" border shadow="sm" style={{ textAlign: 'center' }}>
+                <CalendarDays size={40} style={{ color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }} />
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>Nenhum evento futuro encontrado</p>
+                <Button variant="secondary" onClick={() => syncGoogle.mutate()} style={{ marginTop: 'var(--space-4)' }}>
+                  Sincronizar Google Calendar
+                </Button>
+              </Card>
+            ) : (
+              upcomingEvents.map((ev: CalendarEvent) => <EventCard key={ev.id} event={ev} />)
+            )}
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        </div>
-      ) : view === 'month' ? (
-        /* ── Month View ─────────────────────────────────── */
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
-          {/* Calendar */}
-          <div className="rounded-xl bg-surface glow-border p-5">
-            {/* Month nav */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-surface-3 text-muted-foreground transition-colors">
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <h2 className="text-base font-semibold min-w-[180px] text-center">
-                  {MONTHS[currentMonth]} {currentYear}
-                </h2>
-                <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-surface-3 text-muted-foreground transition-colors">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-              <button onClick={goToToday} className="px-3 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-surface-3 border border-white/[0.07] transition-colors">
-                Hoje
-              </button>
-            </div>
-
-            {/* Weekday headers */}
-            <div className="grid grid-cols-7 mb-2">
-              {WEEKDAYS.map((wd) => (
-                <div key={wd} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-2">
-                  {wd}
-                </div>
-              ))}
-            </div>
-
-            {/* Days grid */}
-            <div className="grid grid-cols-7">
-              {calendarDays.map((day, i) => {
-                if (day === null) return <div key={`e-${i}`} className="min-h-[80px]" />;
-                const date = new Date(currentYear, currentMonth, day);
-                const isToday = isSameDay(date, today);
-                const isSelected = isSameDay(date, selectedDate);
-                const dayEvents = eventsForDay(day);
-
-                return (
-                  <button
-                    key={day}
-                    onClick={() => setSelectedDate(date)}
-                    className={`min-h-[80px] p-1.5 border border-white/[0.04] text-left transition-colors rounded-md ${
-                      isSelected
-                        ? 'bg-primary/10 border-primary/30'
-                        : 'hover:bg-surface-3'
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${
-                        isToday
-                          ? 'bg-primary text-white'
-                          : isSelected
-                            ? 'text-primary'
-                            : 'text-muted-foreground'
-                      }`}
-                    >
-                      {day}
-                    </span>
-                    <div className="mt-1 space-y-0.5">
-                      {dayEvents.slice(0, 2).map((ev: CalendarEvent) => (
-                        <EventCard key={ev.id} event={ev} compact />
-                      ))}
-                      {dayEvents.length > 2 && (
-                        <span className="text-[10px] text-muted-foreground px-2">
-                          +{dayEvents.length - 2} mais
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Day detail sidebar */}
-          <div className="space-y-4">
-            <div className="rounded-xl bg-surface glow-border p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold">{selectedDate.getDate()} de {MONTHS[selectedDate.getMonth()]}</h3>
-                  <p className="text-[10px] text-muted-foreground capitalize">
-                    {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long' })}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setNewEventModal(true)}
-                  className="p-2 rounded-lg hover:bg-surface-3 text-muted-foreground transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {selectedDayEvents.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum evento neste dia</p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedDayEvents.map((ev: CalendarEvent) => (
-                    <EventCard key={ev.id} event={ev} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Upcoming */}
-            <div className="rounded-xl bg-surface glow-border p-5">
-              <h3 className="text-sm font-semibold mb-3">Próximos eventos</h3>
-              {upcomingEvents.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhum evento futuro</p>
-              ) : (
-                <div className="space-y-2">
-                  {upcomingEvents.map((ev: CalendarEvent) => {
-                    const start = ev.start || ev.startDate || '';
-                    const d = new Date(start);
-                    return (
-                      <div key={ev.id} className="flex items-center gap-3 text-xs">
-                        <div className="shrink-0 w-10 text-center">
-                          <p className="font-semibold text-foreground">{d.getDate()}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase">{MONTHS[d.getMonth()]?.slice(0, 3)}</p>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate text-foreground">{ev.title || ev.summary}</p>
-                          <p className="text-muted-foreground">{formatTime(start)}</p>
-                        </div>
-                        <EventBadge event={ev} />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* ── List View ──────────────────────────────────── */
-        <div className="space-y-3 max-w-2xl">
-          {upcomingEvents.length === 0 ? (
-            <div className="rounded-xl bg-surface glow-border p-8 text-center">
-              <CalendarDays className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">Nenhum evento futuro encontrado</p>
-              <button
-                onClick={() => syncGoogle.mutate()}
-                className="mt-3 text-xs text-primary hover:underline"
-              >
-                Sincronizar Google Calendar
-              </button>
-            </div>
-          ) : (
-            upcomingEvents.map((ev: CalendarEvent) => <EventCard key={ev.id} event={ev} />)
-          )}
-        </div>
-      )}
-
-      {/* New event modal */}
       {newEventModal && <NewEventModal date={selectedDate} onClose={() => setNewEventModal(false)} />}
-    </div>
+    </AppLayout>
   );
 }
+

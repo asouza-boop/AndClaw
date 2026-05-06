@@ -45,7 +45,7 @@ router.get('/meetings/:id', async (req: Request, res: Response) => {
 
 router.put('/meetings/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const meeting = await MeetingService.update(id, req.body);
+  const meeting = await MeetingService.update(String(id), req.body);
   if (!meeting) return res.status(400).json({ error: 'nothing to update or meeting not found' });
   res.json({ ok: true, item: mapMeetingRow(meeting) });
 });

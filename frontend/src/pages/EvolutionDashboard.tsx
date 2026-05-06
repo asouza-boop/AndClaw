@@ -1,8 +1,15 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
-import { TrendingUp, Clock, CheckCircle2, Zap, BarChart3, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Clock, CheckCircle2, Zap, BarChart3, ArrowLeft, Activity, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export default function EvolutionDashboard() {
   const { data: scores, isLoading } = useQuery({
@@ -12,99 +19,94 @@ export default function EvolutionDashboard() {
   });
 
   return (
-    <div className="p-6 space-y-8 animate-in fade-in">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link to="/chat" className="p-2 rounded-xl hover:bg-white/5 text-muted-foreground transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Evolução do Motor</h1>
-            <p className="text-sm text-muted-foreground">Otimização passiva de habilidades baseada em performance real.</p>
+    <AppLayout sidebar={<AppSidebar />}>
+      <PageHeader 
+        title="Evolução do Motor" 
+        subtitle="Otimização passiva de habilidades baseada em performance real"
+        actions={
+          <Badge variant="success" style={{ fontSize: '10px', gap: 'var(--space-2)' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'currentColor', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+            Otimizador Ativo (Safe Mode)
+          </Badge>
+        }
+      />
+
+      <div style={{ marginTop: 'var(--space-8)' }}>
+        {isLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 'var(--space-4)' }}>
+            <Loader2 size={32} className="animate-spin text-primary" />
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Computando métricas...</span>
           </div>
-        </div>
-        
-        <div className="px-4 py-2 glass-panel rounded-xl flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span className="text-[10px] font-bold uppercase tracking-widest">Otimizador Ativo (Safe Mode)</span>
-        </div>
+        ) : !scores || scores.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+            <EmptyState
+              icon={<TrendingUp size={48} />}
+              title="Ainda não há dados de performance"
+              description="Execute o agente para começar a treinar o motor de otimização e gerar heurísticas."
+            />
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 'var(--space-6)' }}>
+            {scores.map((skill: any) => (
+              <Card key={skill.skillId} padding="lg" border shadow="sm" className="group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-6)' }}>
+                  <div>
+                    <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-black)', margin: 0 }}>{skill.skillId}</h3>
+                    <Badge variant="ghost" style={{ fontSize: '9px', marginTop: 'var(--space-1)' }}>Habilidade Ativa</Badge>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-black)', color: 'var(--color-primary)', fontFamily: 'var(--font-mono)' }}>{skill.score}</span>
+                    <span style={{ fontSize: '8px', fontWeight: 'var(--font-bold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Skill Score</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '9px', color: 'var(--color-text-tertiary)' }}>
+                      <CheckCircle2 size={10} className="text-success" /> <span style={{ textTransform: 'uppercase' }}>Sucesso</span>
+                    </div>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', fontFamily: 'var(--font-mono)' }}>{(skill.successRate * 100).toFixed(1)}%</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '9px', color: 'var(--color-text-tertiary)' }}>
+                      <Clock size={10} className="text-warning" /> <span style={{ textTransform: 'uppercase' }}>Latência</span>
+                    </div>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', fontFamily: 'var(--font-mono)' }}>{Math.round(skill.avgLatencyMs)}ms</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '9px', color: 'var(--color-text-tertiary)' }}>
+                      <Zap size={10} className="text-primary" /> <span style={{ textTransform: 'uppercase' }}>Uso</span>
+                    </div>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', fontFamily: 'var(--font-mono)' }}>{skill.usageCount} exec</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '9px', color: 'var(--color-text-tertiary)' }}>
+                      <BarChart3 size={10} className="text-info" /> <span style={{ textTransform: 'uppercase' }}>Status</span>
+                    </div>
+                    <span style={{ fontSize: '9px', fontWeight: 'var(--font-black)', color: 'var(--color-success)', textTransform: 'uppercase' }}>Otimizado</span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'var(--space-6)', paddingTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)' }}>
+                  <div style={{ width: '100%', height: '4px', backgroundColor: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                     <div 
+                      style={{ height: '100%', backgroundColor: 'var(--color-primary)', width: `${skill.score}%`, transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)' }} 
+                     />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'var(--space-2)' }}>
+                    <span style={{ fontSize: '8px', color: 'var(--color-text-tertiary)' }}>Última computação</span>
+                    <span style={{ fontSize: '8px', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>{new Date(skill.lastComputed).toLocaleTimeString()}</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => <div key={i} className="h-48 rounded-2xl bg-white/5 animate-pulse" />)}
-        </div>
-      ) : scores?.length === 0 ? (
-        <div className="text-center py-20 bg-white/5 rounded-3xl border border-dashed border-white/10">
-          <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-          <p className="text-muted-foreground">Ainda não há dados de performance coletados.</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Execute o agente para começar a treinar o motor de otimização.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scores?.map((skill: any) => (
-            <div key={skill.skillId} className="glass-panel p-5 rounded-2xl hover:scale-[1.02] transition-all duration-300 group">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{skill.skillId}</h3>
-                  <span className="text-[10px] text-muted-foreground font-mono uppercase">Habilidade Ativa</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-2xl font-black text-primary">{skill.score}</span>
-                  <span className="text-[9px] text-muted-foreground uppercase font-bold tracking-tighter">Skill Score</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <CheckCircle2 className="w-3 h-3 text-success" />
-                    <span className="text-[10px] uppercase font-medium">Sucesso</span>
-                  </div>
-                  <p className="text-sm font-bold">{(skill.successRate * 100).toFixed(1)}%</p>
-                </div>
-                
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="w-3 h-3 text-warn" />
-                    <span className="text-[10px] uppercase font-medium">Latência</span>
-                  </div>
-                  <p className="text-sm font-bold">{Math.round(skill.avgLatencyMs)}ms</p>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Zap className="w-3 h-3 text-primary" />
-                    <span className="text-[10px] uppercase font-medium">Uso Real</span>
-                  </div>
-                  <p className="text-sm font-bold">{skill.usageCount} exec</p>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <BarChart3 className="w-3 h-3 text-accent" />
-                    <span className="text-[10px] uppercase font-medium">Status</span>
-                  </div>
-                  <p className="text-[10px] font-bold text-success uppercase">Otimizado</p>
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-white/5">
-                <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                   <div 
-                    className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000" 
-                    style={{ width: `${skill.score}%` }}
-                   />
-                </div>
-                <div className="flex justify-between mt-2">
-                  <span className="text-[9px] text-muted-foreground">Última computação</span>
-                  <span className="text-[9px] text-muted-foreground">{new Date(skill.lastComputed).toLocaleTimeString()}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    </AppLayout>
   );
 }
+

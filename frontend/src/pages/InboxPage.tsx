@@ -3,15 +3,18 @@ import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState, useMemo } from 'react';
 import { 
-  Trash2, CheckSquare, Archive, Loader2, Sparkles, Plus, 
+  Trash2, CheckSquare, Archive, Loader2, Sparkles, 
   Calendar, FolderKanban, MessageSquare, Link as LinkIcon,
-  Search, Filter, ChevronRight, Clock, Target
+  Search, ChevronRight, Clock, Target
 } from 'lucide-react';
-import { PageContainer, Section, Stack, Grid } from '@/components/ui/Layout';
-import { Panel } from '@/components/ui/Panel';
-import { Badge } from '@/components/ui/badge';
-import * as Typography from "@/components/ui/Typography";
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 /* ─── Types ─── */
 interface UnifiedItem {
@@ -24,13 +27,13 @@ interface UnifiedItem {
   raw?: any;
 }
 
-const typeConfig: Record<string, { label: string; icon: any; variant: any }> = {
-  task: { label: 'Tarefa', icon: CheckSquare, variant: 'cached' },
-  meeting: { label: 'Reunião', icon: Calendar, variant: 'secondary' },
-  project: { label: 'Projeto', icon: FolderKanban, variant: 'optimizing' },
-  link: { label: 'Link', icon: LinkIcon, variant: 'glass' },
-  note: { label: 'Nota', icon: MessageSquare, variant: 'glass' },
-  idea: { label: 'Ideia', icon: Sparkles, variant: 'glass' },
+const typeConfig: Record<string, { label: string; icon: any; variant: 'default' | 'success' | 'warning' | 'error' | 'info' }> = {
+  task: { label: 'Tarefa', icon: CheckSquare, variant: 'success' },
+  meeting: { label: 'Reunião', icon: Calendar, variant: 'info' },
+  project: { label: 'Projeto', icon: FolderKanban, variant: 'warning' },
+  link: { label: 'Link', icon: LinkIcon, variant: 'default' },
+  note: { label: 'Nota', icon: MessageSquare, variant: 'default' },
+  idea: { label: 'Ideia', icon: Sparkles, variant: 'default' },
 };
 
 function timeAgo(date: string) {
@@ -58,7 +61,6 @@ export default function InboxPage() {
   const unifiedItems = useMemo(() => {
     const items: UnifiedItem[] = [];
 
-    // 1. Process Captures (Signals)
     captures.forEach((c: any) => {
       if (c.status === 'processed' && (c.type === 'task' || c.type === 'meeting' || c.type === 'project')) return;
       items.push({
@@ -71,7 +73,6 @@ export default function InboxPage() {
       });
     });
 
-    // 2. Process Tasks
     tasks.forEach((t: any) => {
       if (t.status === 'done' && filter !== 'all') return;
       items.push({
@@ -84,7 +85,6 @@ export default function InboxPage() {
       });
     });
 
-    // 3. Process Meetings
     meetings.forEach((m: any) => {
       items.push({
         id: m.id || m._id,
@@ -96,7 +96,6 @@ export default function InboxPage() {
       });
     });
 
-    // 4. Process Projects
     projects.forEach((p: any) => {
       items.push({
         id: p.id || p._id,
@@ -151,55 +150,42 @@ export default function InboxPage() {
   const getPendingSignals = () => captures.filter((c: any) => c.status !== 'processed').length;
 
   return (
-    <PageContainer className="pb-20">
-      <Section className="mb-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <Stack className="space-y-1">
-            <Typography.Title className="text-5xl font-black tracking-tighter">Inbox</Typography.Title>
-            <Typography.Label className="text-white/40 uppercase tracking-[0.3em] text-[10px]">
-              {unifiedItems.length} Entradas Unificadas · {getPendingSignals()} Sinais Pendentes
-            </Typography.Label>
-          </Stack>
+    <AppLayout sidebar={<AppSidebar />}>
+      <PageHeader 
+        title="Inbox" 
+        subtitle={`${unifiedItems.length} Entradas Unificadas · ${getPendingSignals()} Sinais Pendentes`}
+        actions={
+          <Button 
+            variant="primary"
+            onClick={() => processAI.mutate()}
+            disabled={processAI.isPending || getPendingSignals() === 0}
+          >
+            {processAI.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            {processAI.isPending ? 'Processando...' : 'Extrair com IA'}
+          </Button>
+        }
+      />
 
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              className="rounded-2xl border-white/5 bg-white/5 hover:bg-white/10"
-              onClick={() => processAI.mutate()}
-              disabled={processAI.isPending || getPendingSignals() === 0}
-            >
-              {processAI.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-              {processAI.isPending ? 'Processando...' : 'Extrair com IA'}
-            </Button>
-          </div>
-        </div>
-      </Section>
-
-      <Grid className="lg:grid-cols-[1fr_320px] items-start gap-10">
+      <div style={{ marginTop: 'var(--space-8)', display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-8)' }} className="lg:grid-cols-[1fr_320px]">
         {/* Main Feed */}
-        <Stack className="space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           {/* Controls Mobile */}
-          <div className="flex flex-col gap-4 lg:hidden">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-              <input 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar no Inbox..."
-                className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-primary/40 transition-premium"
-              />
-            </div>
+          <div className="lg:hidden">
+            <Input 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar no Inbox..."
+              className="w-full"
+            />
           </div>
 
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
             {unifiedItems.length === 0 ? (
-              <Panel className="glass-panel p-20 flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center text-white/20">
-                  <Archive className="w-8 h-8" />
-                </div>
-                <Typography.Label className="text-white/40 uppercase tracking-widest text-xs font-black">Inbox Vazio</Typography.Label>
-                <Typography.Caption className="max-w-[200px]">Tudo limpo por aqui. Capture novos sinais ou tarefas para começar.</Typography.Caption>
-              </Panel>
+              <EmptyState 
+                icon={<Archive size={40} />}
+                title="Inbox Vazio"
+                description="Tudo limpo por aqui. Capture novos sinais ou tarefas para começar."
+              />
             ) : (
               unifiedItems.map((item) => (
                 <InboxItemRow 
@@ -211,72 +197,86 @@ export default function InboxPage() {
               ))
             )}
           </div>
-        </Stack>
+        </div>
 
         {/* Sidebar / Controls Desktop */}
-        <Stack className="hidden lg:flex space-y-8 sticky top-8">
-          {/* Search */}
-          <Panel className="glass-panel p-6 space-y-4">
-            <Typography.Label className="text-[10px] font-black uppercase tracking-widest text-white/30">Busca e Filtros</Typography.Label>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-              <input 
+        <aside className="hidden lg:flex flex-col gap-var(--space-8) sticky top-8">
+          <Card padding="md" border shadow="sm">
+            <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
+              Busca e Filtros
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+              <Input 
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl py-2.5 pl-11 pr-4 text-xs focus:outline-none focus:border-primary/40 transition-premium"
+                className="w-full"
               />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+                {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
+                  <Button
+                    key={f}
+                    variant={filter === f ? 'primary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setFilter(f)}
+                    style={{ fontSize: '10px', textTransform: 'uppercase' }}
+                  >
+                    {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
+                  </Button>
+                ))}
+              </div>
             </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-premium border ${
-                    filter === f 
-                    ? 'bg-white text-black border-white' 
-                    : 'bg-white/5 text-white/40 border-white/5 hover:border-white/20'
-                  }`}
-                >
-                  {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
-                </button>
-              ))}
-            </div>
-          </Panel>
+          </Card>
 
-          {/* Quick Capture */}
-          <Panel className="glass-panel p-6 space-y-4">
-            <Typography.Label className="text-[10px] font-black uppercase tracking-widest text-white/30">Captura Rápida</Typography.Label>
+          <Card padding="md" border shadow="sm" style={{ marginTop: 'var(--space-8)' }}>
+            <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
+              Captura Rápida
+            </h4>
             <textarea 
               value={captureText}
               onChange={e => setCaptureText(e.target.value)}
               placeholder="Capturar sinal..."
-              className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-xs focus:outline-none focus:border-primary/40 transition-premium min-h-[100px] resize-none"
+              style={{
+                width: '100%',
+                backgroundColor: 'var(--color-bg-primary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: 'var(--space-3)',
+                fontSize: 'var(--text-sm)',
+                minHeight: '100px',
+                resize: 'none',
+                outline: 'none',
+                marginBottom: 'var(--space-4)',
+                fontFamily: 'var(--font-sans)',
+              }}
             />
             <Button 
-              className="w-full rounded-xl bg-white text-black hover:bg-primary hover:text-white transition-premium"
+              className="w-full"
               onClick={saveCapture}
               disabled={!captureText.trim()}
             >
               Capturar
             </Button>
-          </Panel>
+          </Card>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
-              <Typography.Title className="text-xl font-black">{tasks.filter((t: any) => t.status !== 'done').length}</Typography.Title>
-              <Typography.Label className="text-[9px] text-white/30 uppercase font-black tracking-widest">Tarefas</Typography.Label>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
-              <Typography.Title className="text-xl font-black">{meetings.length}</Typography.Title>
-              <Typography.Label className="text-[9px] text-white/30 uppercase font-black tracking-widest">Reuniões</Typography.Label>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginTop: 'var(--space-8)' }}>
+            <Card padding="sm" border shadow="none" style={{ textAlign: 'center' }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', fontFamily: 'var(--font-mono)' }}>
+                {tasks.filter((t: any) => t.status !== 'done').length}
+              </span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Tarefas</span>
+            </Card>
+            <Card padding="sm" border shadow="none" style={{ textAlign: 'center' }}>
+              <span style={{ display: 'block', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', fontFamily: 'var(--font-mono)' }}>
+                {meetings.length}
+              </span>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Reuniões</span>
+            </Card>
           </div>
-        </Stack>
-      </Grid>
-    </PageContainer>
+        </aside>
+      </div>
+    </AppLayout>
   );
 }
 
@@ -285,70 +285,99 @@ function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArch
   const Icon = config.icon;
 
   return (
-    <Panel className="glass-panel p-5 group hover:border-white/20 transition-premium interactive-scale">
-      <div className="flex items-start gap-5">
-        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border border-white/5 transition-premium group-hover:scale-110 group-hover:bg-white/5`}>
-          <Icon className="w-5 h-5 text-white/40 group-hover:text-white transition-premium" />
+    <Card padding="sm" border shadow="sm" className="group">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+        <div style={{ 
+          width: '40px', 
+          height: '40px', 
+          borderRadius: 'var(--radius-md)', 
+          backgroundColor: 'var(--color-bg-tertiary)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-tertiary)',
+          flexShrink: 0
+        }} className="group-hover:bg-accent-subtle group-hover:text-accent transition-colors">
+          <Icon size={18} />
         </div>
 
-        <div className="flex-1 min-w-0 space-y-1">
-          <div className="flex items-center gap-3">
-            <Badge variant={config.variant} className="text-[9px] uppercase tracking-widest px-2 py-0.5">
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Badge variant={config.variant}>
               {config.label}
             </Badge>
-            <Typography.Caption className="text-[10px] text-white/20 font-black uppercase tracking-tighter">
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
               {timeAgo(item.createdAt)}
-            </Typography.Caption>
+            </span>
           </div>
           
-          <Typography.Title className="text-sm font-bold truncate group-hover:text-primary transition-colors">
+          <h4 style={{ 
+            fontSize: 'var(--text-base)', 
+            fontWeight: 'var(--font-medium)', 
+            color: 'var(--color-text-primary)',
+            margin: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
             {item.title}
-          </Typography.Title>
+          </h4>
 
-          {item.type === 'meeting' && item.raw?.meeting_date && (
-            <div className="flex items-center gap-2 text-[10px] text-white/30 font-medium">
-              <Clock className="w-3 h-3" />
-              {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            {item.type === 'meeting' && item.raw?.meeting_date && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                <Clock size={12} />
+                <span style={{ fontFamily: 'var(--font-mono)' }}>
+                  {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )}
 
-          {item.type === 'task' && item.raw?.due_date && (
-            <div className="flex items-center gap-2 text-[10px] text-white/30 font-medium">
-              <Target className="w-3 h-3" />
-              Prazo: {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
-            </div>
-          )}
+            {item.type === 'task' && item.raw?.due_date && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                <Target size={12} />
+                <span style={{ fontFamily: 'var(--font-mono)' }}>
+                  {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-premium">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>
-              <button 
+              <Button 
+                variant="ghost"
+                size="sm"
                 onClick={onArchive}
-                className="p-2.5 rounded-xl bg-white/5 text-white/40 hover:bg-white hover:text-black transition-premium"
                 title="Arquivar"
               >
-                <Archive className="w-4 h-4" />
-              </button>
-              <button 
+                <Archive size={16} />
+              </Button>
+              <Button 
+                variant="ghost"
+                size="sm"
                 onClick={onDelete}
-                className="p-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-premium"
+                style={{ color: 'var(--color-error)' }}
                 title="Deletar"
               >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                <Trash2 size={16} />
+              </Button>
             </>
           ) : (
-            <button 
-              className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-premium"
+            <Button 
+              variant="ghost"
+              size="sm"
               title="Abrir"
             >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+              <ChevronRight size={16} />
+            </Button>
           )}
         </div>
       </div>
-    </Panel>
+    </Card>
   );
 }
+
 

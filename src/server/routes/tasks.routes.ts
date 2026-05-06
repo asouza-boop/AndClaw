@@ -25,14 +25,14 @@ router.get('/tasks', async (req: Request, res: Response) => {
 
 router.patch('/tasks/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const task = await TaskService.update(id, req.body);
+  const task = await TaskService.update(String(id), req.body);
   if (!task) return res.status(400).json({ error: 'nothing to update or task not found' });
   res.json({ ok: true, item: task });
 });
 
 router.delete('/tasks/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  await TaskService.delete(id);
+  await TaskService.delete(String(id));
   res.json({ ok: true });
 });
 

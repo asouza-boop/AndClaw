@@ -2,8 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useState } from 'react';
-import { Server, Database, Brain, Clock, ExternalLink, X, Loader2 } from 'lucide-react';
+import { Server, Database, Brain, Clock, ExternalLink, X, Loader2, Activity, Shield, Settings, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AppSidebar } from '@/components/AppSidebar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 
 const integrations = [
   { key: 'google_calendar', label: 'Google Calendar', icon: '📅', desc: 'Sincronize sua agenda' },
@@ -79,192 +86,202 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-4xl space-y-8">
-      {/* Health */}
-      <div className="rounded-xl bg-surface glow-border p-5">
-        <h3 className="text-sm font-semibold mb-4">Status do Sistema</h3>
-        <div className="flex gap-6">
-          {[
-            { label: 'Backend', icon: Server, ok: !!status?.ok },
-            { label: 'Database', icon: Database, ok: !!status?.db?.ok },
-            { label: 'LLM', icon: Brain, ok: !!status?.llmConfigured },
-          ].map((s) => (
-            <div key={s.label} className="flex items-center gap-2">
-              <s.icon className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">{s.label}</span>
-              <span className={`w-2 h-2 rounded-full ${s.ok ? 'bg-success' : 'bg-destructive'}`} />
-            </div>
-          ))}
-          {status?.lastDeploy && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="text-xs">Último deploy: {new Date(status.lastDeploy).toLocaleDateString('pt-BR')}</span>
-            </div>
-          )}
-        </div>
-      </div>
+    <AppLayout sidebar={<AppSidebar />}>
+      <PageHeader 
+        title="Configurações" 
+        subtitle="Gerencie sua conta e as integrações do sistema"
+      />
 
-      {/* Integrations grid */}
-      <div>
-        <h3 className="text-sm font-semibold mb-4">Integrações</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {integrations.map((int) => (
-            <button
-              key={int.key}
-              onClick={() => {
-                if (int.key === 'ai') {
-                  navigate('/settings/providers');
-                } else {
-                  setActiveModal(int.key);
-                  setConfigValue('');
-                }
-              }}
-              className="flex items-center gap-4 p-4 rounded-xl bg-surface glow-border text-left transition-colors hover:bg-surface-2 group"
-            >
-              <span className="text-2xl">{int.icon}</span>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{int.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  {int.desc}
-                  {settingKeyMap[int.key] && settingsData?.settings?.[settingKeyMap[int.key]] === 'configured' ? ' · configurado' : ''}
-                </p>
-              </div>
-              <ExternalLink className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Activity log */}
-      <div className="rounded-xl bg-surface glow-border p-5">
-        <h3 className="text-sm font-semibold mb-3">Log de Atividade</h3>
-        <div className="space-y-2">
-          {(status?.recentEvents || []).slice(0, 8).map((e: any, i: number) => (
-            <div key={i} className="flex items-center gap-3 text-sm">
-              <span className="text-xs text-muted-foreground w-16">{new Date(e.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-              <span className="text-xs px-1.5 py-0.5 rounded bg-surface-3 text-muted-foreground">{e.type || 'info'}</span>
-              <span className="text-muted-foreground">{e.message || e.description || 'Evento'}</span>
-            </div>
-          ))}
-          {(!status?.recentEvents || status.recentEvents.length === 0) && (
-            <p className="text-sm text-muted-foreground">Nenhum evento recente</p>
-          )}
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div className="rounded-xl bg-surface glow-border p-5 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-semibold">Métricas</h3>
-            <p className="text-xs text-muted-foreground">Visão leve de cache, agente, memória e ferramentas.</p>
+      <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+        {/* System Health */}
+        <Card padding="lg" border shadow="sm">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            <Activity size={14} className="text-primary" />
+            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Status do Sistema</h3>
           </div>
-          <button
-            onClick={() => refetchMetrics()}
-            className="px-3 py-2 rounded-md text-xs border border-white/[0.08] text-foreground hover:bg-surface-2 transition-colors disabled:opacity-50"
-            disabled={metricsLoading}
-          >
-            {metricsLoading ? 'Atualizando...' : 'Atualizar'}
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          {[
-            { label: 'Cache Hit', key: 'cache.hit', kind: 'count' as const },
-            { label: 'Cache Miss', key: 'cache.miss', kind: 'count' as const },
-            { label: 'Agent Latency', key: 'agent.latency', kind: 'avg' as const, suffix: 'ms' },
-            { label: 'Memory Search', key: 'memory.search.count', kind: 'count' as const },
-            { label: 'Tool Exec', key: 'tool.execution.count', kind: 'count' as const },
-            { label: 'Tool Errors', key: 'tool.execution.error', kind: 'count' as const },
-            { label: 'Memory Latency', key: 'memory.search.latency', kind: 'avg' as const, suffix: 'ms' },
-            { label: 'Cache Save', key: 'cache.save', kind: 'count' as const },
-          ].map((item) => {
-            const value = item.kind === 'avg' ? metricAvg(item.key) : metricValue(item.key);
-            const count = metricCount(item.key);
-            return (
-              <div key={item.key} className="rounded-lg bg-surface-2 border border-white/[0.06] p-4">
-                <div className="text-xs text-muted-foreground">{item.label}</div>
-                <div className="mt-2 text-xl font-semibold">
-                  {value ?? '—'}
-                  {item.suffix ? <span className="text-sm text-muted-foreground ml-1">{item.suffix}</span> : null}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
+            {[
+              { label: 'Backend', icon: Server, ok: !!status?.ok },
+              { label: 'Database', icon: Database, ok: !!status?.db?.ok },
+              { label: 'LLM', icon: Brain, ok: !!status?.llmConfigured },
+            ].map((s) => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <s.icon size={14} style={{ color: 'var(--color-text-tertiary)' }} />
+                <span style={{ fontSize: 'var(--text-sm)' }}>{s.label}</span>
+                <Badge variant={s.ok ? 'success' : 'danger'} style={{ padding: 'var(--space-1)', borderRadius: '50%', minWidth: '8px', minHeight: '8px', height: '8px', width: '8px' }} />
+              </div>
+            ))}
+            {status?.lastDeploy && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginLeft: 'auto' }}>
+                <Clock size={12} style={{ color: 'var(--color-text-tertiary)' }} />
+                <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>Deploy: {new Date(status.lastDeploy).toLocaleDateString('pt-BR')}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Integrations Grid */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            <Zap size={14} className="text-primary" />
+            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Integrações</h3>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+            {integrations.map((int) => (
+              <Card 
+                key={int.key} 
+                padding="md" 
+                border 
+                shadow="none" 
+                className="group hover:border-primary/40 transition-colors cursor-pointer"
+                onClick={() => {
+                  if (int.key === 'ai') {
+                    navigate('/settings/providers');
+                  } else {
+                    setActiveModal(int.key);
+                    setConfigValue('');
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                  <span style={{ fontSize: '20px' }}>{int.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', margin: 0 }}>{int.label}</p>
+                    <p style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', margin: 0 }}>
+                      {int.desc}
+                      {settingKeyMap[int.key] && settingsData?.settings?.[settingKeyMap[int.key]] === 'configured' && (
+                        <span style={{ color: 'var(--color-success)', marginLeft: 'var(--space-2)' }}>• Configurado</span>
+                      )}
+                    </p>
+                  </div>
+                  <ExternalLink size={12} style={{ color: 'var(--color-text-tertiary)' }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                {item.kind === 'avg' && count !== null && (
-                  <div className="mt-1 text-[11px] text-muted-foreground">n={count}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div className="pt-2 border-t border-white/[0.06]">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Histórico recente</p>
-              <p className="text-xs text-muted-foreground">Últimos snapshots em memória para depuração rápida.</p>
-            </div>
-            <span className="text-[11px] text-muted-foreground">{history.length} snapshots</span>
+              </Card>
+            ))}
           </div>
-          <div className="space-y-2">
-            {history.slice(0, 5).map((entry: any) => {
-              const cacheHits = entry.metrics?.['cache.hit']?.value ?? 0;
-              const agentLatency = entry.metrics?.['agent.latency']?.average ?? 0;
-              const memorySearch = entry.metrics?.['memory.search.count']?.value ?? 0;
+        </div>
+
+        {/* Activity Log */}
+        <Card padding="lg" border shadow="sm">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+            <Settings size={14} className="text-primary" />
+            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Log de Atividade</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            {(status?.recentEvents || []).slice(0, 8).map((e: any, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', fontSize: '11px' }}>
+                <span style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', width: '50px' }}>{new Date(e.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <Badge variant="ghost" style={{ fontSize: '9px', minWidth: '60px', textAlign: 'center' }}>{e.type || 'info'}</Badge>
+                <span style={{ color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.message || e.description || 'Evento'}</span>
+              </div>
+            ))}
+            {(!status?.recentEvents || status.recentEvents.length === 0) && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>Nenhum evento recente identificado no pipeline.</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Metrics Grid */}
+        <Card padding="lg" border shadow="sm">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <Activity size={14} className="text-primary" />
+              <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Métricas de Performance</h3>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => refetchMetrics()} disabled={metricsLoading}>
+              {metricsLoading ? <Loader2 size={12} className="animate-spin mr-2" /> : null} Atualizar
+            </Button>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }} className="sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: 'Cache Hit', key: 'cache.hit', kind: 'count' as const },
+              { label: 'Cache Miss', key: 'cache.miss', kind: 'count' as const },
+              { label: 'Agent Latency', key: 'agent.latency', kind: 'avg' as const, suffix: 'ms' },
+              { label: 'Memory Search', key: 'memory.search.count', kind: 'count' as const },
+              { label: 'Tool Exec', key: 'tool.execution.count', kind: 'count' as const },
+              { label: 'Tool Errors', key: 'tool.execution.error', kind: 'count' as const },
+              { label: 'Memory Latency', key: 'memory.search.latency', kind: 'avg' as const, suffix: 'ms' },
+              { label: 'Cache Save', key: 'cache.save', kind: 'count' as const },
+            ].map((item) => {
+              const value = item.kind === 'avg' ? metricAvg(item.key) : metricValue(item.key);
+              const count = metricCount(item.key);
               return (
-                <div key={`${entry.capturedAt}-${entry.mutationCount}`} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-lg bg-surface-2 border border-white/[0.06] px-3 py-2">
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(entry.capturedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                    <span className="mx-2 text-white/30">•</span>
-                    mutação #{entry.mutationCount}
+                <div key={item.key} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}>
+                  <div style={{ fontSize: '9px', fontWeight: 'var(--font-bold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>{item.label}</div>
+                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-black)', fontFamily: 'var(--font-mono)', marginTop: 'var(--space-2)' }}>
+                    {value ?? '—'}{item.suffix && <span style={{ fontSize: '10px', fontWeight: 'var(--font-medium)', opacity: 0.5, marginLeft: '2px' }}>{item.suffix}</span>}
                   </div>
-                  <div className="flex flex-wrap gap-3 text-xs">
-                    <span className="px-2 py-1 rounded-full bg-primary/10 text-primary">cache.hit {cacheHits}</span>
-                    <span className="px-2 py-1 rounded-full bg-accent/10 text-accent">agent.latency {Math.round(agentLatency)}ms</span>
-                    <span className="px-2 py-1 rounded-full bg-white/[0.04] text-muted-foreground">memory.search {memorySearch}</span>
-                  </div>
+                  {item.kind === 'avg' && count !== null && (
+                    <div style={{ fontSize: '8px', color: 'var(--color-text-tertiary)', marginTop: 'var(--space-1)' }}>n={count}</div>
+                  )}
                 </div>
               );
             })}
-            {history.length === 0 && (
-              <p className="text-sm text-muted-foreground">Histórico ainda vazio.</p>
-            )}
           </div>
-        </div>
+
+          <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--color-border)' }}>
+            <h4 style={{ fontSize: '10px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>Histórico Recente</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              {history.slice(0, 5).map((entry: any) => {
+                const cacheHits = entry.metrics?.['cache.hit']?.value ?? 0;
+                const agentLatency = entry.metrics?.['agent.latency']?.average ?? 0;
+                const memorySearch = entry.metrics?.['memory.search.count']?.value ?? 0;
+                return (
+                  <div key={`${entry.capturedAt}-${entry.mutationCount}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) var(--space-4)', backgroundColor: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '10px' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
+                      {new Date(entry.capturedAt).toLocaleTimeString('pt-BR')} <span style={{ opacity: 0.3, margin: '0 8px' }}>/</span> mut#{entry.mutationCount}
+                    </div>
+                    <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+                      <span style={{ color: 'var(--color-primary)' }}>hits {cacheHits}</span>
+                      <span style={{ color: 'var(--color-accent)' }}>lat {Math.round(agentLatency)}ms</span>
+                      <span style={{ color: 'var(--color-text-tertiary)' }}>mem {memorySearch}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Config Modal */}
       {activeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm" onClick={() => setActiveModal(null)}>
-          <div className="w-full max-w-md rounded-xl bg-surface glow-border p-6" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold">{integrations.find((i) => i.key === activeModal)?.label}</h3>
-              <button onClick={() => setActiveModal(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
+        <div 
+          style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setActiveModal(null)}
+        >
+          <Card 
+            padding="lg" 
+            border 
+            shadow="xl" 
+            style={{ width: '100%', maxWidth: '400px' }} 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-black)', margin: 0 }}>{integrations.find((i) => i.key === activeModal)?.label}</h3>
+              <Button variant="ghost" size="sm" onClick={() => setActiveModal(null)}><X size={16} /></Button>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Configure a integração inserindo as credenciais necessárias.
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-6)' }}>
+              Insira as credenciais para ativar esta integração no pipeline.
             </p>
-            <input
+            <Input 
               type="password"
               value={configValue}
               onChange={(e) => setConfigValue(e.target.value)}
-              placeholder="API key / Token / URL..."
-              className="w-full px-4 py-3 rounded-md bg-surface-2 border border-white/[0.07] text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 mb-4"
+              placeholder="API Key / Token / Endpoint..."
+              style={{ fontFamily: 'var(--font-mono)' }}
             />
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setActiveModal(null)} className="px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground">
-                Cancelar
-              </button>
-              <button
-                onClick={saveConfig}
-                disabled={saving || !configValue.trim()}
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                Salvar e ativar
-              </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-8)' }}>
+              <Button variant="ghost" onClick={() => setActiveModal(null)}>Cancelar</Button>
+              <Button variant="primary" onClick={saveConfig} disabled={saving || !configValue.trim()}>
+                {saving ? <Loader2 size={14} className="animate-spin mr-2" /> : null} Salvar e Ativar
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </AppLayout>
   );
 }
+

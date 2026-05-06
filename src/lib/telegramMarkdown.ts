@@ -29,7 +29,7 @@ export function sanitizeMarkdownV2(text: string): string {
     // Restore inline links: \[text\]\(url\)
     // In the URL part, we un-escape most characters as they are not needed there
     escaped = escaped.replace(/\\\[(.*?)\\\]\\\((.*?)\\\)/g, (_match, text, url) => {
-        const cleanUrl = url.replace(/\\([_*[\]()~`>#+\-=|{}.!])/g, (m, c) => {
+        const cleanUrl = url.replace(/\\([_*[\]()~`>#+\-=|{}.!])/g, (m: string, c: string) => {
             return (c === ')' || c === '\\') ? m : c;
         });
         return `[${text}](${cleanUrl})`;
