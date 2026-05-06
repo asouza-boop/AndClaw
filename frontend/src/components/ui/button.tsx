@@ -15,6 +15,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       justifyContent: 'center',
       fontFamily: 'var(--font-sans)',
       fontWeight: 'var(--font-medium)',
+      fontSize: 'var(--text-sm)',
       borderRadius: 'var(--radius-md)',
       transition: 'all var(--transition-base)',
       cursor: disabled || loading ? 'not-allowed' : 'pointer',
@@ -22,51 +23,54 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       outline: 'none',
       border: '1px solid transparent',
       position: 'relative',
+      whiteSpace: 'nowrap',
     };
 
     const variantStyles: Record<string, React.CSSProperties> = {
       primary: {
         backgroundColor: 'var(--color-accent)',
         color: 'var(--color-text-inverse)',
+        border: 'none',
       },
       secondary: {
         backgroundColor: 'transparent',
         color: 'var(--color-text-primary)',
-        borderColor: 'var(--color-border)',
+        borderColor: 'var(--color-border-strong)',
       },
       ghost: {
         backgroundColor: 'transparent',
-        color: 'var(--color-text-primary)',
+        color: 'var(--color-text-secondary)',
         borderColor: 'transparent',
       },
       danger: {
         backgroundColor: 'var(--color-error)',
         color: 'var(--color-text-inverse)',
+        border: 'none',
       },
     };
 
     const hoverStyles: Record<string, React.CSSProperties> = {
       primary: { backgroundColor: 'var(--color-accent-hover)' },
       secondary: { backgroundColor: 'var(--color-bg-secondary)', borderColor: 'var(--color-border-strong)' },
-      ghost: { backgroundColor: 'var(--color-bg-secondary)' },
-      danger: { opacity: 0.9 }, // simple fallback for danger hover
+      ghost: { backgroundColor: 'var(--color-bg-overlay)', color: 'var(--color-text-primary)' },
+      danger: { opacity: 0.88 },
     };
 
     const sizeStyles: Record<string, React.CSSProperties> = {
       sm: {
-        height: '32px',
-        padding: '0 var(--space-3)',
+        height: '28px',
+        padding: '0 12px',
         fontSize: 'var(--text-sm)',
       },
       md: {
-        height: '40px',
-        padding: '0 var(--space-4)',
-        fontSize: 'var(--text-base)',
+        height: '36px',
+        padding: '0 16px',
+        fontSize: 'var(--text-sm)',
       },
       lg: {
-        height: '48px',
-        padding: '0 var(--space-6)',
-        fontSize: 'var(--text-lg)',
+        height: '44px',
+        padding: '0 20px',
+        fontSize: 'var(--text-base)',
       },
     };
 

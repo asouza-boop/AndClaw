@@ -4,7 +4,7 @@ import { saveToRaindrop } from '@/integrations/raindrop';
 import { ToolRegistry } from '@/core/ToolRegistry';
 import { config } from '@/config/env';
 import { ProfileRepository } from '@/memory/repositories/ProfileRepository';
-import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { MemoryService } from '@/core/memory/MemoryService';
 import { SemanticCacheService } from '@/core/cache/SemanticCacheService';
 import { CacheService } from './agent/CacheService';
