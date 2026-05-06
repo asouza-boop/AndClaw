@@ -58,8 +58,7 @@ export function Topbar({ title }: TopbarProps) {
               style={{
                 paddingLeft: '32px',
                 paddingRight: '48px',
-                paddingTop: '7px',
-                paddingBottom: '7px',
+                height: '36px',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: 'var(--color-bg-elevated)',
                 border: '1px solid var(--color-border)',
@@ -86,7 +85,7 @@ export function Topbar({ title }: TopbarProps) {
         </div>
 
         {/* Right actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {/* Notification bell */}
           <div className="relative">
             <button
@@ -142,7 +141,8 @@ export function Topbar({ title }: TopbarProps) {
             onClick={() => openQuickCapture('note')}
             className="flex items-center gap-2 transition-colors"
             style={{
-              padding: '7px 14px',
+              height: '36px',
+              padding: '0 16px',
               borderRadius: 'var(--radius-md)',
               backgroundColor: 'var(--color-accent)',
               color: '#ffffff',

@@ -67,7 +67,8 @@ export function AppSidebar() {
     textDecoration: 'none',
     transition: 'color var(--t-fast), background var(--t-fast)',
     cursor: 'pointer',
-    border: '1px solid transparent',
+    border: 'none',
+    outline: 'none',
     width: '100%',
     boxSizing: 'border-box',
   };
@@ -88,11 +89,12 @@ export function AppSidebar() {
         backgroundColor: 'var(--color-accent-sub)',
         color: 'var(--color-accent)',
         fontWeight: 500,
-        borderColor: 'var(--color-accent-dim)',
+        border: '1px solid var(--color-accent-dim)',
       };
     }
     return {
       ...navItemBase,
+      backgroundColor: 'transparent',
       color: 'var(--color-text-secondary)',
     };
   }
@@ -220,9 +222,9 @@ export function AppSidebar() {
             ...navItemBase,
             color: 'var(--color-error)',
             backgroundColor: 'transparent',
-            border: '1px solid transparent',
+            border: 'none',
+            outline: 'none',
             textAlign: 'left',
-            background: 'none',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)';

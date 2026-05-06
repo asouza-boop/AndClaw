@@ -151,24 +151,29 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
   return (
     <Panel variant="sidebar" className="w-full flex flex-col animate-in fade-in duration-700 font-outfit rounded-none">
       {/* Tab Bar */}
-      <div className="flex bg-black/40 border-b border-white/5">
+      <div className="flex" style={{ borderBottom: '1px solid var(--color-border)' }}>
         {tabs.map(({ id, icon: Icon, label }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`flex-1 flex flex-col items-center gap-2 py-4 transition-all duration-300 relative ${
-              activeTab === id 
-                ? 'text-primary' 
-                : 'text-white/30 hover:text-white/70'
-            }`}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '16px 0',
+              color: activeTab === id ? 'var(--color-accent)' : 'var(--color-text-tertiary)',
+              fontWeight: activeTab === id ? 'var(--font-medium)' : 'normal',
+              borderBottom: activeTab === id ? '2px solid var(--color-accent)' : '2px solid transparent',
+              marginBottom: '-1px',
+              transition: 'all 0.3s ease'
+            }}
           >
             <Icon className="w-4 h-4" />
-            <Label className={`text-[9px] ${activeTab === id ? 'text-primary' : 'text-inherit'}`}>
+            <span style={{ fontSize: '9px', color: 'inherit' }}>
               {label}
-            </Label>
-            {activeTab === id && (
-              <div className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-primary shadow-[0_0_10px_rgba(168,85,247,0.5)] rounded-full animate-in fade-in duration-300" />
-            )}
+            </span>
           </button>
         ))}
       </div>

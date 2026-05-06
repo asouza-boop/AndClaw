@@ -80,7 +80,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
+    <div className="space-y-6 animate-in fade-in duration-700 max-w-[1400px] mx-auto pb-8">
       <PageHeader 
         title="AndClaw" 
         subtitle={new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} 
@@ -91,17 +91,17 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-0 sm:px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-0 sm:px-4 overflow-visible">
         <StatCard icon={ListTodo} label="Tasks" value={pendingTasks.length} sub="pending execution" color="bg-primary/10 text-primary border border-primary/20" />
         <StatCard icon={AlertTriangle} label="Critical" value={highPriority.length} sub="waiting action" color="bg-error/10 text-error border border-error/20" />
         <StatCard icon={Video} label="Meetings" value={meetings?.length || 0} sub="recorded intelligence" color="bg-accent/10 text-accent border border-accent/20" />
         <StatCard icon={Inbox} label="Captures" value={unprocessed.length} sub="unprocessed fragments" color="bg-surface/10 text-text-secondary border border-border" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-0 sm:px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-0 sm:px-4 overflow-visible">
         {/* Today's tasks */}
         <Card shadow="sm" className="p-6 sm:p-8">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary mb-6 font-mono">Operations Pipeline</h3>
+          <h3 className="text-[11px] font-medium text-text-tertiary mb-6" style={{ textTransform: 'none', letterSpacing: '0.04em' }}>Operations pipeline</h3>
           <div className="space-y-4">
             {pendingTasks.slice(0, 5).map((t: any) => (
               <div key={t._id || t.id} className="flex items-center gap-4 p-4 bg-bg-secondary rounded-2xl border border-border hover:bg-surface transition-colors group">
@@ -117,7 +117,7 @@ export default function Dashboard() {
 
         {/* Quick chat */}
         <Card shadow="sm" className="p-6 sm:p-8 flex flex-col w-full">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary mb-6 font-mono">Cognitive Prompt</h3>
+          <h3 className="text-[11px] font-medium text-text-tertiary mb-6" style={{ textTransform: 'none', letterSpacing: '0.04em' }}>Cognitive prompt</h3>
           <div className="flex-1 space-y-4 max-h-[280px] overflow-y-auto mb-6 pr-4 scrollbar-hide">
             {chatMessages.length === 0 && (
                <p className="text-text-tertiary text-xs italic p-4 border border-dashed border-border rounded-2xl">Initialize cognitive link or vocal command...</p>
