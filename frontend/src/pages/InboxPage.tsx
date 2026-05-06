@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ensureArray } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
@@ -12,8 +13,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 /* ─── Types ─── */
@@ -179,7 +179,7 @@ export default function InboxPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className="animate-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {unifiedItems.length === 0 ? (
               <EmptyState 
                 icon={<Archive size={40} />}
@@ -280,62 +280,84 @@ export default function InboxPage() {
   );
 }
 
+/* Badge color map for v3 palette */
+const inboxBadgeStyle: Record<string, React.CSSProperties> = {
+  idea:    { backgroundColor: 'var(--color-accent-sub)',  color: 'var(--color-accent)' },
+  meeting: { backgroundColor: '#1E3A2F',                   color: 'var(--color-teal)' },
+  note:    { backgroundColor: 'var(--color-bg-elevated)',  color: 'var(--color-text-tertiary)' },
+  task:    { backgroundColor: '#2D1F4E',                   color: 'var(--color-purple)' },
+  link:    { backgroundColor: 'var(--color-bg-elevated)',  color: 'var(--color-text-tertiary)' },
+  project: { backgroundColor: '#2D2410',                   color: 'var(--color-warning)' },
+};
+
 function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArchive: () => void; onDelete: () => void }) {
   const config = typeConfig[item.type] || typeConfig.note;
   const Icon = config.icon;
+  const badgeStyle = inboxBadgeStyle[item.type] || inboxBadgeStyle.note;
 
   return (
-    <Card padding="sm" border shadow="sm" className="group">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+    <Card padding="sm" border shadow="none" animate={false} className="group inbox-item-row">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        {/* Icon badge */}
         <div style={{ 
-          width: '40px', 
-          height: '40px', 
+          width: '36px', 
+          height: '36px', 
           borderRadius: 'var(--radius-md)', 
-          backgroundColor: 'var(--color-bg-tertiary)',
+          backgroundColor: badgeStyle.backgroundColor,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'var(--color-text-tertiary)',
-          flexShrink: 0
-        }} className="group-hover:bg-accent-subtle group-hover:text-accent transition-colors">
-          <Icon size={18} />
+          color: badgeStyle.color,
+          flexShrink: 0,
+        }}>
+          <Icon size={16} />
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+          {/* Badge row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <Badge variant={config.variant}>
+            <span style={{
+              ...badgeStyle,
+              fontSize: 'var(--text-xs)',
+              fontWeight: 500,
+              padding: '1px 7px',
+              borderRadius: 'var(--radius-full)',
+            }}>
               {config.label}
-            </Badge>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', marginLeft: '4px' }}>
               {timeAgo(item.createdAt)}
             </span>
           </div>
-          
-          <h4 style={{ 
-            fontSize: 'var(--text-base)', 
-            fontWeight: 'var(--font-medium)', 
+
+          {/* Title */}
+          <p style={{ 
+            fontSize: 'var(--text-sm)', 
+            fontWeight: 'var(--font-normal)', 
             color: 'var(--color-text-primary)',
             margin: 0,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            marginTop: '2px',
           }}>
             {item.title}
-          </h4>
+          </p>
 
+          {/* Meta */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
             {item.type === 'meeting' && item.raw?.meeting_date && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
-                <Clock size={12} />
+                <Clock size={11} />
                 <span style={{ fontFamily: 'var(--font-mono)' }}>
                   {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             )}
-
             {item.type === 'task' && item.raw?.due_date && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
-                <Target size={12} />
+                <Target size={11} />
                 <span style={{ fontFamily: 'var(--font-mono)' }}>
                   {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
                 </span>
@@ -344,34 +366,23 @@ function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArch
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        {/* Actions — visible on parent hover only */}
+        <div
+          className="inbox-actions"
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: 0, transition: 'opacity var(--t-fast)' }}
+        >
           {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={onArchive}
-                title="Arquivar"
-              >
-                <Archive size={16} />
+              <Button variant="ghost" size="sm" onClick={onArchive} title="Arquivar">
+                <Archive size={15} />
               </Button>
-              <Button 
-                variant="ghost"
-                size="sm"
-                onClick={onDelete}
-                style={{ color: 'var(--color-error)' }}
-                title="Deletar"
-              >
-                <Trash2 size={16} />
+              <Button variant="ghost" size="sm" onClick={onDelete} style={{ color: 'var(--color-error)' }} title="Deletar">
+                <Trash2 size={15} />
               </Button>
             </>
           ) : (
-            <Button 
-              variant="ghost"
-              size="sm"
-              title="Abrir"
-            >
-              <ChevronRight size={16} />
+            <Button variant="ghost" size="sm" title="Abrir">
+              <ChevronRight size={15} />
             </Button>
           )}
         </div>

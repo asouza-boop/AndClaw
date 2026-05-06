@@ -1,5 +1,5 @@
 import React from 'react';
-import { MobileNav } from './MobileNav';
+// MobileNav removed — sidebar handles navigation on all viewports
 
 interface AppLayoutProps {
   sidebar?: React.ReactNode;
@@ -12,7 +12,7 @@ export function AppLayout({ sidebar, children }: AppLayoutProps) {
     display: 'flex',
     minHeight: '100vh',
     width: '100%',
-    backgroundColor: 'var(--color-bg-primary)',
+    backgroundColor: 'var(--color-bg-base)',
     color: 'var(--color-text-primary)',
     fontFamily: 'var(--font-sans)',
     lineHeight: 'var(--leading-normal)',
@@ -22,27 +22,23 @@ export function AppLayout({ sidebar, children }: AppLayoutProps) {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    minWidth: 0, // prevents flex blowout
+    minWidth: 0,
   };
 
   return (
     <div style={layoutStyle}>
-      {/* Desktop Sidebar */}
+      {/* Sidebar */}
       <aside
-        className="hidden md:flex flex-col fixed inset-y-0 left-0 w-[240px] border-r"
-        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-secondary)' }}
+        className="hidden md:flex flex-col fixed inset-y-0 left-0 w-[224px] border-r"
+        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg-surface)' }}
       >
         {sidebar}
       </aside>
 
-      {/* Main Content Area */}
-      <div className="md:pl-[240px] pb-[64px] md:pb-0" style={mainAreaStyle}>
-        {/*
-          Mobile:  padding var(--space-page-x-mobile) horizontal, var(--space-page-top) top
-          Desktop: padding var(--space-page-x) horizontal, var(--space-page-top) top
-        */}
+      {/* Main Content Area — no bottom padding for mobile nav */}
+      <div className="md:pl-[224px]" style={mainAreaStyle}>
         <main
-          className="page-content"
+          className="page-content animate-fade-in"
           style={{
             flex: 1,
             width: '100%',
@@ -56,9 +52,6 @@ export function AppLayout({ sidebar, children }: AppLayoutProps) {
           {children}
         </main>
       </div>
-
-      {/* Mobile Navigation */}
-      <MobileNav />
     </div>
   );
 }

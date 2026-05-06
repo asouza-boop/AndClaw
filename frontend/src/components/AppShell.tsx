@@ -38,14 +38,31 @@ export function AppShell() {
   }, [fetchNotifications]);
 
   return (
-    <div className="flex h-screen w-full mesh-gradient relative overflow-hidden font-outfit select-none">
-      <AppSidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0 relative z-10 p-4 md:p-6 lg:p-8 xl:p-10 transition-all duration-700">
+    <div
+      className="flex h-screen w-full relative overflow-hidden select-none"
+      style={{ backgroundColor: 'var(--color-bg-base)' }}
+    >
+      {/* Sidebar — fixed left, 224px */}
+      <div
+        className="hidden md:flex flex-col flex-shrink-0"
+        style={{
+          width: '224px',
+          borderRight: '1px solid var(--color-border)',
+          backgroundColor: 'var(--color-bg-surface)',
+        }}
+      >
+        <AppSidebar />
+      </div>
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         <BackendRetryBanner />
-        <div className="flex-1 flex flex-col glass-panel-v2 border-white/5 overflow-hidden shadow-2xl relative">
+        <div
+          className="flex-1 flex flex-col overflow-hidden"
+          style={{ backgroundColor: 'var(--color-bg-base)' }}
+        >
           <Topbar title={title} />
-          <main className="flex-1 overflow-y-auto scrollbar-hide">
+          <main className="flex-1 overflow-y-auto scrollbar-hide animate-fade-in">
             <div className="page-content max-w-[1600px] mx-auto w-full min-h-full">
               <Outlet />
             </div>
@@ -53,10 +70,16 @@ export function AppShell() {
         </div>
       </div>
 
-      <div className="hidden 2xl:block w-[380px] shrink-0 relative z-10 p-6 lg:p-8 xl:p-10 pl-0">
-        <div className="h-full glass-panel-v2 border-white/5 shadow-2xl overflow-hidden">
-          <IntelligenceSidebar />
-        </div>
+      {/* Intelligence sidebar — only on very wide viewports */}
+      <div
+        className="hidden 2xl:flex flex-col flex-shrink-0"
+        style={{
+          width: '360px',
+          borderLeft: '1px solid var(--color-border)',
+          backgroundColor: 'var(--color-bg-surface)',
+        }}
+      >
+        <IntelligenceSidebar />
       </div>
 
       <BackendRetryIndicator />

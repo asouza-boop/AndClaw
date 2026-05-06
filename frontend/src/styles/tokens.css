@@ -1,105 +1,108 @@
 :root {
-  /* COLOR TOKENS */
-  /* Backgrounds — warm off-whites */
-  --color-bg-primary: #FAFAF8;
-  --color-bg-secondary: #F4F3F0;
-  --color-bg-tertiary: #EEECEA;
-  --color-bg-overlay: rgba(0, 0, 0, 0.04);
+  /* Backgrounds */
+  --color-bg-base:      #111318;
+  --color-bg-surface:   #1A1D24;
+  --color-bg-elevated:  #22262F;
+  --color-bg-overlay:   #2A2E38;
 
-  /* Text — warm near-blacks */
-  --color-text-primary: #1A1916;
-  --color-text-secondary: #6B6760;
-  --color-text-tertiary: #A8A49E;
-  --color-text-inverse: #ffffff;
+  /* Aliases for legacy compatibility */
+  --color-bg-primary:   #111318;
+  --color-bg-secondary: #1A1D24;
+  --color-bg-tertiary:  #22262F;
 
-  /* Accent — single indigo accent, used sparingly */
-  --color-accent: #5B5FDE;
-  --color-accent-hover: #4a4ec8;
-  --color-accent-subtle: rgba(91, 95, 222, 0.08);
+  /* Borders */
+  --color-border:       #2E3240;
+  --color-border-med:   #3D4255;
+  --color-border-strong: #3D4255;
 
-  /* Borders — softer */
-  --color-border: rgba(0, 0, 0, 0.07);
-  --color-border-strong: rgba(0, 0, 0, 0.13);
+  /* Text */
+  --color-text-primary:   #F0F2F8;
+  --color-text-secondary: #8B90A7;
+  --color-text-tertiary:  #555A72;
+  --color-text-inverse:   #111318;
+
+  /* Accent — single accent */
+  --color-accent:       #6C72FF;
+  --color-accent-dim:   #3D4199;
+  --color-accent-sub:   #1E2052;
+  --color-accent-hover: #7C82FF;
+  --color-accent-subtle: rgba(108, 114, 255, 0.08);
 
   /* Status */
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-error: #dc2626;
-  --color-info: #2563eb;
+  --color-teal:    #2DD4BF;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error:   #EF4444;
+  --color-purple:  #A78BFA;
+  --color-info:    #6C72FF;
 
-  /* SPACING TOKENS (4px base grid) */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', monospace;
+
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  32px;
+
+  --font-normal:   400;
+  --font-medium:   500;
+  --font-semibold: 600;
+
+  --leading-tight:   1.2;
+  --leading-normal:  1.6;
+  --leading-relaxed: 1.7;
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
 
-  /* Page layout spacing */
-  --space-page-x: 48px;
+  --space-page-x:        40px;
   --space-page-x-mobile: 20px;
-  --space-page-top: 40px;
-  --space-section: 48px;
-  --space-card-pad: 24px;
-  --space-card-pad-sm: 16px;
+  --space-page-top:      32px;
+  --space-section:       48px;
+  --space-card-pad:      20px;
+  --space-card-pad-sm:   14px;
 
-  /* TYPOGRAPHY TOKENS */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-
-  --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
-  --text-lg: 17px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 30px;
-
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-
-  --leading-tight: 1.2;
-  --leading-normal: 1.6;
-  --leading-relaxed: 1.7;
-
-  /* RADIUS TOKENS */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  /* Radius */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
   --radius-full: 9999px;
 
-  /* SHADOW TOKENS */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.10);
+  /* Shadow */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
 
-  /* TRANSITION */
-  --transition-fast: 100ms ease;
-  --transition-base: 150ms ease;
-  --transition-slow: 250ms ease;
+  /* Motion — CSS only, no JS animation libraries */
+  --transition-fast:   100ms ease;
+  --transition-base:   150ms ease;
+  --transition-slow:   250ms cubic-bezier(0.4,0,0.2,1);
+
+  --t-instant: 50ms ease;
+  --t-fast:    100ms ease;
+  --t-base:    150ms ease;
+  --t-slow:    250ms cubic-bezier(0.4,0,0.2,1);
+  --t-spring:  300ms cubic-bezier(0.34,1.56,0.64,1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Backgrounds — warm darks */
-    --color-bg-primary: #141412;
-    --color-bg-secondary: #1C1B18;
-    --color-bg-tertiary: #242320;
-    --color-bg-overlay: rgba(255, 255, 255, 0.04);
-
-    /* Text */
-    --color-text-primary: #F0EFE9;
-    --color-text-secondary: #A8A49E;
-    --color-text-tertiary: #6B6760;
-    --color-text-inverse: #141412;
-
-    /* Borders */
-    --color-border: rgba(255, 255, 255, 0.07);
-    --color-border-strong: rgba(255, 255, 255, 0.13);
-  }
+/* Apply base */
+body {
+  background: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
 }
