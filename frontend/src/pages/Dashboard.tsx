@@ -5,21 +5,23 @@ import { useState } from 'react';
 import { toast } from '@/stores/toastStore';
 import { DashboardSkeleton } from '@/components/PageSkeletons';
 import { DailyBriefing } from '@/components/dashboard/DailyBriefing';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/card';
 
 function StatCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: number; sub: string; color: string }) {
   return (
-    <div className="glass-card p-6 flex flex-col justify-between h-32 group">
+    <Card shadow="sm" className="p-6 flex flex-col justify-between h-32 group">
       <div className="flex items-center gap-3">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} shadow-sm group-hover:scale-110 transition-transform duration-300`}>
           <Icon className="w-5 h-5" />
         </div>
-        <span className="text-sm font-medium text-white/50 group-hover:text-white/70 transition-colors uppercase tracking-wider text-[10px]">{label}</span>
+        <span className="text-xs font-medium text-text-secondary group-hover:text-text-primary transition-colors uppercase tracking-wider">{label}</span>
       </div>
       <div>
-        <p className="text-3xl font-black text-white tracking-tight">{value}</p>
-        <p className="text-[10px] text-white/30 uppercase font-bold tracking-widest">{sub}</p>
+        <p className="text-3xl font-semibold tracking-tight">{value}</p>
+        <p className="text-xs text-text-tertiary uppercase font-bold tracking-widest">{sub}</p>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -78,54 +80,55 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 space-y-10 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
-      <header className="px-4">
-        <h2 className="text-4xl font-black text-white tracking-tighter mb-2">Command Center</h2>
-        <p className="text-white/30 text-[13px] font-medium tracking-wide uppercase">Unified Intelligence & Operations Pipeline</p>
-      </header>
+    <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-700 max-w-[1400px] mx-auto">
+      <PageHeader 
+        title="AndClaw" 
+        subtitle={new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} 
+        titleClassName="font-mono text-sm"
+      />
 
-      <div className="px-4">
+      <div className="px-0 sm:px-4">
         <DailyBriefing />
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-0 sm:px-4">
         <StatCard icon={ListTodo} label="Tasks" value={pendingTasks.length} sub="pending execution" color="bg-primary/10 text-primary border border-primary/20" />
-        <StatCard icon={AlertTriangle} label="Critical" value={highPriority.length} sub="waiting action" color="bg-rose-500/10 text-rose-500 border border-rose-500/20" />
+        <StatCard icon={AlertTriangle} label="Critical" value={highPriority.length} sub="waiting action" color="bg-error/10 text-error border border-error/20" />
         <StatCard icon={Video} label="Meetings" value={meetings?.length || 0} sub="recorded intelligence" color="bg-accent/10 text-accent border border-accent/20" />
-        <StatCard icon={Inbox} label="Captures" value={unprocessed.length} sub="unprocessed fragments" color="bg-white/10 text-white/60 border border-white/20" />
+        <StatCard icon={Inbox} label="Captures" value={unprocessed.length} sub="unprocessed fragments" color="bg-surface/10 text-text-secondary border border-border" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 px-0 sm:px-4">
         {/* Today's tasks */}
-        <div className="glass-card p-8">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-6 font-mono">Operations Pipeline</h3>
+        <Card shadow="sm" className="p-6 sm:p-8">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary mb-6 font-mono">Operations Pipeline</h3>
           <div className="space-y-4">
             {pendingTasks.slice(0, 5).map((t: any) => (
-              <div key={t._id || t.id} className="flex items-center gap-4 p-4 bg-white/[0.03] rounded-2xl border border-white/5 hover:bg-white/5 transition-premium group">
-                <div className="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-[9px] font-black text-white/30 group-hover:border-primary/40 group-hover:text-primary transition-premium">
+              <div key={t._id || t.id} className="flex items-center gap-4 p-4 bg-bg-secondary rounded-2xl border border-border hover:bg-surface transition-colors group">
+                <div className="w-6 h-6 rounded-full border border-border flex items-center justify-center text-[9px] font-black text-text-tertiary group-hover:border-primary/40 group-hover:text-primary transition-colors">
                   {t.priority === 'high' ? '!' : '#'}
                 </div>
-                <span className="text-[13px] text-white/70 flex-1 truncate font-medium">{t.title}</span>
+                <span className="text-sm text-text-primary flex-1 truncate font-medium">{t.title}</span>
               </div>
             ))}
-            {pendingTasks.length === 0 && <p className="text-sm text-white/20 italic text-center py-4">No pending operations.</p>}
+            {pendingTasks.length === 0 && <p className="text-sm text-text-tertiary italic text-center py-4">No pending operations.</p>}
           </div>
-        </div>
+        </Card>
 
         {/* Quick chat */}
-        <div className="glass-card p-8 bg-gradient-to-br from-primary/5 to-transparent flex flex-col">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30 mb-6 font-mono">Cognitive Prompt</h3>
+        <Card shadow="sm" className="p-6 sm:p-8 flex flex-col w-full">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-tertiary mb-6 font-mono">Cognitive Prompt</h3>
           <div className="flex-1 space-y-4 max-h-[280px] overflow-y-auto mb-6 pr-4 scrollbar-hide">
             {chatMessages.length === 0 && (
-               <p className="text-white/20 text-xs italic p-4 border border-dashed border-white/5 rounded-2xl">Initialize cognitive link or vocal command...</p>
+               <p className="text-text-tertiary text-xs italic p-4 border border-dashed border-border rounded-2xl">Initialize cognitive link or vocal command...</p>
             )}
             {chatMessages.map((m, i) => (
               <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed transition-premium shadow-lg ${
+                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed transition-colors shadow-sm ${
                   m.role === 'user' 
-                    ? 'bg-primary text-white font-bold rounded-tr-sm shadow-primary/20' 
-                    : 'bg-white/5 text-white/90 border border-white/5 rounded-tl-sm shadow-black/40'
+                    ? 'bg-accent text-text-inverse font-medium rounded-tr-sm' 
+                    : 'bg-bg-tertiary text-text-primary border border-border rounded-tl-sm'
                 }`}>
                   {m.content}
                 </div>
@@ -135,7 +138,7 @@ export default function Dashboard() {
                       <button 
                         key={si}
                         onClick={() => handleSuggestion(s)}
-                        className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[9px] text-white/80 font-black uppercase tracking-wider hover:bg-primary hover:text-white transition-premium interactive-scale"
+                        className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[9px] text-primary font-bold uppercase tracking-wider hover:bg-primary hover:text-white transition-colors"
                       >
                         {s.label}
                       </button>
@@ -145,29 +148,29 @@ export default function Dashboard() {
               </div>
             ))}
             {chatLoading && (
-              <div className="flex items-center gap-3 text-[10px] text-primary uppercase font-black tracking-widest animate-pulse px-2">
-                 <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(168,85,247,0.5)]" />
+              <div className="flex items-center gap-3 text-[10px] text-primary uppercase font-bold tracking-widest animate-pulse px-2">
+                 <div className="w-2 h-2 rounded-full bg-primary shadow-sm" />
                  <span>Analyzing Intent...</span>
               </div>
             )}
           </div>
-          <div className="flex gap-2 p-2 bg-black/40 rounded-2xl border border-white/10 focus-within:border-primary/40 transition-premium">
+          <div className="flex gap-2 p-2 bg-bg-secondary rounded-2xl border border-border focus-within:border-primary/40 transition-colors">
             <input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChat()}
               placeholder="Send command..."
-              className="flex-1 px-4 py-3 bg-transparent text-[13px] text-white placeholder:text-white/20 focus:outline-none"
+              className="flex-1 px-4 py-3 bg-transparent text-[13px] text-text-primary placeholder:text-text-tertiary focus:outline-none"
             />
             <button
               onClick={sendChat}
               disabled={chatLoading || !chatInput.trim()}
-              className="w-12 h-12 flex items-center justify-center rounded-xl bg-white text-black hover:bg-primary hover:text-white disabled:opacity-20 transition-premium shadow-xl interactive-scale"
+              className="w-12 h-12 flex items-center justify-center rounded-xl bg-primary text-text-inverse hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm"
             >
               <Send className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

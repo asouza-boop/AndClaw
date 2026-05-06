@@ -217,8 +217,8 @@ export default function ChatPage() {
               <EmptyState
                 className="mx-auto max-w-xl py-16"
                 icon={Bot}
-                title="Comece a conversa"
-                description="Envie uma pergunta, pedido de ação ou contexto. O histórico aparece aqui com separação clara entre você e o agente."
+                title="Inicie uma conversa"
+                description="Envie uma pergunta, pedido de ação ou contexto."
               />
             )}
 
@@ -231,40 +231,40 @@ export default function ChatPage() {
                 style={{ animationDelay: `${Math.min(i * 30, 150)}ms` }}
               >
                 {m.role === 'assistant' && (
-                  <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary sm:flex">
+                  <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg-secondary text-primary sm:flex">
                     <Bot className="h-4 w-4" />
                   </div>
                 )}
 
-                <div
-                  className={`max-w-[min(46rem,78%)] rounded-[22px] border px-4 py-3 shadow-sm transition-all duration-300 ${
-                    m.role === 'user'
-                      ? 'rounded-br-md border-primary/15 bg-gradient-to-br from-primary/15 to-white/[0.03] text-foreground hover:border-primary/25 hover:shadow-md hover:shadow-primary/5'
-                      : 'rounded-bl-md border-white/[0.08] bg-surface/70 text-foreground hover:border-white/[0.12] hover:bg-surface/80'
-                  }`}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full transition-all duration-500 ${
-                          m.role === 'user' ? 'bg-primary/15 text-primary' : (m.memorable ? 'bg-accent/20 text-accent shadow-[0_0_12px_rgba(168,85,247,0.4)] animate-pulse' : 'bg-white/[0.05] text-muted-foreground')
-                        }`}
-                      >
-                        {m.role === 'user' ? <User2 className="h-3 w-3" /> : (m.memorable ? <Brain className="h-3 w-3" /> : <Bot className="h-3 w-3" />)}
-                      </span>
-                      <Label className={m.role === 'user' ? 'text-primary' : (m.memorable ? 'text-accent font-black animate-in fade-in' : 'text-muted-foreground')}>
-                        {m.role === 'user' ? 'Você' : (m.memorable ? 'Aprendizado Ativo' : 'Agente')}
-                      </Label>
+                <div className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div
+                    className={`max-w-[min(46rem,85%)] px-4 py-3 shadow-sm transition-colors duration-300 ${
+                      m.role === 'user'
+                        ? 'bg-accent text-text-inverse rounded-t-[var(--radius-lg)] rounded-bl-[var(--radius-lg)] rounded-br-[var(--radius-sm)]'
+                        : 'bg-bg-tertiary text-text-primary rounded-t-[var(--radius-lg)] rounded-br-[var(--radius-lg)] rounded-bl-[var(--radius-sm)] border border-border'
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`flex h-5 w-5 items-center justify-center rounded-full transition-all duration-500 ${
+                            m.role === 'user' ? 'bg-black/10 text-text-inverse' : (m.memorable ? 'bg-accent/20 text-accent shadow-[0_0_12px_rgba(168,85,247,0.4)] animate-pulse' : 'bg-black/5 text-text-secondary')
+                          }`}
+                        >
+                          {m.role === 'user' ? <User2 className="h-3 w-3" /> : (m.memorable ? <Sparkles className="h-3 w-3" /> : <Bot className="h-3 w-3" />)}
+                        </span>
+                        <Label className={m.role === 'user' ? 'text-text-inverse opacity-90' : (m.memorable ? 'text-accent font-black animate-in fade-in' : 'text-text-secondary')}>
+                          {m.role === 'user' ? 'Você' : (m.memorable ? 'Aprendizado Ativo' : 'Agente')}
+                        </Label>
+                      </div>
                     </div>
-                    <Caption>{formatTime(m.timestamp)}</Caption>
-                  </div>
 
                   {m.role === 'assistant' ? (
-                    <div className="prose prose-sm prose-invert max-w-none prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-strong:text-foreground prose-a:text-primary">
+                    <div className="prose prose-sm prose-p:my-2 prose-headings:mb-2 prose-headings:mt-4 prose-strong:text-text-primary prose-a:text-primary max-w-none">
                       <ReactMarkdown>{m.content || ''}</ReactMarkdown>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/95">{m.content || ''}</p>
+                    <p className="whitespace-pre-wrap text-sm leading-6 text-text-inverse opacity-95">{m.content || ''}</p>
                   )}
 
                   {m.role === 'assistant' && m.suggestions && m.suggestions.length > 0 && (
@@ -273,7 +273,7 @@ export default function ChatPage() {
                         <button 
                           key={si}
                           onClick={() => handleSuggestion(s)}
-                          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 text-[9px] font-black uppercase tracking-wider text-primary-foreground hover:bg-primary hover:text-white transition-all active:scale-95"
+                          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 text-[9px] font-bold uppercase tracking-wider text-primary hover:bg-primary hover:text-white transition-colors active:scale-95"
                         >
                           {s.label}
                         </button>
@@ -283,16 +283,20 @@ export default function ChatPage() {
 
                   {m.role === 'assistant' && (m.trace || (loading && i === safeMessages.length - 1)) && (
                     <Button
-                      variant="subtle"
+                      variant="ghost"
                       size="sm"
                       onClick={() => inspectTrace(m)}
                       className="mt-3 h-auto px-0 py-0 text-[10px] font-semibold uppercase tracking-wider text-primary hover:text-accent"
                     >
-                      <Terminal className="h-3.5 w-3.5" />
+                      <Terminal className="h-3.5 w-3.5 mr-1" />
                       Explore trace
                     </Button>
                   )}
                 </div>
+                <span className="text-xs text-text-tertiary mt-1 px-1">
+                  {formatTime(m.timestamp)}
+                </span>
+              </div>
 
                 {m.role === 'user' && (
                   <div className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] sm:flex">
@@ -321,8 +325,8 @@ export default function ChatPage() {
         </div>
 
         {/* Composer */}
-        <div className="sticky bottom-0 border-t border-white/[0.08] glass-panel rounded-none px-4 py-4 sm:px-6">
-          <div className="flex items-end gap-3 rounded-[24px] border border-white/[0.08] bg-surface/55 p-3 shadow-[0_20px_50px_-36px_rgba(0,0,0,0.75)] transition-all duration-300 focus-within:border-primary/20 focus-within:shadow-[0_20px_50px_-36px_rgba(168,85,247,0.2)]">
+        <div className="sticky bottom-0 border-t border-border bg-bg-primary px-4 py-4 sm:px-6">
+          <div className="flex items-end gap-3 rounded-[24px] border border-border bg-bg-secondary p-3 shadow-sm transition-all duration-300 focus-within:border-primary/40 focus-within:shadow-md">
             <textarea
               ref={textareaRef}
               value={input}
@@ -330,16 +334,18 @@ export default function ChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="Pergunte algo ao agente..."
               rows={1}
-              className="max-h-44 min-h-[3rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="max-h-44 min-h-[3rem] flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-6 text-text-primary placeholder:text-text-tertiary focus:outline-none"
             />
-            <button
+            <Button
+              variant="primary"
               onClick={send}
               disabled={loading || !input.trim()}
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-200 hover:scale-[1.02] hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-12 w-12 sm:w-auto sm:px-6 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-all duration-200"
               aria-label="Enviar mensagem"
             >
               <Send className="h-4 w-4" />
-            </button>
+              <span className="hidden sm:inline-block ml-2">Enviar</span>
+            </Button>
           </div>
         </div>
 

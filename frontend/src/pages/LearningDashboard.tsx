@@ -43,9 +43,9 @@ export default function LearningDashboard() {
     if (isLoading && !rawMetrics) {
         return (
             <AppLayout sidebar={<AppSidebar />}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: 'var(--space-4)' }}>
+                <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                     <Loader2 size={32} className="animate-spin text-primary" />
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Sincronizando Heurísticas...</span>
+                    <span className="text-xs text-text-tertiary uppercase tracking-widest">Sincronizando Heurísticas...</span>
                 </div>
             </AppLayout>
         );
@@ -55,10 +55,10 @@ export default function LearningDashboard() {
         return (
             <AppLayout sidebar={<AppSidebar />}>
                 <PageHeader title="Inteligência" subtitle="Estatísticas de aprendizado do agente" />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+                <div className="flex items-center justify-center h-[60vh]">
                     <EmptyState
                         icon={<BrainCircuit size={48} />}
-                        title="O agente ainda está aprendendo"
+                        title="Nenhuma inteligência registrada ainda"
                         description="Insights e métricas aparecerão conforme o sistema processa interações reais."
                     />
                 </div>
@@ -98,14 +98,14 @@ export default function LearningDashboard() {
                 }
             />
 
-            <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+            <div className="mt-8 flex flex-col gap-8">
                 {/* Metrics Grid Wrapper */}
                 <MetricGrid metrics={efficiencyMetrics} />
 
                 {/* Charts + Insights Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 'var(--space-6)' }} className="lg:grid-cols-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">
-                        <Card padding="lg" border shadow="sm">
+                        <Card padding="lg" shadow="sm">
                             <PerformanceChart
                                 top={metrics?.topSkills || []}
                                 worst={metrics?.worstSkills || []}
@@ -118,9 +118,9 @@ export default function LearningDashboard() {
                         {featureFlags.UI_LEARNING_INSIGHTS ? (
                             <IntelligenceInsights insights={safeInsights || []} />
                         ) : (
-                            <Card padding="lg" border shadow="sm" style={{ borderStyle: 'dashed', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', height: '100%' }}>
-                                <Badge variant="ghost" style={{ marginBottom: 'var(--space-2)' }}>Telemetry Module</Badge>
-                                <p style={{ fontSize: 'var(--text-sm)', fontStyle: 'italic', color: 'var(--color-text-tertiary)', maxWidth: '200px' }}>
+                            <Card padding="lg" shadow="sm" className="border-dashed flex flex-col items-center justify-center text-center h-full">
+                                <Badge variant="secondary" className="mb-2">Telemetry Module</Badge>
+                                <p className="text-sm italic text-text-tertiary max-w-[200px]">
                                     Engine telemetry running in stealth mode. Toggle flag to enable insights.
                                 </p>
                             </Card>

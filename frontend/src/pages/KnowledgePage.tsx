@@ -144,10 +144,15 @@ export default function KnowledgePage() {
   return (
     <AppLayout sidebar={<AppSidebar />}>
       <PageHeader 
-        title="Conhecimento" 
+        title={
+          <div className="flex items-center gap-3">
+            <span>Conhecimento</span>
+            <div className="w-2 h-2 rounded-full bg-success" title="SSE Connected" />
+          </div>
+        } 
         subtitle="Repositório cognitivo consolidado"
         actions={
-          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+          <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => setLinkDialog(true)}>
               <Link2 size={14} className="mr-2" /> Vínculo
             </Button>
@@ -158,18 +163,18 @@ export default function KnowledgePage() {
         }
       />
 
-      <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      <div className="mt-8 flex flex-col gap-8">
         {/* Stats Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-6)' }} className="sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {stats.map((stat) => (
-            <Card key={stat.label} padding="lg" border shadow="sm">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-md)', backgroundColor: `var(--color-${stat.variant}-bg)`, color: `var(--color-${stat.variant})` }}>
+            <Card key={stat.label} padding="lg" shadow="sm">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-md bg-${stat.variant}/10 text-${stat.variant}`}>
                   <stat.icon size={16} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-semibold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{stat.label}</span>
-                  <span style={{ fontSize: 'var(--text-2xl)', fontWeight: 'var(--font-black)', fontFamily: 'var(--font-mono)' }}>{stat.value}</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">{stat.label}</span>
+                  <span className="text-2xl font-black font-mono text-text-primary">{stat.value}</span>
                 </div>
               </div>
             </Card>

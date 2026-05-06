@@ -92,29 +92,29 @@ export default function SettingsPage() {
         subtitle="Gerencie sua conta e as integrações do sistema"
       />
 
-      <div style={{ marginTop: 'var(--space-8)', display: 'flex', flexDirection: 'column', gap: 'var(--space-8)' }}>
+      <div className="mt-8 flex flex-col gap-8">
         {/* System Health */}
-        <Card padding="lg" border shadow="sm">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+        <Card shadow="sm" className="p-6">
+          <div className="flex items-center gap-2 mb-4">
             <Activity size={14} className="text-primary" />
-            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Status do Sistema</h3>
+            <h3 className="text-xs font-bold uppercase text-text-tertiary m-0">Status do Sistema</h3>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-6)' }}>
+          <div className="flex flex-wrap gap-6">
             {[
               { label: 'Backend', icon: Server, ok: !!status?.ok },
               { label: 'Database', icon: Database, ok: !!status?.db?.ok },
               { label: 'LLM', icon: Brain, ok: !!status?.llmConfigured },
             ].map((s) => (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <s.icon size={14} style={{ color: 'var(--color-text-tertiary)' }} />
-                <span style={{ fontSize: 'var(--text-sm)' }}>{s.label}</span>
-                <Badge variant={s.ok ? 'success' : 'danger'} style={{ padding: 'var(--space-1)', borderRadius: '50%', minWidth: '8px', minHeight: '8px', height: '8px', width: '8px' }} />
+              <div key={s.label} className="flex items-center gap-2">
+                <s.icon size={14} className="text-text-tertiary" />
+                <span className="text-sm">{s.label}</span>
+                <Badge variant={s.ok ? 'success' : 'danger'} className="p-1 rounded-full min-w-[8px] min-h-[8px] h-2 w-2" />
               </div>
             ))}
             {status?.lastDeploy && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginLeft: 'auto' }}>
-                <Clock size={12} style={{ color: 'var(--color-text-tertiary)' }} />
-                <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)' }}>Deploy: {new Date(status.lastDeploy).toLocaleDateString('pt-BR')}</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <Clock size={12} className="text-text-tertiary" />
+                <span className="text-[10px] text-text-tertiary font-mono">Deploy: {new Date(status.lastDeploy).toLocaleDateString('pt-BR')}</span>
               </div>
             )}
           </div>
@@ -122,18 +122,16 @@ export default function SettingsPage() {
 
         {/* Integrations Grid */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+          <div className="flex items-center gap-2 mb-4">
             <Zap size={14} className="text-primary" />
-            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Integrações</h3>
+            <h3 className="text-xs font-bold uppercase text-text-tertiary m-0">Integrações</h3>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 'var(--space-4)' }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {integrations.map((int) => (
               <Card 
                 key={int.key} 
-                padding="md" 
-                border 
-                shadow="none" 
-                className="group hover:border-primary/40 transition-colors cursor-pointer"
+                shadow="sm" 
+                className="group hover:border-primary/40 transition-colors cursor-pointer p-4"
                 onClick={() => {
                   if (int.key === 'ai') {
                     navigate('/settings/providers');
@@ -143,18 +141,18 @@ export default function SettingsPage() {
                   }
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                  <span style={{ fontSize: '20px' }}>{int.icon}</span>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 'var(--text-sm)', fontWeight: 'var(--font-bold)', margin: 0 }}>{int.label}</p>
-                    <p style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', margin: 0 }}>
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl">{int.icon}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold m-0">{int.label}</p>
+                    <p className="text-[10px] text-text-tertiary m-0">
                       {int.desc}
                       {settingKeyMap[int.key] && settingsData?.settings?.[settingKeyMap[int.key]] === 'configured' && (
-                        <span style={{ color: 'var(--color-success)', marginLeft: 'var(--space-2)' }}>• Configurado</span>
+                        <span className="text-success ml-2">• Configurado</span>
                       )}
                     </p>
                   </div>
-                  <ExternalLink size={12} style={{ color: 'var(--color-text-tertiary)' }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ExternalLink size={12} className="text-text-tertiary opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </Card>
             ))}
@@ -162,38 +160,38 @@ export default function SettingsPage() {
         </div>
 
         {/* Activity Log */}
-        <Card padding="lg" border shadow="sm">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+        <Card shadow="sm" className="p-6">
+          <div className="flex items-center gap-2 mb-4">
             <Settings size={14} className="text-primary" />
-            <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Log de Atividade</h3>
+            <h3 className="text-xs font-bold uppercase text-text-tertiary m-0">Log de Atividade</h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div className="flex flex-col gap-2">
             {(status?.recentEvents || []).slice(0, 8).map((e: any, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', fontSize: '11px' }}>
-                <span style={{ color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', width: '50px' }}>{new Date(e.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                <Badge variant="ghost" style={{ fontSize: '9px', minWidth: '60px', textAlign: 'center' }}>{e.type || 'info'}</Badge>
-                <span style={{ color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.message || e.description || 'Evento'}</span>
+              <div key={i} className="flex items-center gap-4 text-[11px]">
+                <span className="text-text-tertiary font-mono w-[50px]">{new Date(e.timestamp || Date.now()).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                <Badge variant="secondary" className="text-[9px] min-w-[60px] text-center">{e.type || 'info'}</Badge>
+                <span className="text-text-secondary overflow-hidden text-ellipsis whitespace-nowrap">{e.message || e.description || 'Evento'}</span>
               </div>
             ))}
             {(!status?.recentEvents || status.recentEvents.length === 0) && (
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontStyle: 'italic' }}>Nenhum evento recente identificado no pipeline.</p>
+              <p className="text-xs text-text-tertiary italic">Nenhum evento recente identificado no pipeline.</p>
             )}
           </div>
         </Card>
 
         {/* Metrics Grid */}
-        <Card padding="lg" border shadow="sm">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <Card shadow="sm" className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
               <Activity size={14} className="text-primary" />
-              <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', margin: 0 }}>Métricas de Performance</h3>
+              <h3 className="text-xs font-bold uppercase text-text-tertiary m-0">Métricas de Performance</h3>
             </div>
             <Button variant="ghost" size="sm" onClick={() => refetchMetrics()} disabled={metricsLoading}>
               {metricsLoading ? <Loader2 size={12} className="animate-spin mr-2" /> : null} Atualizar
             </Button>
           </div>
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)' }} className="sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Cache Hit', key: 'cache.hit', kind: 'count' as const },
               { label: 'Cache Miss', key: 'cache.miss', kind: 'count' as const },
@@ -207,35 +205,35 @@ export default function SettingsPage() {
               const value = item.kind === 'avg' ? metricAvg(item.key) : metricValue(item.key);
               const count = metricCount(item.key);
               return (
-                <div key={item.key} style={{ padding: 'var(--space-4)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)' }}>
-                  <div style={{ fontSize: '9px', fontWeight: 'var(--font-bold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>{item.label}</div>
-                  <div style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-black)', fontFamily: 'var(--font-mono)', marginTop: 'var(--space-2)' }}>
-                    {value ?? '—'}{item.suffix && <span style={{ fontSize: '10px', fontWeight: 'var(--font-medium)', opacity: 0.5, marginLeft: '2px' }}>{item.suffix}</span>}
+                <div key={item.key} className="p-4 rounded-md bg-bg-secondary border border-border">
+                  <div className="text-[9px] font-bold text-text-tertiary uppercase">{item.label}</div>
+                  <div className="text-lg font-black font-mono mt-2 text-text-primary">
+                    {value ?? '—'}{item.suffix && <span className="text-[10px] font-medium opacity-50 ml-0.5">{item.suffix}</span>}
                   </div>
                   {item.kind === 'avg' && count !== null && (
-                    <div style={{ fontSize: '8px', color: 'var(--color-text-tertiary)', marginTop: 'var(--space-1)' }}>n={count}</div>
+                    <div className="text-[8px] text-text-tertiary mt-1">n={count}</div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--color-border)' }}>
-            <h4 style={{ fontSize: '10px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>Histórico Recente</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div className="mt-8 pt-6 border-t border-border">
+            <h4 className="text-[10px] font-bold uppercase text-text-tertiary mb-4">Histórico Recente</h4>
+            <div className="flex flex-col gap-2">
               {history.slice(0, 5).map((entry: any) => {
                 const cacheHits = entry.metrics?.['cache.hit']?.value ?? 0;
                 const agentLatency = entry.metrics?.['agent.latency']?.average ?? 0;
                 const memorySearch = entry.metrics?.['memory.search.count']?.value ?? 0;
                 return (
-                  <div key={`${entry.capturedAt}-${entry.mutationCount}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) var(--space-4)', backgroundColor: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', fontSize: '10px' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-tertiary)' }}>
-                      {new Date(entry.capturedAt).toLocaleTimeString('pt-BR')} <span style={{ opacity: 0.3, margin: '0 8px' }}>/</span> mut#{entry.mutationCount}
+                  <div key={`${entry.capturedAt}-${entry.mutationCount}`} className="flex items-center justify-between px-4 py-2 bg-bg-secondary rounded-sm border border-border text-[10px]">
+                    <div className="font-mono text-text-tertiary">
+                      {new Date(entry.capturedAt).toLocaleTimeString('pt-BR')} <span className="opacity-30 mx-2">/</span> mut#{entry.mutationCount}
                     </div>
-                    <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-                      <span style={{ color: 'var(--color-primary)' }}>hits {cacheHits}</span>
-                      <span style={{ color: 'var(--color-accent)' }}>lat {Math.round(agentLatency)}ms</span>
-                      <span style={{ color: 'var(--color-text-tertiary)' }}>mem {memorySearch}</span>
+                    <div className="flex gap-4">
+                      <span className="text-primary">hits {cacheHits}</span>
+                      <span className="text-accent">lat {Math.round(agentLatency)}ms</span>
+                      <span className="text-text-tertiary">mem {memorySearch}</span>
                     </div>
                   </div>
                 );
@@ -248,21 +246,19 @@ export default function SettingsPage() {
       {/* Config Modal */}
       {activeModal && (
         <div 
-          style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
           onClick={() => setActiveModal(null)}
         >
           <Card 
-            padding="lg" 
-            border 
             shadow="xl" 
-            style={{ width: '100%', maxWidth: '400px' }} 
+            className="w-full max-w-[400px] p-6" 
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
-              <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 'var(--font-black)', margin: 0 }}>{integrations.find((i) => i.key === activeModal)?.label}</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-black m-0">{integrations.find((i) => i.key === activeModal)?.label}</h3>
               <Button variant="ghost" size="sm" onClick={() => setActiveModal(null)}><X size={16} /></Button>
             </div>
-            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-6)' }}>
+            <p className="text-sm text-text-tertiary mb-6">
               Insira as credenciais para ativar esta integração no pipeline.
             </p>
             <Input 
@@ -270,9 +266,9 @@ export default function SettingsPage() {
               value={configValue}
               onChange={(e) => setConfigValue(e.target.value)}
               placeholder="API Key / Token / Endpoint..."
-              style={{ fontFamily: 'var(--font-mono)' }}
+              className="font-mono"
             />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-8)' }}>
+            <div className="flex justify-end gap-3 mt-8">
               <Button variant="ghost" onClick={() => setActiveModal(null)}>Cancelar</Button>
               <Button variant="primary" onClick={saveConfig} disabled={saving || !configValue.trim()}>
                 {saving ? <Loader2 size={14} className="animate-spin mr-2" /> : null} Salvar e Ativar
