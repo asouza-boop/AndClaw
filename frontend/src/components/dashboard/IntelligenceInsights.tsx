@@ -41,7 +41,7 @@ export const IntelligenceInsights: React.FC<Props> = ({ insights }) => {
 
             {safeInsights.length === 0 ? (
                 <EmptyState
-                    icon={Lightbulb}
+                    icon={<Lightbulb size={48} />}
                     title="No insights yet"
                     description="The intelligence engine needs more data to generate meaningful insights."
                     className="py-10"

@@ -90,7 +90,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                     </Stack>
                 ) : (
                     <EmptyState
-                        icon={BarChart3}
+                        icon={<BarChart3 size={48} />}
                         title="Awaiting data"
                         description="Performance data will appear here as the agent processes requests."
                         className="py-10"
@@ -119,7 +119,7 @@ export const PerformanceChart: React.FC<PerformanceChartProps> = ({
                     </Stack>
                 ) : (
                     <EmptyState
-                        icon={BarChart3}
+                        icon={<BarChart3 size={48} />}
                         title="No anomalies"
                         description="No skills are currently underperforming. All systems nominal."
                         className="py-10"

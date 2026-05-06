@@ -172,7 +172,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({
   if (safeSteps.length === 0) {
     return (
       <EmptyState
-        icon={Workflow}
+        icon={<Workflow size={48} />}
         title="No trace available"
         description={emptyMessage}
         className="py-12"

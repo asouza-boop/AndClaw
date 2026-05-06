@@ -237,7 +237,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
               </Stack>
             ) : (
               <EmptyState
-                icon={Brain}
+                icon={<Brain size={48} />}
                 title="Waiting for reasoning"
                 description="Agent decision steps will appear here as the engine processes your request."
                 className="py-12"
@@ -292,7 +292,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
 
             {(!memorySteps || memorySteps.length === 0) && (
               <EmptyState
-                icon={Database}
+                icon={<Database size={48} />}
                 title="No memory events"
                 description="Semantic context lookups will appear here during agent processing."
                 className="py-10"
@@ -358,7 +358,7 @@ export function IntelligenceSidebar({ title }: IntelligenceSidebarProps = {}) {
 
             {(!securitySteps || securitySteps.length === 0) ? (
               <EmptyState
-                icon={ShieldCheck}
+                icon={<ShieldCheck size={48} />}
                 title="No violations detected"
                 description="The governance engine is actively monitoring. All operations are within policy bounds."
                 className="py-10 border-emerald-500/10"
