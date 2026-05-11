@@ -44,6 +44,7 @@ export const config = {
   auth: {
     password: process.env.AUTH_PASSWORD || '',
     tokenSecret: process.env.AUTH_TOKEN_SECRET || '',
+    allowedEmails: (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean),
   },
   gitvault: {
     repo: process.env.GITVAULT_REPO || '',

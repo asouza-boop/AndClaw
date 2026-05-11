@@ -25,6 +25,7 @@ import { Spinner } from "./components/ui/Spinner";
 const LearningDashboard = lazy(() => import("./pages/LearningDashboard"));
 const KnowledgePage = lazy(() => import("./pages/KnowledgePage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,37 +43,45 @@ const App = () => {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ColdStartBanner />
-        <ToastContainer />
-        {!isAuthenticated ? (
-          <LoginModal />
-        ) : (
-          <BrowserRouter>
-            <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Spinner size="lg" /></div>}>
-              <Routes>
-                <Route path="/" element={<AppShell />}>
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="inbox" element={<InboxPage />} />
-                  <Route path="chat" element={<ChatPage />} />
-                  <Route path="agents" element={<AgentsPage />} />
-                  <Route path="skills" element={<SkillsPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="settings/providers" element={<SettingsProviders />} />
-                  <Route path="agenda" element={<AgendaPage />} />
-                  <Route path="projetos" element={<ProjectsPage />} />
-                  <Route path="reunioes" element={<MeetingsPage />} />
-                  <Route path="favoritos" element={<FavoritesPage />} />
-                  <Route path="conhecimento" element={<KnowledgePage />} />
-                  <Route path="arquivo" element={<ArchivePage />} />
-                  <Route path="evolucao" element={<EvolutionDashboard />} />
-                  <Route path="aprendizado" element={<LearningDashboard />} />
-                  <Route path="*" element={<NotFound />} />
-                </Route>
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        )}
+        <BrowserRouter>
+          <ColdStartBanner />
+          <ToastContainer />
+          <Suspense fallback={<div className="flex h-screen w-full items-center justify-center"><Spinner size="lg" /></div>}>
+            <Routes>
+              {/* Public route that must run even if not authenticated */}
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              
+              {/* App Shell routing */}
+              <Route path="/*" element={
+                !isAuthenticated ? (
+                  <LoginModal />
+                ) : (
+                  <Routes>
+                    <Route path="/" element={<AppShell />}>
+                      <Route index element={<Navigate to="/dashboard" replace />} />
+                      <Route path="dashboard" element={<Dashboard />} />
+                      <Route path="inbox" element={<InboxPage />} />
+                      <Route path="chat" element={<ChatPage />} />
+                      <Route path="agents" element={<AgentsPage />} />
+                      <Route path="skills" element={<SkillsPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                      <Route path="settings/providers" element={<SettingsProviders />} />
+                      <Route path="agenda" element={<AgendaPage />} />
+                      <Route path="projetos" element={<ProjectsPage />} />
+                      <Route path="reunioes" element={<MeetingsPage />} />
+                      <Route path="favoritos" element={<FavoritesPage />} />
+                      <Route path="conhecimento" element={<KnowledgePage />} />
+                      <Route path="arquivo" element={<ArchivePage />} />
+                      <Route path="evolucao" element={<EvolutionDashboard />} />
+                      <Route path="aprendizado" element={<LearningDashboard />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Route>
+                  </Routes>
+                )
+              } />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>
   );

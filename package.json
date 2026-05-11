@@ -33,6 +33,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^8.3.1",
     "glob": "^13.0.6",
+    "google-auth-library": "^10.6.2",
     "googleapis": "^144.0.0",
     "grammy": "^1.41.1",
     "js-yaml": "^4.1.1",

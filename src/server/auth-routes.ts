@@ -5,6 +5,7 @@ import { issueToken as defaultIssueToken, verifyLoginPassword as defaultVerifyLo
 import { loadAuthFromDb as defaultLoadAuthFromDb, setSetting as defaultSetSetting } from '@/server/settings';
 import { hashPassword as defaultHashPassword, randomSecret as defaultRandomSecret } from '@/server/crypto';
 import { sendApiError } from '@/server/http';
+import { OAuth2Client } from 'google-auth-library';
 
 export type AuthRouteDeps = {
   query: typeof defaultQuery;
@@ -74,6 +75,88 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
     }
     const token = deps.issueToken('andclaw-user');
     res.json({ token });
+  });
+
+  authRoutes.get('/auth/google', async (req: Request, res: Response) => {
+    if (!deps.config.google.oauthClientId || !deps.config.google.oauthClientSecret) {
+      return res.status(503).json({ error: 'Google OAuth not configured' });
+    }
+
+    const oAuth2Client = new OAuth2Client(
+      deps.config.google.oauthClientId,
+      deps.config.google.oauthClientSecret,
+      deps.config.google.oauthRedirectUri || `${req.protocol}://${req.get('host')}/api/auth/google/callback`
+    );
+
+    const authorizeUrl = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+      prompt: 'consent'
+    });
+
+    res.redirect(authorizeUrl);
+  });
+
+  authRoutes.get('/auth/google/callback', async (req: Request, res: Response) => {
+    const { code } = req.query;
+    
+    if (!code || typeof code !== 'string') {
+      return res.redirect('/?error=invalid_oauth_code');
+    }
+
+    try {
+      const oAuth2Client = new OAuth2Client(
+        deps.config.google.oauthClientId,
+        deps.config.google.oauthClientSecret,
+        deps.config.google.oauthRedirectUri || `${req.protocol}://${req.get('host')}/api/auth/google/callback`
+      );
+
+      const { tokens } = await oAuth2Client.getToken(code);
+      oAuth2Client.setCredentials(tokens);
+
+      const ticket = await oAuth2Client.verifyIdToken({
+        idToken: tokens.id_token!,
+        audience: deps.config.google.oauthClientId,
+      });
+
+      const payload = ticket.getPayload();
+      const email = payload?.email?.toLowerCase();
+
+      if (!email) {
+        return res.redirect('/?error=no_email_provided');
+      }
+
+      // Check allowed emails
+      if (deps.config.auth.allowedEmails.length > 0 && !deps.config.auth.allowedEmails.includes(email)) {
+        console.warn(`[AUTH] Blocked unauthorized login attempt from: ${email}`);
+        return res.redirect('/?error=unauthorized_email');
+      }
+
+      // Automatically configure system if first time
+      await deps.loadAuthFromDb();
+      if (!deps.config.auth.tokenSecret) {
+        const secret = deps.randomSecret(48);
+        await deps.setSetting('auth_token_secret', secret);
+        deps.config.auth.tokenSecret = secret;
+      }
+
+      // Issue token
+      // We can use the email as subject to track who is who
+      const jwt = deps.issueToken(email);
+      
+      // Update profile from google
+      await setProfileValues(deps, email, 'profile', {
+        fullName: payload?.name || '',
+        email: payload?.email || '',
+        photoUrl: payload?.picture || '',
+      });
+
+      // Redirect to frontend callback route to store token
+      res.redirect(`/auth/callback?token=${jwt}`);
+    } catch (error) {
+      console.error('[AUTH] Google callback error:', error);
+      res.redirect('/?error=oauth_failed');
+    }
   });
 
   authRoutes.post('/auth/bootstrap', async (req: Request, res: Response) => {
