@@ -5,6 +5,13 @@ import { loadAuthFromDb, loadAppSettings, applyAppSettingsToConfig } from '@/ser
 import { startSchedulers } from '@/jobs/scheduler';
 
 export async function startServer() {
+  const app = createApp();
+  const port = config.server.port;
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`[Server] API running on port ${port}`);
+  });
+
   let schemaReady = false;
   try {
     await ensureSchema();
@@ -25,13 +32,6 @@ export async function startServer() {
   } catch (error) {
     console.warn('[Server] Failed to load app settings during startup', error);
   }
-
-  const app = createApp();
-  const port = config.server.port;
-
-  app.listen(port, () => {
-    console.log(`[Server] API running on port ${port}`);
-  });
 
   startSchedulers();
 }
