@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getApiBaseUrl, login } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { Spinner } from '@/components/ui/Spinner';
+import './LoginPage.css';
 
 const GoogleIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -53,40 +54,11 @@ export default function LoginPage() {
 
   return (
     <main className="andclaw-login-page">
-      <style>{`
-        .andclaw-login-page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-          padding: 20px;
-          background:
-            radial-gradient(ellipse at 60% 20%, rgba(108,114,255,0.15) 0%, rgba(45,212,191,0.05) 40%, transparent 70%),
-            var(--color-bg-base);
-        }
-
-        .andclaw-login-page::before {
-          content: "";
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          border-radius: 9999px;
-          background: rgba(255,255,255,0.3);
-          box-shadow:
-            120px 80px 0 rgba(255,255,255,0.25),
-            -160px -120px 0 rgba(255,255,255,0.22),
-            240px -180px 0 rgba(255,255,255,0.28),
-            -260px 140px 0 rgba(255,255,255,0.18);
-        }
-      `}</style>
-
       <section
         aria-label="Login"
         style={{
-          width: '420px',
-          maxWidth: 'calc(100vw - 40px)',
+          width: '440px',
+          maxWidth: 'calc(100vw - 48px)',
           background: 'var(--color-bg-surface)',
           border: '1px solid var(--color-border-med)',
           borderRadius: '20px',

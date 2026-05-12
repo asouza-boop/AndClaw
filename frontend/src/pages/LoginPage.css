@@ -1,0 +1,47 @@
+.andclaw-login-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  background:
+    radial-gradient(
+      ellipse at 65% 15%,
+      rgba(108, 114, 255, 0.22) 0%,
+      rgba(45, 212, 191, 0.06) 35%,
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse at 20% 80%,
+      rgba(108, 114, 255, 0.10) 0%,
+      transparent 50%
+    ),
+    #111318;
+}
+
+.andclaw-login-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow:
+    120px 80px 0 1px rgba(255,255,255,0.35),
+    380px 140px 0 1px rgba(255,255,255,0.25),
+    780px 60px 0 1px rgba(255,255,255,0.30),
+    1100px 200px 0 1px rgba(255,255,255,0.20),
+    200px 320px 0 1px rgba(255,255,255,0.15),
+    950px 380px 0 1px rgba(255,255,255,0.25),
+    60px 480px 0 1px rgba(255,255,255,0.20),
+    1200px 500px 0 1px rgba(255,255,255,0.15),
+    480px 560px 0 1px rgba(255,255,255,0.10),
+    820px 620px 0 1px rgba(255,255,255,0.20),
+    300px 700px 0 1px rgba(255,255,255,0.15),
+    1050px 720px 0 1px rgba(255,255,255,0.25);
+}
