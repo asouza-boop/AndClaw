@@ -21,6 +21,11 @@ const getErrorMessage = (error: string | null) => {
   return null;
 };
 
+const createOAuthState = () => {
+  const payload = JSON.stringify({ returnTo: window.location.origin });
+  return `${crypto.randomUUID()}.${btoa(payload)}`;
+};
+
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,7 +52,7 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
-    const state = crypto.randomUUID();
+    const state = createOAuthState();
     sessionStorage.setItem('oauth_state', state);
     window.location.href = `${getApiBaseUrl()}/api/auth/google?state=${encodeURIComponent(state)}`;
   };

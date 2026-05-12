@@ -50,3 +50,39 @@ test('GET /api/auth/google/callback without code redirects to frontend login fai
   assert.equal(res.status, 302);
   assert.equal(res.headers.location, 'https://frontend.example/login?error=auth_failed');
 });
+
+test('GET /api/auth/google/callback uses allowed returnTo origin from OAuth state', async () => {
+  const { config } = await import('@/config/env');
+  const { createApp } = await import('@/server/app');
+  config.auth.password = '';
+  config.auth.tokenSecret = '';
+  config.server.frontendUrl = 'https://and-claw.vercel.app';
+  config.server.allowedOrigin = 'https://preview.example';
+  config.google.oauthClientId = 'google-client-id';
+  config.google.oauthClientSecret = 'google-client-secret';
+  config.google.oauthRedirectUri = 'http://localhost:3000/api/auth/google/callback';
+  const state = `nonce.${Buffer.from(JSON.stringify({ returnTo: 'https://preview.example' })).toString('base64')}`;
+
+  const res = await request(createApp()).get(`/api/auth/google/callback?state=${encodeURIComponent(state)}`);
+
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://preview.example/login?error=auth_failed');
+});
+
+test('GET /api/auth/google/callback ignores unallowed returnTo origin from OAuth state', async () => {
+  const { config } = await import('@/config/env');
+  const { createApp } = await import('@/server/app');
+  config.auth.password = '';
+  config.auth.tokenSecret = '';
+  config.server.frontendUrl = 'https://and-claw.vercel.app';
+  config.server.allowedOrigin = 'https://preview.example';
+  config.google.oauthClientId = 'google-client-id';
+  config.google.oauthClientSecret = 'google-client-secret';
+  config.google.oauthRedirectUri = 'http://localhost:3000/api/auth/google/callback';
+  const state = `nonce.${Buffer.from(JSON.stringify({ returnTo: 'https://evil.example' })).toString('base64')}`;
+
+  const res = await request(createApp()).get(`/api/auth/google/callback?state=${encodeURIComponent(state)}`);
+
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.location, 'https://and-claw.vercel.app/login?error=auth_failed');
+});

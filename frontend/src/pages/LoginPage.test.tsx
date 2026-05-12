@@ -39,7 +39,7 @@ describe('LoginPage', () => {
     Object.defineProperty(window, 'location', {
       configurable: true,
       writable: true,
-      value: { href: 'http://localhost:5173/login' },
+      value: { href: 'http://localhost:5173/login', origin: 'http://localhost:5173' },
     });
   });
 
@@ -75,8 +75,9 @@ describe('LoginPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Continuar com Google' }));
 
-    expect(sessionStorage.getItem('oauth_state')).toBe('state-123');
-    expect(window.location.href).toBe('https://api.example/api/auth/google?state=state-123');
+    const state = sessionStorage.getItem('oauth_state');
+    expect(state).toBe(`state-123.${btoa(JSON.stringify({ returnTo: 'http://localhost:5173' }))}`);
+    expect(window.location.href).toBe(`https://api.example/api/auth/google?state=${encodeURIComponent(state!)}`);
   });
 
   it('renders an error message from the URL parameter', () => {

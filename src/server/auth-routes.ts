@@ -54,6 +54,43 @@ async function setProfileValues(deps: AuthRouteDeps, userId: string, prefix: str
   }
 }
 
+function getAllowedFrontendOrigins(deps: AuthRouteDeps) {
+  return new Set(
+    [
+      deps.config.server.frontendUrl,
+      ...deps.config.server.allowedOrigin.split(','),
+      'https://and-claw.vercel.app',
+      'https://andclaw-command-ui.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ]
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean)
+  );
+}
+
+function getReturnToFromState(state: string): string | null {
+  const encoded = state.split('.')[1];
+  if (!encoded) return null;
+
+  try {
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+    return typeof parsed.returnTo === 'string' ? parsed.returnTo.replace(/\/$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+function getFrontendUrl(deps: AuthRouteDeps, state = '') {
+  const stateReturnTo = getReturnToFromState(state);
+  const allowedOrigins = getAllowedFrontendOrigins(deps);
+  if (stateReturnTo && allowedOrigins.has(stateReturnTo)) {
+    return stateReturnTo;
+  }
+
+  return (deps.config.server.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+}
+
 export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
   const deps: AuthRouteDeps = { ...defaultDeps, ...overrides };
   const authRoutes = Router();
@@ -102,7 +139,7 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
   authRoutes.get('/auth/google/callback', async (req: Request, res: Response) => {
     const { code } = req.query;
     const state = typeof req.query.state === 'string' ? req.query.state : '';
-    const frontendUrl = deps.config.server.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = getFrontendUrl(deps, state);
     
     if (!code || typeof code !== 'string') {
       return res.redirect(`${frontendUrl}/login?error=auth_failed`);
