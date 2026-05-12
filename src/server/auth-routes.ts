@@ -81,6 +81,7 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
     if (!deps.config.google.oauthClientId || !deps.config.google.oauthClientSecret) {
       return res.status(503).json({ error: 'Google OAuth not configured' });
     }
+    const state = typeof req.query.state === 'string' ? req.query.state : undefined;
 
     const oAuth2Client = new OAuth2Client(
       deps.config.google.oauthClientId,
@@ -91,7 +92,8 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
     const authorizeUrl = oAuth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: ['https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
-      prompt: 'consent'
+      prompt: 'consent',
+      state
     });
 
     res.redirect(authorizeUrl);
@@ -99,9 +101,11 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
 
   authRoutes.get('/auth/google/callback', async (req: Request, res: Response) => {
     const { code } = req.query;
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    const frontendUrl = deps.config.server.frontendUrl || process.env.FRONTEND_URL || 'http://localhost:5173';
     
     if (!code || typeof code !== 'string') {
-      return res.redirect('/?error=invalid_oauth_code');
+      return res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
 
     try {
@@ -123,13 +127,13 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
       const email = payload?.email?.toLowerCase();
 
       if (!email) {
-        return res.redirect('/?error=no_email_provided');
+        return res.redirect(`${frontendUrl}/login?error=auth_failed`);
       }
 
       // Check allowed emails
       if (deps.config.auth.allowedEmails.length > 0 && !deps.config.auth.allowedEmails.includes(email)) {
         console.warn(`[AUTH] Blocked unauthorized login attempt from: ${email}`);
-        return res.redirect('/?error=unauthorized_email');
+        return res.redirect(`${frontendUrl}/login?error=auth_failed`);
       }
 
       // Automatically configure system if first time
@@ -152,10 +156,10 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
       });
 
       // Redirect to frontend callback route to store token
-      res.redirect(`/auth/callback?token=${jwt}`);
+      res.redirect(`${frontendUrl}/auth/callback?token=${encodeURIComponent(jwt)}&state=${encodeURIComponent(state)}`);
     } catch (error) {
       console.error('[AUTH] Google callback error:', error);
-      res.redirect('/?error=oauth_failed');
+      res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
   });
 

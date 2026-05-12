@@ -29,6 +29,7 @@ export const getApiBase = () => {
   return FALLBACK_API_BASE;
 };
 
+export const getApiBaseUrl = getApiBase;
 export const apiUrl = (path: string) => `${getApiBase()}${path}`;
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);

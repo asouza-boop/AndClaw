@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { login } from '@/lib/api';
+import { getApiBaseUrl, login } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 import { toast } from '@/stores/toastStore';
 import { Loader2 } from 'lucide-react';
@@ -45,6 +45,12 @@ export function LoginModal() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
+    window.location.href = `${getApiBaseUrl()}/api/auth/google?state=${encodeURIComponent(state)}`;
   };
 
   return (
@@ -105,13 +111,14 @@ export function LoginModal() {
         </div>
 
         <div className="flex flex-col gap-3 mb-8">
-          <a
-            href="/api/auth/google"
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
             className="w-full py-3 px-4 flex items-center justify-center rounded-lg border border-white/[0.08] hover:bg-white/[0.02] text-sm font-medium text-white/90 transition-colors"
           >
             <GoogleIcon />
             Continuar com Google
-          </a>
+          </button>
           <button
             type="button"
             className="w-full py-3 px-4 flex items-center justify-center rounded-lg border border-white/[0.08] hover:bg-white/[0.02] text-sm font-medium text-white/90 transition-colors cursor-not-allowed opacity-60"

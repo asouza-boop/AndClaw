@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { useAuthStore } from "./stores/authStore";
 import { lazy, Suspense } from "react";
-import { LoginModal } from "./components/LoginModal";
 import { ToastContainer } from "./components/ToastContainer";
 import { AppShell } from "./components/AppShell";
 import Dashboard from "./pages/Dashboard";
@@ -18,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import FavoritesPage from "./pages/FavoritesPage";
 import ArchivePage from "./pages/ArchivePage";
 import EvolutionDashboard from "./pages/EvolutionDashboard";
+import LoginPage from "./pages/LoginPage";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ColdStartBanner } from "./components/ColdStartBanner";
 import { Spinner } from "./components/ui/Spinner";
@@ -50,11 +50,12 @@ const App = () => {
             <Routes>
               {/* Public route that must run even if not authenticated */}
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
               
               {/* App Shell routing */}
               <Route path="/*" element={
                 !isAuthenticated ? (
-                  <LoginModal />
+                  <Navigate to="/login" replace />
                 ) : (
                   <Routes>
                     <Route path="/" element={<AppShell />}>

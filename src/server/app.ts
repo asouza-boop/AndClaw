@@ -57,8 +57,8 @@ export function createApp() {
   app.use(express.static(frontendDistDir));
 
   app.use('/api', (req, res, next) => {
-    const openPaths = ['/health', '/health/db', '/health/runtime', '/auth/login', '/auth/bootstrap', '/google/oauth/callback'];
-    if (openPaths.includes(req.path)) return next();
+    const openPaths = ['/health', '/health/db', '/health/runtime', '/auth/login', '/auth/bootstrap', '/google/oauth/callback', '/api/auth/google', '/api/auth/google/callback'];
+    if (openPaths.includes(req.path) || openPaths.includes(req.originalUrl.split('?')[0])) return next();
 
     return bootstrapGuard(req, res, () => authMiddleware(req, res, next));
   });
