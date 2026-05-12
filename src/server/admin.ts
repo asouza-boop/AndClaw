@@ -10,10 +10,9 @@ const MIN_TOKEN_LEN = 24;
  * não indisponibilidade de serviço (503).
  */
 export function bootstrapGuard(req: Request, res: Response, next: () => void) {
-  const hasPassword = config.auth.password && config.auth.password.length >= 8;
   const hasSecret = config.auth.tokenSecret && config.auth.tokenSecret.length >= MIN_TOKEN_LEN;
 
-  if (hasPassword && hasSecret) {
+  if (hasSecret) {
     return next();
   }
 

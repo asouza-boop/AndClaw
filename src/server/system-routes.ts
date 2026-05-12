@@ -26,7 +26,7 @@ const defaultDeps: SystemRouteDeps = {
 };
 
 async function collectRuntimeStatus(deps: SystemRouteDeps) {
-  const bootstrapped = Boolean(deps.config.auth.password && deps.config.auth.tokenSecret);
+  const bootstrapped = Boolean(deps.config.auth.tokenSecret);
   const db = { ok: false, latencyMs: null as number | null, error: '' };
   try {
     await deps.ensureSchema();
@@ -50,7 +50,7 @@ async function collectRuntimeStatus(deps: SystemRouteDeps) {
     db,
     auth: {
       bootstrapped,
-      configured: Boolean(deps.config.auth.password && deps.config.auth.tokenSecret),
+      configured: Boolean(deps.config.auth.tokenSecret),
     },
     settings,
     llm: {
