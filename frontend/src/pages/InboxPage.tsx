@@ -211,18 +211,33 @@ export default function InboxPage() {
         }
       />
 
-      <div style={{ marginTop: 'var(--space-8)', display: 'grid', gridTemplateColumns: '1fr', gap: 'var(--space-8)' }} className="lg:grid-cols-[1fr_320px]">
+      <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginTop: 'var(--space-6)', paddingBottom: '160px' }}>
+        
+        {/* Top Filters & Stats */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setFilter(f)}
+                style={{ fontSize: '10px', textTransform: 'uppercase', borderRadius: 'var(--radius-full)' }}
+              >
+                {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="hidden sm:flex" style={{ gap: 'var(--space-4)', fontSize: '10px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckSquare size={12}/> {tasks.filter((t: any) => t.status !== 'done').length} Tarefas</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={12}/> {meetings.length} Reuniões</span>
+          </div>
+        </div>
+
         {/* Main Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* Controls Mobile */}
-          <div className="lg:hidden">
-            <Input 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar no Inbox..."
-              className="w-full"
-            />
-          </div>
 
           <div className="animate-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {unifiedItems.length === 0 ? (
@@ -244,62 +259,6 @@ export default function InboxPage() {
             )}
           </div>
         </div>
-
-        {/* Sidebar / Controls Desktop */}
-        <aside className="hidden lg:flex flex-col gap-var(--space-8) sticky top-8">
-          <Card padding="md" border shadow="sm">
-            <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
-              Busca e Filtros
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-              <Input 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar..."
-                className="w-full"
-              />
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-                {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
-                  <Button
-                    key={f}
-                    variant={filter === f ? 'primary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setFilter(f)}
-                    style={{ fontSize: '10px', textTransform: 'uppercase' }}
-                  >
-                    {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </Card>
-
-          <Card padding="md" border shadow="sm" style={{ marginTop: 'var(--space-8)' }}>
-            <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
-              Acesso Rápido
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-              <Button variant="ghost" size="sm" style={{ justifyContent: 'flex-start' }}><FolderKanban className="w-4 h-4 mr-2" /> Projetos</Button>
-              <Button variant="ghost" size="sm" style={{ justifyContent: 'flex-start' }}><LinkIcon className="w-4 h-4 mr-2" /> Links Salvos</Button>
-            </div>
-          </Card>
-
-          {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginTop: 'var(--space-8)' }}>
-            <Card padding="sm" border shadow="none" style={{ textAlign: 'center' }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', fontFamily: 'var(--font-mono)' }}>
-                {tasks.filter((t: any) => t.status !== 'done').length}
-              </span>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Tarefas</span>
-            </Card>
-            <Card padding="sm" border shadow="none" style={{ textAlign: 'center' }}>
-              <span style={{ display: 'block', fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', fontFamily: 'var(--font-mono)' }}>
-                {meetings.length}
-              </span>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Reuniões</span>
-            </Card>
-          </div>
-        </aside>
       </div>
 
       {/* Smart Capture Bottom Bar */}
