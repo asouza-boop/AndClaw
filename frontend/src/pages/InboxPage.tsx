@@ -138,6 +138,29 @@ export default function InboxPage() {
     },
   });
 
+  const evolveCapture = useMutation({
+    mutationFn: async ({ id, evolution }: { id: string, evolution: string }) => {
+      const text = evolution.toLowerCase();
+      let targetType = 'note';
+      if (text.includes('tarefa') || text.includes('task')) targetType = 'task';
+      else if (text.includes('projeto')) targetType = 'project';
+      else if (text.includes('reunião') || text.includes('agenda')) targetType = 'meeting';
+      else if (text.includes('ferramenta') || text.includes('tool')) targetType = 'tool';
+      else targetType = 'note';
+
+      return apiFetch(`/api/captures/${id}`, { 
+        method: 'PATCH', 
+        body: JSON.stringify({ type: targetType, status: 'processed' }) 
+      });
+    },
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: ['captures'] });
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      toast(`Sinal evoluído: ${variables.evolution}`, 'success');
+    },
+  });
+
   const smartCapture = useMutation({
     mutationFn: (text: string) => apiFetch('/api/captures/smart', { method: 'POST', body: JSON.stringify({ content: text }) }),
     onMutate: async (newContent) => {
@@ -215,6 +238,7 @@ export default function InboxPage() {
                   item={item} 
                   onArchive={() => archiveCapture.mutate(item.id)}
                   onDelete={() => deleteCapture.mutate(item.id)}
+                  onEvolve={(evolution) => evolveCapture.mutate({ id: item.id, evolution })}
                 />
               ))
             )}
@@ -343,7 +367,7 @@ const inboxBadgeStyle: Record<string, React.CSSProperties> = {
   project: { backgroundColor: '#2D2410',                   color: 'var(--color-warning)' },
 };
 
-function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArchive: () => void; onDelete: () => void }) {
+function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedItem; onArchive: () => void; onDelete: () => void; onEvolve?: (evolution: string) => void }) {
   const config = typeConfig[item.type] || typeConfig.note;
   const Icon = config.icon;
   const badgeStyle = inboxBadgeStyle[item.type] || inboxBadgeStyle.note;
@@ -437,6 +461,7 @@ function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArch
                     {item.raw.metadata.evolution.map((ev: string, idx: number) => (
                       <button 
                         key={idx}
+                        onClick={() => onEvolve && onEvolve(ev)}
                         className="btn-evolution hover:bg-white/10"
                         style={{
                           fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em',
