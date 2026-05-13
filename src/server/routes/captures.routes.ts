@@ -45,6 +45,81 @@ router.post('/captures', async (req: Request, res: Response) => {
   });
 });
 
+router.post('/captures/smart', async (req: Request, res: Response) => {
+  const body = req.body || {};
+  const content = body.content || body.title;
+  const { source = 'pwa', project_id, metadata = {} } = body;
+  
+  if (!content) return res.status(400).json({ error: 'content is required' });
+
+  // 1. Salvamento Síncrono Imediato (Fallback Seguro e Optimistic UI)
+  const initialMetadata = { ...metadata, isProcessing: true };
+  const rows = await query(
+    `INSERT INTO captures (content, source, type, project_id, metadata, status)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [content, source, 'note', project_id || null, JSON.stringify(initialMetadata), 'processing']
+  );
+  const row = rows[0];
+
+  // Retorna imediatamente para o frontend não travar
+  res.status(201).json({
+    ok: true,
+    item: row,
+    message: 'Captura salva, processamento em background iniciado.'
+  });
+
+  // 2. Processamento Assíncrono com LLM (Fire-and-forget)
+  (async () => {
+    try {
+      if (!hasLLMConfig()) throw new Error('LLM not configured');
+
+      const prompt = `Você é um motor de processamento cognitivo avançado ultrarrápido.
+Analise a entrada e:
+1. Classifica no campo "type": deve ser 'task', 'meeting', 'project', 'link', 'note' ou 'idea'.
+2. Resume no campo "summary": um resumo executivo de 1 frase.
+3. Sugere ações no campo "evolution": array de strings com caminhos curtos (ex: "Criar Tarefa", "Mover para Agenda", "Ferramenta").
+
+Entrada: "${content}"
+
+Retorne APENAS um JSON válido no formato exato:
+{"type": "note", "summary": "...", "evolution": ["...", "..."]}`;
+
+      const reply = await agent.processInput('pwa-user', prompt);
+      const jsonStr = reply.replace(/```json|```/g, '').trim();
+      const result = JSON.parse(jsonStr);
+
+      const updatedMetadata = { ...metadata, summary: result.summary, evolution: result.evolution };
+      const newType = result.type || 'note';
+
+      await query(
+        `UPDATE captures SET type = $1, metadata = $2, status = 'new' WHERE id = $3`,
+        [newType, JSON.stringify(updatedMetadata), row.id]
+      );
+
+      // Auto-save logic if applicable
+      if (newType === 'task') {
+         const taskRows = await query(`SELECT * FROM captures WHERE id = $1`, [row.id]);
+         await TaskService.createFromCapture(taskRows[0]);
+      }
+      if (newType === 'link' && config.raindrop.token) {
+        const urlMatch = content.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          await saveToRaindrop(urlMatch[0], content.replace(urlMatch[0], '').trim() || undefined);
+        }
+      }
+
+    } catch (err) {
+      console.error('[smart-capture] Falha no processamento assíncrono da IA:', err);
+      // Fallback seguro: retira o status de processing e volta para 'new' (sem metadados de IA)
+      const fallbackMetadata = { ...metadata };
+      await query(
+        `UPDATE captures SET metadata = $1, status = 'new' WHERE id = $2`,
+        [JSON.stringify(fallbackMetadata), row.id]
+      );
+    }
+  })();
+});
+
 router.get('/captures', async (req: Request, res: Response) => {
   const { type, status } = req.query as { type?: string; status?: string };
   let sql = `SELECT * FROM captures WHERE 1=1`;

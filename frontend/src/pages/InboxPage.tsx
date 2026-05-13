@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { 
   Trash2, CheckSquare, Archive, Loader2, Sparkles, 
   Calendar, FolderKanban, MessageSquare, Link as LinkIcon,
-  Search, ChevronRight, Clock, Target
+  Search, ChevronRight, Clock, Target, BrainCircuit
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -50,6 +50,7 @@ export default function InboxPage() {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [captureText, setCaptureText] = useState('');
+  const [isProcessingLocal, setIsProcessingLocal] = useState(false);
 
   /* Queries */
   const { data: captures = [] } = useQuery({ queryKey: ['captures'], queryFn: () => apiFetch('/api/captures').then(ensureArray) });
@@ -137,14 +138,35 @@ export default function InboxPage() {
     },
   });
 
-  const saveCapture = async () => {
-    if (!captureText.trim()) return;
-    try {
-      await apiFetch('/api/captures', { method: 'POST', body: JSON.stringify({ content: captureText.trim(), type: 'note' }) });
-      setCaptureText('');
+  const smartCapture = useMutation({
+    mutationFn: (text: string) => apiFetch('/api/captures/smart', { method: 'POST', body: JSON.stringify({ content: text }) }),
+    onMutate: async (newContent) => {
+      await qc.cancelQueries({ queryKey: ['captures'] });
+      const previous = qc.getQueryData(['captures']);
+      qc.setQueryData(['captures'], (old: any) => {
+        const optimisticItem = { id: `opt-${Date.now()}`, content: newContent, type: 'note', status: 'processing', createdAt: new Date().toISOString() };
+        return [optimisticItem, ...(old || [])];
+      });
+      return { previous };
+    },
+    onError: (err, newContent, context) => {
+      qc.setQueryData(['captures'], context?.previous);
+      toast('Falha ao salvar sinal', 'error');
+    },
+    onSuccess: (data) => {
+      // O item é salvo inicialmente. O processamento assíncrono continua no backend.
+      // O backend vai atualizar o item real. Para refletir sem lag, não invalidamos a query imediatamente.
+      // O web socket do app atualizaria os dados. Na ausência dele, deixamos a invalidate rodar normal para puxar.
       qc.invalidateQueries({ queryKey: ['captures'] });
-      toast('Signal capturado', 'success');
-    } catch (err: any) { toast(err.message, 'error'); }
+    }
+  });
+
+  const saveCapture = () => {
+    if (!captureText.trim() || smartCapture.isPending) return;
+    setIsProcessingLocal(true);
+    smartCapture.mutate(captureText.trim());
+    setCaptureText('');
+    setTimeout(() => setIsProcessingLocal(false), 800); // Simulando pequeno feedback de UI
   };
 
   const getPendingSignals = () => captures.filter((c: any) => c.status !== 'processed').length;
@@ -230,33 +252,12 @@ export default function InboxPage() {
 
           <Card padding="md" border shadow="sm" style={{ marginTop: 'var(--space-8)' }}>
             <h4 style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 'var(--space-4)' }}>
-              Captura Rápida
+              Acesso Rápido
             </h4>
-            <textarea 
-              value={captureText}
-              onChange={e => setCaptureText(e.target.value)}
-              placeholder="Capturar sinal..."
-              style={{
-                width: '100%',
-                backgroundColor: 'var(--color-bg-primary)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                padding: 'var(--space-3)',
-                fontSize: 'var(--text-sm)',
-                minHeight: '100px',
-                resize: 'none',
-                outline: 'none',
-                marginBottom: 'var(--space-4)',
-                fontFamily: 'var(--font-sans)',
-              }}
-            />
-            <Button 
-              className="w-full"
-              onClick={saveCapture}
-              disabled={!captureText.trim()}
-            >
-              Capturar
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <Button variant="ghost" size="sm" style={{ justifyContent: 'flex-start' }}><FolderKanban className="w-4 h-4 mr-2" /> Projetos</Button>
+              <Button variant="ghost" size="sm" style={{ justifyContent: 'flex-start' }}><LinkIcon className="w-4 h-4 mr-2" /> Links Salvos</Button>
+            </div>
           </Card>
 
           {/* Stats */}
@@ -275,6 +276,58 @@ export default function InboxPage() {
             </Card>
           </div>
         </aside>
+      </div>
+
+      {/* Smart Capture Bottom Bar */}
+      <div style={{ 
+        position: 'fixed', bottom: 0, left: 'var(--sidebar-width, 240px)', right: 0, 
+        padding: 'var(--space-8) var(--space-8) var(--space-8)', 
+        background: 'linear-gradient(to top, var(--color-bg-primary) 80%, transparent)',
+        pointerEvents: 'none', zIndex: 10 
+      }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', pointerEvents: 'auto' }}>
+          {isProcessingLocal && (
+            <div style={{ 
+              position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)',
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px',
+              backgroundColor: 'var(--color-accent)', color: '#fff', borderRadius: 'var(--radius-full)',
+              fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.1em',
+              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <BrainCircuit size={14} className="animate-pulse" /> IA ANALISANDO O SINAL...
+            </div>
+          )}
+          <div style={{ 
+            backgroundColor: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-2xl)', padding: 'var(--space-3)', 
+            boxShadow: 'var(--shadow-xl)', display: 'flex', flexDirection: 'column',
+            transition: 'all 0.3s', opacity: isProcessingLocal ? 0.7 : 1,
+            filter: isProcessingLocal ? 'blur(1px)' : 'none'
+          }}>
+            <textarea 
+              value={captureText}
+              onChange={(e) => setCaptureText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveCapture(); } }}
+              placeholder="Digite uma tarefa, nota ou ideia... a IA classificará automaticamente."
+              style={{
+                width: '100%', background: 'transparent', border: 'none', padding: 'var(--space-4)',
+                color: 'var(--color-text-primary)', fontSize: 'var(--text-md)', outline: 'none',
+                resize: 'none', minHeight: '60px', maxHeight: '200px'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 var(--space-4) var(--space-2)' }}>
+              <Button 
+                variant="primary" 
+                onClick={saveCapture} 
+                disabled={isProcessingLocal || !captureText.trim()}
+                style={{ borderRadius: 'var(--radius-full)', paddingLeft: 'var(--space-6)', paddingRight: 'var(--space-6)' }}
+              >
+                {isProcessingLocal ? <Loader2 size={16} className="animate-spin mr-2" /> : <Sparkles size={16} className="mr-2" />}
+                CAPTURAR
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
@@ -345,31 +398,75 @@ function InboxItemRow({ item, onArchive, onDelete }: { item: UnifiedItem; onArch
             {item.title}
           </p>
 
-          {/* Meta */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            {item.type === 'meeting' && item.raw?.meeting_date && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
-                <Clock size={11} />
-                <span style={{ fontFamily: 'var(--font-mono)' }}>
-                  {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-            )}
-            {item.type === 'task' && item.raw?.due_date && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
-                <Target size={11} />
-                <span style={{ fontFamily: 'var(--font-mono)' }}>
-                  {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
-                </span>
+          {/* Meta & Insights */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              {item.type === 'meeting' && item.raw?.meeting_date && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                  <Clock size={11} />
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>
+                    {new Date(item.raw.meeting_date).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
+              {item.type === 'task' && item.raw?.due_date && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                  <Target size={11} />
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>
+                    {new Date(item.raw.due_date).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* AI Insight and Evolution */}
+            {item.raw?.metadata?.summary && (
+              <div style={{ 
+                backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-lg)', padding: 'var(--space-3)', marginTop: 'var(--space-2)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
+                  <div style={{ color: 'var(--color-accent)', marginTop: '2px' }}><Sparkles size={12} /></div>
+                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', margin: 0, fontStyle: 'italic', fontWeight: 500 }}>
+                    "{item.raw.metadata.summary}"
+                  </p>
+                </div>
+                
+                {item.raw?.metadata?.evolution && Array.isArray(item.raw.metadata.evolution) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-3)', paddingLeft: '22px' }}>
+                    {item.raw.metadata.evolution.map((ev: string, idx: number) => (
+                      <button 
+                        key={idx}
+                        className="btn-evolution hover:bg-white/10"
+                        style={{
+                          fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em',
+                          padding: '4px 10px', borderRadius: 'var(--radius-full)', 
+                          backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-tertiary)',
+                          border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'all 0.2s'
+                        }}
+                      >
+                        {ev}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
 
+        {/* Status Processing Indicator */}
+        {item.status === 'processing' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', color: 'var(--color-accent)' }}>
+            <Loader2 size={16} className="animate-spin" />
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>Processando...</span>
+          </div>
+        )}
+
         {/* Actions — visible on parent hover only */}
         <div
           className="inbox-actions"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: 0, transition: 'opacity var(--t-fast)' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: item.status === 'processing' ? 0 : undefined, transition: 'opacity var(--t-fast)' }}
         >
           {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>
