@@ -211,7 +211,7 @@ export default function InboxPage() {
         }
       />
 
-      <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginTop: 'var(--space-6)', paddingBottom: '160px' }}>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginTop: 'var(--space-6)', paddingBottom: '160px' }}>
         
         {/* Top Filters & Stats */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-4)' }}>
@@ -268,7 +268,7 @@ export default function InboxPage() {
         background: 'linear-gradient(to top, var(--color-bg-primary) 80%, transparent)',
         pointerEvents: 'none', zIndex: 10 
       }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', pointerEvents: 'auto' }}>
+        <div style={{ width: '100%', position: 'relative', pointerEvents: 'auto' }}>
           {isProcessingLocal && (
             <div style={{ 
               position: 'absolute', top: '-40px', left: '50%', transform: 'translateX(-50%)',

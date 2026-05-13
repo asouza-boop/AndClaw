@@ -8,8 +8,12 @@ export function getPool(): Pool {
     if (!config.db.url) {
       throw new Error('DATABASE_URL is not configured.');
     }
+    // Remove sslmode params from connection string to avoid Render/Node warnings
+    // since we are explicitly passing ssl: { rejectUnauthorized: false }
+    const connectionString = config.db.url.replace(/\?sslmode=[a-zA-Z-]+/, '').replace(/&sslmode=[a-zA-Z-]+/, '');
+    
     pool = new Pool({ 
-      connectionString: config.db.url,
+      connectionString,
       ssl: { rejectUnauthorized: false },
       max: process.env.POOL_MAX_CONNECTIONS ? parseInt(process.env.POOL_MAX_CONNECTIONS, 10) : 5,
       idleTimeoutMillis: 10000,
