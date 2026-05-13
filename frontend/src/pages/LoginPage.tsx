@@ -17,7 +17,7 @@ const GoogleIcon = () => (
 const getErrorMessage = (error: string | null) => {
   if (error === 'invalid_state') return 'Não foi possível validar esta tentativa de login. Tente novamente.';
   if (error === 'invalid_token') return 'Token de autenticação inválido. Tente novamente.';
-  if (error === 'auth_failed') return 'Falha ao autenticar com Google. Tente novamente.';
+  if (error === 'auth_failed') return "O servidor estava iniciando durante o login. Clique em 'Continuar com Google' novamente para tentar.";
   return null;
 };
 
@@ -29,12 +29,14 @@ const createOAuthState = () => {
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
   const urlError = getErrorMessage(searchParams.get('error'));
-  const errorMessage = formError || urlError;
+  const errorMessage = formError || googleError || urlError;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,10 +53,33 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = () => {
-    const state = createOAuthState();
-    sessionStorage.setItem('oauth_state', state);
-    window.location.href = `${getApiBaseUrl()}/api/auth/google?state=${encodeURIComponent(state)}`;
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setGoogleError(null);
+
+    try {
+      const apiBase = getApiBaseUrl();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45000);
+
+      try {
+        await fetch(apiBase + '/api/health', {
+          signal: controller.signal,
+          mode: 'cors',
+        });
+      } catch (e) {
+        // Backend might still handle the OAuth redirect
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const state = createOAuthState();
+      sessionStorage.setItem('oauth_state', state);
+      window.location.href = `${apiBase}/api/auth/google?state=${encodeURIComponent(state)}`;
+    } catch (err) {
+      setGoogleLoading(false);
+      setGoogleError('Erro ao conectar. Tente novamente.');
+    }
   };
 
   return (
@@ -180,6 +205,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={handleGoogleLogin}
+          disabled={googleLoading}
           style={{
             width: '100%',
             height: '44px',
@@ -191,21 +217,48 @@ export default function LoginPage() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '10px',
-            cursor: 'pointer',
+            cursor: googleLoading ? 'not-allowed' : 'pointer',
+            opacity: googleLoading ? 0.8 : 1,
             transition: 'background var(--t-fast), border-color var(--t-fast)',
+            position: 'relative',
           }}
           onMouseEnter={(event) => {
-            event.currentTarget.style.background = 'var(--color-bg-overlay)';
-            event.currentTarget.style.borderColor = 'var(--color-border-strong)';
+            if (!googleLoading) {
+              event.currentTarget.style.background = 'var(--color-bg-overlay)';
+              event.currentTarget.style.borderColor = 'var(--color-border-strong)';
+            }
           }}
           onMouseLeave={(event) => {
-            event.currentTarget.style.background = 'var(--color-bg-elevated)';
-            event.currentTarget.style.borderColor = 'var(--color-border-med)';
+            if (!googleLoading) {
+              event.currentTarget.style.background = 'var(--color-bg-elevated)';
+              event.currentTarget.style.borderColor = 'var(--color-border-med)';
+            }
           }}
         >
-          <GoogleIcon />
-          Continuar com Google
+          {googleLoading ? <Spinner size="sm" /> : <GoogleIcon />}
+          {googleLoading ? 'Conectando...' : 'Continuar com Google'}
         </button>
+
+        {googleLoading && (
+          <div
+            style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-tertiary)',
+              textAlign: 'center',
+              marginTop: '8px',
+              animation: 'fadeIn 0.5s ease-in forwards',
+              animationDelay: '3s',
+              opacity: 0,
+            }}
+          >
+            <style>{`
+              @keyframes fadeIn {
+                to { opacity: 1; }
+              }
+            `}</style>
+            Acordando o servidor, aguarde até 30s...
+          </div>
+        )}
 
         {errorMessage ? (
           <div
