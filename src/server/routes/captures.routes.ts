@@ -86,9 +86,21 @@ Retorne APENAS um JSON válido no formato exato:
 
       const reply = await agent.processInput('pwa-user', prompt);
       const jsonStr = reply.replace(/```json|```/g, '').trim();
-      const result = JSON.parse(jsonStr);
+      
+      let result;
+      try {
+        result = JSON.parse(jsonStr);
+      } catch (parseErr) {
+        console.warn('[smart-capture] JSON parse failed, trying regex fallback', parseErr);
+        const match = jsonStr.match(/\{[\s\S]*\}/);
+        if (match) {
+          result = JSON.parse(match[0]);
+        } else {
+          throw new Error('Formato JSON inválido retornado pela IA.');
+        }
+      }
 
-      const updatedMetadata = { ...metadata, summary: result.summary, evolution: result.evolution };
+      const updatedMetadata = { ...(metadata || {}), summary: result.summary, evolution: result.evolution };
       const newType = result.type || 'note';
 
       await query(
@@ -111,11 +123,15 @@ Retorne APENAS um JSON válido no formato exato:
     } catch (err) {
       console.error('[smart-capture] Falha no processamento assíncrono da IA:', err);
       // Fallback seguro: retira o status de processing e volta para 'new' (sem metadados de IA)
-      const fallbackMetadata = { ...metadata };
-      await query(
-        `UPDATE captures SET metadata = $1, status = 'new' WHERE id = $2`,
-        [JSON.stringify(fallbackMetadata), row.id]
-      );
+      try {
+        const fallbackMetadata = { ...(metadata || {}) };
+        await query(
+          `UPDATE captures SET metadata = $1, status = 'new' WHERE id = $2`,
+          [JSON.stringify(fallbackMetadata), row.id]
+        );
+      } catch (dbErr) {
+        console.error('[smart-capture] Falha crítica ao aplicar fallback no BD:', dbErr);
+      }
     }
   })();
 });

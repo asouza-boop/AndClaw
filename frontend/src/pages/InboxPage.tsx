@@ -47,7 +47,6 @@ function timeAgo(date: string) {
 export default function InboxPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
   const [captureText, setCaptureText] = useState('');
   const [isProcessingLocal, setIsProcessingLocal] = useState(false);
 
@@ -110,11 +109,10 @@ export default function InboxPage() {
     return items
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .filter(item => {
-        const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase());
         const matchesFilter = filter === 'all' || item.type === filter;
-        return matchesSearch && matchesFilter;
+        return matchesFilter;
       });
-  }, [captures, tasks, meetings, projects, filter, search]);
+  }, [captures, tasks, meetings, projects, filter]);
 
   /* Mutations */
   const deleteCapture = useMutation({
@@ -199,7 +197,23 @@ export default function InboxPage() {
         title="Triagem Cognitiva" 
         subtitle={`${unifiedItems.length} Entradas Unificadas · ${getPendingSignals()} Sinais Pendentes`}
         actions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+              {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
+                <Button
+                  key={f}
+                  variant={filter === f ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setFilter(f)}
+                  style={{ fontSize: '10px', textTransform: 'uppercase', borderRadius: 'var(--radius-full)' }}
+                >
+                  {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
+                </Button>
+              ))}
+            </div>
+
+            <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--color-border)' }} />
+
             <div style={{
               display: 'flex', alignItems: 'center', gap: '6px',
               padding: '6px 14px', borderRadius: 'var(--radius-full)',
@@ -224,29 +238,7 @@ export default function InboxPage() {
       />
 
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', marginTop: 'var(--space-6)', paddingBottom: '160px' }}>
-        
-        {/* Top Filters & Stats */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-4)' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-            {['all', 'task', 'meeting', 'project', 'link', 'note'].map((f) => (
-              <Button
-                key={f}
-                variant={filter === f ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setFilter(f)}
-                style={{ fontSize: '10px', textTransform: 'uppercase', borderRadius: 'var(--radius-full)' }}
-              >
-                {f === 'all' ? 'Ver Tudo' : typeConfig[f]?.label || f}
-              </Button>
-            ))}
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="hidden sm:flex" style={{ gap: 'var(--space-4)', fontSize: '10px', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><CheckSquare size={12}/> {tasks.filter((t: any) => t.status !== 'done').length} Tarefas</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Calendar size={12}/> {meetings.length} Reuniões</span>
-          </div>
-        </div>
+
 
         {/* Main Feed */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
@@ -462,10 +454,10 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
           </div>
         )}
 
-        {/* Actions — visible on parent hover only */}
+        {/* Actions — always visible */}
         <div
           className="inbox-actions"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: item.status === 'processing' ? 0 : undefined, transition: 'opacity var(--t-fast)' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: item.status === 'processing' ? 0 : 1, transition: 'opacity var(--t-fast)' }}
         >
           {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>

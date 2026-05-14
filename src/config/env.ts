@@ -21,7 +21,7 @@ export const config = {
     openrouterKey: process.env.OPENROUTER_API_KEY || '',
     ollamaModel: process.env.OLLAMA_MODEL || 'llama3.2',
     defaultProvider: process.env.DEFAULT_LLM_PROVIDER || 'gemini',
-    providerChain: (process.env.LLM_PROVIDER_CHAIN || 'gemini-flash,gemini-flash-lite,openrouter,deepseek').split(',').map(p => p.trim()),
+    providerChain: (process.env.LLM_PROVIDER_CHAIN || 'gemini-flash,gemini-flash-key2,gemini-flash-key3,gemini-flash-lite,openrouter,deepseek').split(',').map(p => p.trim()),
     maxIterations: parseInt(process.env.MAX_ITERATIONS || '5', 10),
     pauseTimeoutMs: parseInt(process.env.PAUSE_TIMEOUT_MS || '30000', 10),
   },
