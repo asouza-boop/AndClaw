@@ -10,7 +10,9 @@ export function getPool(): Pool {
     }
     // Remove sslmode params from connection string to avoid Render/Node warnings
     // since we are explicitly passing ssl: { rejectUnauthorized: false }
-    const connectionString = config.db.url.replace(/\?sslmode=[a-zA-Z-]+/, '').replace(/&sslmode=[a-zA-Z-]+/, '');
+    const parsedUrl = new URL(config.db.url);
+    parsedUrl.searchParams.delete('sslmode');
+    const connectionString = parsedUrl.toString();
     
     pool = new Pool({ 
       connectionString,
