@@ -8,6 +8,22 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useNotificationStore } from '@/stores/notificationStore';
 
+const CustomLogo = () => (
+  <svg viewBox="0 0 100 100" width="28" height="28" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0, filter: 'drop-shadow(0 2px 4px rgba(232, 72, 75, 0.3))' }}>
+    <path d="M 35 25 Q 20 10 25 5" stroke="#E8484B" strokeWidth="4" fill="transparent" strokeLinecap="round"/>
+    <path d="M 65 25 Q 80 10 75 5" stroke="#E8484B" strokeWidth="4" fill="transparent" strokeLinecap="round"/>
+    <ellipse cx="10" cy="50" rx="12" ry="10" fill="#E8484B" transform="rotate(-20 10 50)" />
+    <ellipse cx="90" cy="50" rx="12" ry="10" fill="#E8484B" transform="rotate(20 90 50)" />
+    <circle cx="50" cy="50" r="42" fill="#E8484B" />
+    <path d="M 35 85 L 35 98 L 45 98 L 45 85" fill="#E8484B" />
+    <path d="M 55 85 L 55 98 L 65 98 L 65 85" fill="#E8484B" />
+    <circle cx="35" cy="40" r="8" fill="#0B131E" />
+    <circle cx="65" cy="40" r="8" fill="#0B131E" />
+    <circle cx="35" cy="40" r="3" fill="#00E5FF" filter="drop-shadow(0px 0px 4px #00E5FF)" />
+    <circle cx="65" cy="40" r="3" fill="#00E5FF" filter="drop-shadow(0px 0px 4px #00E5FF)" />
+  </svg>
+);
+
 const sections = [
   {
     label: 'PRINCIPAL',
@@ -116,35 +132,29 @@ export function AppSidebar() {
   return (
     <aside style={sidebarStyle}>
       {/* Logo area — 56px height */}
-      <div style={{
-        height: '56px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 20px',
-        gap: '10px',
-        flexShrink: 0,
-      }}>
-        <div style={{
-          width: '28px',
-          height: '28px',
-          borderRadius: '8px',
-          backgroundColor: 'var(--color-accent)',
+      <div 
+        className="group"
+        style={{
+          height: '56px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          color: '#ffffff',
-          fontWeight: 600,
-          fontSize: '14px',
+          padding: '0 20px',
+          gap: '10px',
           flexShrink: 0,
-        }}>
-          AC
-        </div>
-        <span style={{
-          fontSize: 'var(--text-sm)',
-          fontWeight: 500,
-          color: 'var(--color-text-primary)',
-        }}>
-          AndClaw
+          cursor: 'default'
+        }}
+      >
+        <CustomLogo />
+        <span 
+          className="group-hover:text-cyan-400 transition-colors duration-300"
+          style={{
+            fontSize: 'var(--text-sm)',
+            fontWeight: 600,
+            color: 'var(--color-text-primary)',
+            letterSpacing: '0.02em'
+          }}
+        >
+          AndClaw AI
         </span>
       </div>
 

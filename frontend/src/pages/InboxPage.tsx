@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { 
   Trash2, CheckSquare, Archive, Loader2, Sparkles, 
   Calendar, FolderKanban, MessageSquare, Link as LinkIcon,
-  Search, ChevronRight, Clock, Target, BrainCircuit
+  Search, ChevronRight, Clock, Target, BrainCircuit, Rocket
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -197,17 +197,30 @@ export default function InboxPage() {
   return (
     <AppLayout sidebar={<AppSidebar />}>
       <PageHeader 
-        title="Inbox" 
+        title="Triagem Cognitiva" 
         subtitle={`${unifiedItems.length} Entradas Unificadas · ${getPendingSignals()} Sinais Pendentes`}
         actions={
-          <Button 
-            variant="primary"
-            onClick={() => processAI.mutate()}
-            disabled={processAI.isPending || getPendingSignals() === 0}
-          >
-            {processAI.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
-            {processAI.isPending ? 'Processando...' : 'Extrair com IA'}
-          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '6px 14px', borderRadius: 'var(--radius-full)',
+              backgroundColor: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)',
+              color: '#10b981', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.05em'
+            }}>
+              <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px #10b981' }} />
+              IA ATIVA
+            </div>
+            {getPendingSignals() > 0 && (
+              <Button 
+                variant="ghost" size="sm"
+                onClick={() => processAI.mutate()}
+                disabled={processAI.isPending}
+                style={{ fontSize: '11px', padding: '4px 10px' }}
+              >
+                {processAI.isPending ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              </Button>
+            )}
+          </div>
         }
       />
 
@@ -282,8 +295,9 @@ export default function InboxPage() {
           )}
           <div style={{ 
             backgroundColor: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-2xl)', padding: 'var(--space-3)', 
-            boxShadow: 'var(--shadow-xl)', display: 'flex', flexDirection: 'column',
+            borderRadius: '2rem', padding: 'var(--space-4)', 
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05) inset', 
+            display: 'flex', flexDirection: 'column',
             transition: 'all 0.3s', opacity: isProcessingLocal ? 0.7 : 1,
             filter: isProcessingLocal ? 'blur(1px)' : 'none'
           }}>
@@ -332,7 +346,7 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
   const badgeStyle = inboxBadgeStyle[item.type] || inboxBadgeStyle.note;
 
   return (
-    <Card padding="sm" border shadow="none" animate={false} className="group inbox-item-row">
+    <Card padding="md" border shadow="none" animate={false} className="group inbox-item-row" style={{ borderRadius: '2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
         {/* Icon badge */}
         <div style={{ 
@@ -423,12 +437,14 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
                         onClick={() => onEvolve && onEvolve(ev)}
                         className="btn-evolution hover:bg-white/10"
                         style={{
-                          fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em',
-                          padding: '4px 10px', borderRadius: 'var(--radius-full)', 
-                          backgroundColor: 'var(--color-bg-elevated)', color: 'var(--color-text-tertiary)',
-                          border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'all 0.2s'
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em',
+                          padding: '8px 16px', borderRadius: 'var(--radius-full)', 
+                          backgroundColor: 'rgba(255,255,255,0.02)', color: 'var(--color-text-secondary)',
+                          border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', transition: 'all 0.2s'
                         }}
                       >
+                        <Rocket size={12} style={{ color: 'var(--color-text-tertiary)' }} />
                         {ev}
                       </button>
                     ))}
