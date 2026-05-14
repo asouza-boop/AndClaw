@@ -47,8 +47,10 @@ export function AppShell() {
         className="hidden md:flex flex-col flex-shrink-0"
         style={{
           width: '224px',
-          borderRight: '1px solid var(--color-border)',
-          backgroundColor: 'var(--color-bg-surface)',
+          borderRight: '1px solid rgba(99, 102, 241, 0.1)',
+          backgroundColor: 'rgba(10, 12, 30, 0.85)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
         }}
       >
         <AppSidebar />
@@ -59,7 +61,10 @@ export function AppShell() {
         <BackendRetryBanner />
         <div
           className="flex-1 flex flex-col overflow-hidden"
-          style={{ backgroundColor: 'var(--color-bg-base)' }}
+          style={{
+            backgroundColor: 'var(--color-bg-base)',
+            backgroundImage: 'radial-gradient(ellipse at 70% 10%, rgba(99, 102, 241, 0.06) 0%, transparent 60%)',
+          }}
         >
           <Topbar title={title} />
           <main className="flex-1 overflow-y-auto scrollbar-hide animate-fade-in">

@@ -1,35 +1,42 @@
 :root {
-  /* Legacy theme vars mapped to v3 tokens */
-  --bg-deep: #111318;
-  --bg-surface: #1A1D24;
-  --bg-glass: rgba(34, 38, 47, 0.8);
+  /* Legacy theme vars mapped to Neural palette */
+  --bg-deep: #0a0b1e;
+  --bg-surface: #0f1128;
+  --bg-glass: rgba(15, 17, 40, 0.8);
 
-  /* Removed: accent-glow, glass-blur, glass-border, glass-shadow, mesh-gradient */
   --radius-premium: var(--radius-lg);
 }
 
-/* Removed glass morphism — replaced with clean surface panels */
+/* ─── Glass morphism — Neural identity ─── */
 .glass-panel-v2 {
-  background: var(--color-bg-surface);
-  border: 1px solid var(--color-border);
+  background: rgba(15, 17, 40, 0.6);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(99, 102, 241, 0.12);
   border-radius: var(--radius-lg);
 }
 
 .glass-card-v2 {
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
+  background: rgba(22, 25, 56, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.1);
   border-radius: var(--radius-md);
-  transition: border-color var(--t-fast), background var(--t-fast);
+  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
 }
 
 .glass-card-v2:hover {
-  background: var(--color-bg-overlay);
-  border-color: var(--color-border-med);
+  background: rgba(29, 33, 72, 0.8);
+  border-color: rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.06);
 }
 
-/* Mesh gradient — replaced with clean base */
+/* Mesh gradient — subtle nebula */
 .mesh-gradient {
   background-color: var(--color-bg-base);
+  background-image:
+    radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(34, 211, 238, 0.04) 0%, transparent 50%);
 }
 
 /* Typography Scale */

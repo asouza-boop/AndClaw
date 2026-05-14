@@ -67,8 +67,8 @@ export function AppSidebar() {
     flexShrink: 0,
     position: 'sticky',
     top: 0,
-    backgroundColor: 'var(--color-bg-surface)',
-    borderRight: '1px solid var(--color-border)',
+    backgroundColor: 'transparent',
+    borderRight: 'none',
     fontFamily: 'var(--font-sans)',
   };
 

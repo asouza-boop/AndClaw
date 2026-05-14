@@ -19,8 +19,10 @@ export function Topbar({ title }: TopbarProps) {
         style={{
           height: '56px',
           padding: '0 24px',
-          borderBottom: '1px solid var(--color-border)',
-          backgroundColor: 'var(--color-bg-surface)',
+          borderBottom: '1px solid rgba(99, 102, 241, 0.1)',
+          backgroundColor: 'rgba(10, 12, 30, 0.7)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
         }}
       >
         <div className="flex items-center gap-4">

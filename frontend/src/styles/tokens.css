@@ -1,43 +1,47 @@
 :root {
-  /* Backgrounds */
-  --color-bg-base:      #111318;
-  --color-bg-surface:   #1A1D24;
-  --color-bg-elevated:  #22262F;
-  --color-bg-overlay:   #2A2E38;
+  /* ─── Backgrounds — Deep Space palette ─── */
+  --color-bg-base:      #0a0b1e;
+  --color-bg-surface:   #0f1128;
+  --color-bg-elevated:  #161938;
+  --color-bg-overlay:   #1d2148;
 
-  /* Aliases for legacy compatibility */
-  --color-bg-primary:   #111318;
-  --color-bg-secondary: #1A1D24;
-  --color-bg-tertiary:  #22262F;
+  /* Legacy aliases */
+  --color-bg-primary:   #0a0b1e;
+  --color-bg-secondary: #0f1128;
+  --color-bg-tertiary:  #161938;
 
-  /* Borders */
-  --color-border:       #2E3240;
-  --color-border-med:   #3D4255;
-  --color-border-strong: #3D4255;
+  /* ─── Borders — with subtle indigo tint ─── */
+  --color-border:       rgba(99, 102, 241, 0.12);
+  --color-border-med:   rgba(99, 102, 241, 0.2);
+  --color-border-strong: rgba(99, 102, 241, 0.3);
 
-  /* Text */
-  --color-text-primary:   #F0F2F8;
-  --color-text-secondary: #8B90A7;
-  --color-text-tertiary:  #555A72;
-  --color-text-inverse:   #111318;
+  /* ─── Text ─── */
+  --color-text-primary:   #eef0ff;
+  --color-text-secondary: #8b90c0;
+  --color-text-tertiary:  #4e5280;
+  --color-text-inverse:   #0a0b1e;
 
-  /* Accent — single accent */
-  --color-accent:       #6C72FF;
-  --color-accent-dim:   #3D4199;
-  --color-accent-sub:   #1E2052;
-  --color-accent-hover: #7C82FF;
-  --color-accent-subtle: rgba(108, 114, 255, 0.08);
+  /* ─── Accent — Indigo / Violet ─── */
+  --color-accent:       #6366f1;
+  --color-accent-dim:   #3d4199;
+  --color-accent-sub:   rgba(99, 102, 241, 0.12);
+  --color-accent-hover: #818cf8;
+  --color-accent-subtle: rgba(99, 102, 241, 0.08);
 
-  /* Status */
-  --color-teal:    #2DD4BF;
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-error:   #EF4444;
-  --color-purple:  #A78BFA;
-  --color-info:    #6C72FF;
+  /* ─── Cyan (secondary accent) ─── */
+  --color-cyan:    #22d3ee;
+  --color-cyan-dim: rgba(34, 211, 238, 0.15);
 
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* ─── Status ─── */
+  --color-teal:    #2dd4bf;
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error:   #f87171;
+  --color-purple:  #c084fc;
+  --color-info:    #818cf8;
+
+  /* ─── Typography ─── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', monospace;
 
   --text-xs:   11px;
@@ -56,7 +60,7 @@
   --leading-normal:  1.6;
   --leading-relaxed: 1.7;
 
-  /* Spacing */
+  /* ─── Spacing ─── */
   --space-1:  4px;
   --space-2:  8px;
   --space-3:  12px;
@@ -75,18 +79,20 @@
   --space-card-pad:      20px;
   --space-card-pad-sm:   14px;
 
-  /* Radius */
+  /* ─── Radius ─── */
   --radius-sm:   6px;
   --radius-md:   10px;
   --radius-lg:   14px;
+  --radius-xl:   20px;
   --radius-full: 9999px;
 
-  /* Shadow */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  /* ─── Shadow — with indigo tint ─── */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 0 12px rgba(99, 102, 241, 0.03);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.5), 0 0 20px rgba(99, 102, 241, 0.04);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6), 0 0 30px rgba(99, 102, 241, 0.05);
+  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
 
-  /* Motion — CSS only, no JS animation libraries */
+  /* ─── Motion ─── */
   --transition-fast:   100ms ease;
   --transition-base:   150ms ease;
   --transition-slow:   250ms cubic-bezier(0.4,0,0.2,1);
