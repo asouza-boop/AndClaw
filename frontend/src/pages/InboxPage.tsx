@@ -8,8 +8,7 @@ import {
   Calendar, FolderKanban, MessageSquare, Link as LinkIcon,
   Search, ChevronRight, Clock, Target, BrainCircuit, Rocket
 } from 'lucide-react';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { AppSidebar } from '@/components/AppSidebar';
+
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -195,7 +194,7 @@ export default function InboxPage() {
   const getPendingSignals = () => captures.filter((c: any) => c.status !== 'processed').length;
 
   return (
-    <AppLayout sidebar={<AppSidebar />}>
+    <div className="w-full animate-in fade-in duration-700">
       <PageHeader 
         title="Triagem Cognitiva" 
         subtitle={`${unifiedItems.length} Entradas Unificadas · ${getPendingSignals()} Sinais Pendentes`}
@@ -326,7 +325,7 @@ export default function InboxPage() {
           </div>
         </div>
       </div>
-    </AppLayout>
+    </div>
   );
 }
 

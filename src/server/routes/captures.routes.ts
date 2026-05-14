@@ -211,7 +211,11 @@ ${inputData}`;
     const reply = await agent.processInput('pwa-user', prompt);
     let results;
     try {
-      const jsonStr = reply.replace(/```json|```/g, '').trim();
+      let jsonStr = reply.replace(/```json|```/g, '').trim();
+      const match = jsonStr.match(/\[[\s\S]*\]/);
+      if (match) {
+        jsonStr = match[0];
+      }
       results = JSON.parse(jsonStr);
     } catch (e) {
       console.error('[extract] Failed to parse agent JSON:', reply);
