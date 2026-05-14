@@ -331,12 +331,12 @@ export default function InboxPage() {
 
 /* Badge color map for v3 palette */
 const inboxBadgeStyle: Record<string, React.CSSProperties> = {
-  idea:    { backgroundColor: 'var(--color-accent-sub)',  color: 'var(--color-accent)' },
-  meeting: { backgroundColor: '#1E3A2F',                   color: 'var(--color-teal)' },
-  note:    { backgroundColor: 'var(--color-bg-elevated)',  color: 'var(--color-text-tertiary)' },
-  task:    { backgroundColor: '#2D1F4E',                   color: 'var(--color-purple)' },
-  link:    { backgroundColor: 'var(--color-bg-elevated)',  color: 'var(--color-text-tertiary)' },
-  project: { backgroundColor: '#2D2410',                   color: 'var(--color-warning)' },
+  idea:    { backgroundColor: 'rgba(234, 179, 8, 0.15)',  color: '#facc15' },
+  meeting: { backgroundColor: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf' },
+  note:    { backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa' },
+  task:    { backgroundColor: 'rgba(34, 197, 94, 0.15)',  color: '#4ade80' },
+  link:    { backgroundColor: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' },
+  project: { backgroundColor: 'rgba(249, 115, 22, 0.15)', color: '#fb923c' },
 };
 
 function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedItem; onArchive: () => void; onDelete: () => void; onEvolve?: (evolution: string) => void }) {
@@ -376,7 +376,7 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
               {config.label}
             </span>
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)', fontFamily: 'var(--font-mono)', marginLeft: '4px' }}>
-              {timeAgo(item.createdAt)}
+              {new Date(item.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} ({timeAgo(item.createdAt)})
             </span>
           </div>
 
@@ -469,6 +469,20 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
         >
           {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>
+              {onEvolve && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={() => onEvolve('tarefa')} title="Converter em Tarefa" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-primary">
+                    <CheckSquare size={15} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => onEvolve('projeto')} title="Converter em Projeto" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-warning">
+                    <FolderKanban size={15} />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => onEvolve('reunião')} title="Converter em Reunião" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-teal">
+                    <Calendar size={15} />
+                  </Button>
+                  <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--color-border)', margin: '0 4px' }} />
+                </>
+              )}
               <Button variant="ghost" size="sm" onClick={onArchive} title="Arquivar">
                 <Archive size={15} />
               </Button>
