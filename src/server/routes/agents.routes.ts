@@ -71,12 +71,12 @@ router.get('/agents', async (_req: Request, res: Response) => {
 });
 
 router.post('/agents', async (req: Request, res: Response) => {
-  const { name, level, status, areas = [], description, base_doc, skills = [], tags = [] } = req.body || {};
+  const { name, level, status, areas = [], description, base_doc, skills = [], tags = [], personality = 50 } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const rows = await query<any>(
-    `INSERT INTO agents (name, level, status, areas, description, base_doc)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [name, level || 'Estrategico', status || 'ativo', areas, description || null, base_doc || null]
+    `INSERT INTO agents (name, level, status, areas, description, base_doc, personality)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [name, level || 'Estrategico', status || 'ativo', areas, description || null, base_doc || null, personality]
   );
   const agentRow = rows[0];
 
@@ -103,7 +103,7 @@ router.post('/agents', async (req: Request, res: Response) => {
 
 router.patch('/agents/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, level, status, areas, description, base_doc } = req.body || {};
+  const { name, level, status, areas, description, base_doc, personality } = req.body || {};
   const updates: string[] = [];
   const params: any[] = [];
   if (name)        { params.push(name);        updates.push(`name = $${params.length}`); }
@@ -112,6 +112,7 @@ router.patch('/agents/:id', async (req: Request, res: Response) => {
   if (areas)       { params.push(areas);       updates.push(`areas = $${params.length}`); }
   if (description !== undefined) { params.push(description); updates.push(`description = $${params.length}`); }
   if (base_doc !== undefined)    { params.push(base_doc);    updates.push(`base_doc = $${params.length}`); }
+  if (personality !== undefined) { params.push(personality); updates.push(`personality = $${params.length}`); }
   if (!updates.length) return res.status(400).json({ error: 'nothing to update' });
   params.push(id);
   const rows = await query<any>(`UPDATE agents SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
