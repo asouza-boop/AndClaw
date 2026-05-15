@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '@/db/postgres';
 import { TaskService } from '@/core/agent/TaskService';
+import { MeetingService } from '@/core/agent/MeetingService';
 import { saveToRaindrop } from '@/integrations/raindrop';
 import { config } from '@/config/env';
 import { hasLLMConfig } from '@/server/llm';
@@ -21,9 +22,12 @@ router.post('/captures', async (req: Request, res: Response) => {
   );
   const row = rows[0];
 
-  // Auto-create task if capture type is 'task'
+  // Auto-create task or meeting
   if (row && type === 'task') {
     await TaskService.createFromCapture(row);
+  }
+  if (row && type === 'meeting') {
+    await MeetingService.createFromCapture(row);
   }
 
   // Auto-save link to Raindrop.io
@@ -113,6 +117,10 @@ Retorne APENAS um JSON válido no formato exato:
          const taskRows = await query(`SELECT * FROM captures WHERE id = $1`, [row.id]);
          await TaskService.createFromCapture(taskRows[0]);
       }
+      if (newType === 'meeting') {
+         const meetingRows = await query(`SELECT * FROM captures WHERE id = $1`, [row.id]);
+         await MeetingService.createFromCapture(meetingRows[0]);
+      }
       if (newType === 'link' && config.raindrop.token) {
         const urlMatch = content.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
@@ -152,6 +160,10 @@ router.get('/captures', async (req: Request, res: Response) => {
 router.patch('/captures/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { status, type, tags, project_id, due_date, metadata } = req.body || {};
+  
+  const oldRows = await query(`SELECT * FROM captures WHERE id = $1`, [id]);
+  const oldRow = oldRows[0];
+
   const updates: string[] = [];
   const params: any[] = [];
 
@@ -170,7 +182,19 @@ router.patch('/captures/:id', async (req: Request, res: Response) => {
     `UPDATE captures SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`,
     params
   );
-  res.json({ ok: true, item: rows[0] });
+  const newRow = rows[0];
+
+  // If type evolved to task/meeting, auto-create
+  if (oldRow && newRow) {
+    if (newRow.type === 'task' && oldRow.type !== 'task') {
+      await TaskService.createFromCapture(newRow);
+    }
+    if (newRow.type === 'meeting' && oldRow.type !== 'meeting') {
+      await MeetingService.createFromCapture(newRow);
+    }
+  }
+
+  res.json({ ok: true, item: newRow });
 });
 
 router.delete('/captures/:id', async (req: Request, res: Response) => {

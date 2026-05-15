@@ -68,7 +68,7 @@ export default function InboxPage() {
         title: c.content,
         status: c.status,
         createdAt: c.createdAt || c.created_at,
-        raw: c
+        raw: { ...c, _source: 'capture' }
       });
     });
 
@@ -80,7 +80,7 @@ export default function InboxPage() {
         title: t.title,
         status: t.status,
         createdAt: t.createdAt || t.created_at,
-        raw: t
+        raw: { ...t, _source: 'task' }
       });
     });
 
@@ -91,7 +91,7 @@ export default function InboxPage() {
         title: m.title,
         status: m.status,
         createdAt: m.createdAt || m.created_at || m.meeting_date,
-        raw: m
+        raw: { ...m, _source: 'meeting' }
       });
     });
 
@@ -102,7 +102,7 @@ export default function InboxPage() {
         title: p.name,
         status: p.status,
         createdAt: p.createdAt || p.created_at,
-        raw: p
+        raw: { ...p, _source: 'project' }
       });
     });
 
@@ -454,24 +454,29 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
           </div>
         )}
 
-        {/* Actions — always visible */}
         <div
           className="inbox-actions"
           style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', opacity: item.status === 'processing' ? 0 : 1, transition: 'opacity var(--t-fast)' }}
         >
-          {item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
+          {item.raw?._source === 'capture' || item.type === 'note' || item.type === 'idea' || item.type === 'link' ? (
             <>
               {onEvolve && (
                 <>
-                  <Button variant="ghost" size="sm" onClick={() => onEvolve('tarefa')} title="Converter em Tarefa" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-primary">
-                    <CheckSquare size={15} />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onEvolve('projeto')} title="Converter em Projeto" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-warning">
-                    <FolderKanban size={15} />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => onEvolve('reunião')} title="Converter em Reunião" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-teal">
-                    <Calendar size={15} />
-                  </Button>
+                  {item.type !== 'task' && (
+                    <Button variant="ghost" size="sm" onClick={() => onEvolve('tarefa')} title="Converter em Tarefa" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-primary">
+                      <CheckSquare size={15} />
+                    </Button>
+                  )}
+                  {item.type !== 'project' && (
+                    <Button variant="ghost" size="sm" onClick={() => onEvolve('projeto')} title="Converter em Projeto" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-warning">
+                      <FolderKanban size={15} />
+                    </Button>
+                  )}
+                  {item.type !== 'meeting' && (
+                    <Button variant="ghost" size="sm" onClick={() => onEvolve('reunião')} title="Converter em Reunião" style={{ color: 'var(--color-text-tertiary)' }} className="hover:text-teal">
+                      <Calendar size={15} />
+                    </Button>
+                  )}
                   <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--color-border)', margin: '0 4px' }} />
                 </>
               )}
@@ -483,7 +488,7 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
               </Button>
             </>
           ) : (
-            <Button variant="ghost" size="sm" title="Abrir">
+            <Button variant="ghost" size="sm" title="Abrir" onClick={() => window.location.href = `/${item.type}s`}>
               <ChevronRight size={15} />
             </Button>
           )}
