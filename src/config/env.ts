@@ -25,6 +25,9 @@ export const config = {
     maxIterations: parseInt(process.env.MAX_ITERATIONS || '5', 10),
     pauseTimeoutMs: parseInt(process.env.PAUSE_TIMEOUT_MS || '30000', 10),
   },
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+  },
   db: {
     url: process.env.DATABASE_URL || '',
   },

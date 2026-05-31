@@ -162,7 +162,7 @@ contractTest('GET /api/meetings surfaces DB errors through errorHandler', async 
   }
 });
 
-contractTest('POST /api/meetings/:id/upload-audio returns 501', async () => {
+contractTest('POST /api/meetings/:id/upload-audio returns 400 without a file', async () => {
   const restoreConfig = setContractAuth();
   const restoreQuery = patchPoolQuery(() => ({ rows: [] }));
   const token = issueToken('andclaw-user');
@@ -174,15 +174,15 @@ contractTest('POST /api/meetings/:id/upload-audio returns 501', async () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ any: 'body' });
 
-    assert.equal(res.status, 501);
-    assert.equal(res.body.code, 'STUB_ENDPOINT');
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, 'No audio file received');
   } finally {
     restoreQuery();
     restoreConfig();
   }
 });
 
-contractTest('POST /api/meetings/:id/process?action=transcribe returns 501', async () => {
+contractTest('POST /api/meetings/:id/process?action=transcribe returns 400 without audio', async () => {
   const restoreConfig = setContractAuth();
   const restoreQuery = patchPoolQuery((sql) => {
     if (sql.includes('FROM meetings')) {
@@ -218,8 +218,8 @@ contractTest('POST /api/meetings/:id/process?action=transcribe returns 501', asy
       .set('Authorization', `Bearer ${token}`)
       .send({ action: 'transcribe' });
 
-    assert.equal(res.status, 501);
-    assert.equal(res.body.code, 'STUB_ENDPOINT');
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error, 'No audio file available for transcription');
   } finally {
     restoreQuery();
     restoreConfig();

@@ -5,6 +5,9 @@ import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { syncGoogleCalendars } from '@/integrations/googleCalendar';
 import { agent, inferActionItems, mapMeetingRow } from './shared';
 import { MemoryManager } from '@/memory/MemoryManager';
+import { upload } from '@/server/app';
+import { saveAudioBuffer } from '@/lib/audioStorage';
+import { transcribeAudio } from '@/lib/transcriptionService';
 
 const router = Router();
 const asyncHandler = (fn: Function) => (req: any, res: any, next: any) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -53,19 +56,45 @@ router.put('/meetings/:id', asyncHandler(async (req: Request, res: Response) => 
   res.json({ ok: true, item: mapMeetingRow(meeting) });
 }));
 
-router.post('/meetings/:id/upload-audio', asyncHandler(async (req: Request, res: Response) => {
-  return res.status(501).json({ error: 'Not yet implemented', code: 'STUB_ENDPOINT' });
+router.post('/meetings/:id/upload-audio', upload.single('audio'), asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  if (!file) return res.status(400).json({ error: 'No audio file received' });
+
+  const filePath = await saveAudioBuffer(id, file.buffer, file.originalname);
+
+  const rows = await query<any>(
+    `UPDATE meetings SET audio_file_name = $1, status = 'in_progress' WHERE id = $2 RETURNING *`,
+    [filePath, id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'meeting not found' });
+  res.json({ ok: true, filePath, item: mapMeetingRow(rows[0]) });
 }));
 
 router.post('/meetings/:id/process', asyncHandler(async (req: Request, res: Response) => {
-  const id = req.params.id as string;
+  const id = String(req.params.id);
   const { action = 'summarize' } = req.body || {};
   const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
   const meeting = rows[0];
   if (!meeting) return res.status(404).json({ error: 'meeting not found' });
 
   if (action === 'transcribe') {
-    return res.status(501).json({ error: 'Not yet implemented', code: 'STUB_ENDPOINT' });
+    if (!meeting.audio_file_name || meeting.audio_file_name === 'upload-received') {
+      return res.status(400).json({ error: 'No audio file available for transcription' });
+    }
+    try {
+      const transcript = await transcribeAudio(meeting.audio_file_name);
+      const updated = await query<any>(
+        `UPDATE meetings SET transcript_text = $1, status = 'in_progress' WHERE id = $2 RETURNING *`,
+        [transcript, id]
+      );
+      return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+    } catch (err: any) {
+      if (err.message === 'WHISPER_NOT_CONFIGURED') {
+        return res.status(503).json({ error: 'Transcription service not configured', code: 'WHISPER_NOT_CONFIGURED' });
+      }
+      throw err;
+    }
   }
 
   if (!meeting.transcript_text) {

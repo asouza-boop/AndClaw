@@ -460,7 +460,7 @@ function MeetingDetail({
           <Card padding="sm" border shadow="sm">
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
               <span style={{ fontSize: '10px', fontWeight: 'var(--font-bold)', color: 'var(--color-text-tertiary)', textTransform: 'uppercase', marginRight: 'var(--space-2)' }}>Ações IA</span>
-              <Button variant="ghost" size="sm" onClick={() => processWithAI('transcribe')} disabled={true} title="Funcionalidade em desenvolvimento" style={{ fontSize: '11px', color: 'var(--color-accent)' }}>
+              <Button variant="ghost" size="sm" onClick={() => processWithAI('transcribe')} disabled={processing || uploading} style={{ fontSize: '11px', color: 'var(--color-accent)' }}>
                 <Mic size={14} className="mr-2" /> Transcrever
               </Button>
               <Button variant="ghost" size="sm" onClick={() => processWithAI('summarize')} disabled={processing || uploading} style={{ fontSize: '11px', color: 'var(--color-info)' }}>
@@ -591,53 +591,50 @@ function MeetingDetail({
 
         {/* Detail Sidebar (Recording/Upload) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <div style={{ opacity: 0.4, pointerEvents: 'none' }}>
-            <div style={{ fontSize: '10px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-2)' }}>Em breve</div>
-            <Card padding="lg" border shadow="sm">
-              <h4 style={{ fontSize: '11px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>Gravação / Upload</h4>
+          <Card padding="lg" border shadow="sm">
+            <h4 style={{ fontSize: '11px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>Gravação / Upload</h4>
               
-              {isRecording ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)', backgroundColor: 'var(--color-error-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-error-border)' }}>
-                    <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--color-error)', animation: isPaused ? 'none' : 'pulse 1s infinite' }} />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--color-error)' }}>{formatTime(recordingTime)}</span>
-                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
-                      <Button variant="ghost" size="sm" onClick={pauseRecording} style={{ color: 'var(--color-error)' }}>{isPaused ? <Play size={14} /> : <Pause size={14} />}</Button>
-                      <Button variant="ghost" size="sm" onClick={stopRecording} style={{ color: 'var(--color-error)' }}><Square size={14} /></Button>
-                    </div>
+            {isRecording ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)', backgroundColor: 'var(--color-error-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-error-border)' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--color-error)', animation: isPaused ? 'none' : 'pulse 1s infinite' }} />
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-lg)', fontWeight: 'var(--font-bold)', color: 'var(--color-error)' }}>{formatTime(recordingTime)}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-2)' }}>
+                    <Button variant="ghost" size="sm" onClick={pauseRecording} style={{ color: 'var(--color-error)' }}>{isPaused ? <Play size={14} /> : <Pause size={14} />}</Button>
+                    <Button variant="ghost" size="sm" onClick={stopRecording} style={{ color: 'var(--color-error)' }}><Square size={14} /></Button>
                   </div>
-                  <canvas ref={canvasRef} width={280} height={40} style={{ width: '100%', height: '40px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-sm)' }} />
+                </div>
+                <canvas ref={canvasRef} width={280} height={40} style={{ width: '100%', height: '40px', backgroundColor: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-sm)' }} />
+              </div>
+            ) : (
+              <Button variant="primary" onClick={startRecording} disabled={uploading} style={{ width: '100%', backgroundColor: 'var(--color-error)', borderColor: 'var(--color-error)' }}>
+                <Mic size={16} className="mr-2" /> Iniciar Gravação
+              </Button>
+            )}
+
+            <div 
+              style={{ 
+                marginTop: 'var(--space-4)', padding: 'var(--space-4)', border: '1px dashed var(--color-border)', 
+                borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer' 
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input ref={fileInputRef} type="file" hidden onChange={handleFileSelect} accept="audio/*" />
+              {uploading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span style={{ fontSize: '10px' }}>{uploadProgress}</span>
                 </div>
               ) : (
-                <Button variant="primary" onClick={startRecording} disabled={uploading} style={{ width: '100%', backgroundColor: 'var(--color-error)', borderColor: 'var(--color-error)' }}>
-                  <Mic size={16} className="mr-2" /> Iniciar Gravação
-                </Button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-1)' }}>
+                  <Upload size={20} style={{ color: 'var(--color-text-tertiary)' }} />
+                  <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>Upload de arquivo (MP3, WAV)</span>
+                </div>
               )}
-
-              <div 
-                style={{ 
-                  marginTop: 'var(--space-4)', padding: 'var(--space-4)', border: '1px dashed var(--color-border)', 
-                  borderRadius: 'var(--radius-md)', textAlign: 'center', cursor: 'pointer' 
-                }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input ref={fileInputRef} type="file" hidden onChange={handleFileSelect} accept="audio/*" />
-                {uploading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-2)' }}>
-                    <Loader2 size={14} className="animate-spin" />
-                    <span style={{ fontSize: '10px' }}>{uploadProgress}</span>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-1)' }}>
-                    <Upload size={20} style={{ color: 'var(--color-text-tertiary)' }} />
-                    <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>Upload de arquivo (MP3, WAV)</span>
-                  </div>
-                )}
-              </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
 
           {meeting.participants && meeting.participants.length > 0 && (
             <Card padding="lg" border shadow="sm">
