@@ -103,15 +103,15 @@ async function syncMeetingToCalendar(payload: any) {
   const accounts = await loadAccounts();
   if (accounts.length === 0) return;
 
-  const account = accounts[0];
-  const calendar = getCalendarClient(account);
-  const calendarId = account.calendarId || 'primary';
-
   const start = new Date(payload.start_time);
   if (isNaN(start.getTime())) {
     logger.warn('calendar.sync.invalid_date', { meetingId: payload.meetingId });
     return;
   }
+
+  const account = accounts[0];
+  const calendar = getCalendarClient(account);
+  const calendarId = account.calendarId || 'primary';
   const end = new Date(start.getTime() + 60 * 60000); // Meetings default to 1h
 
   const meetingRows = await query<any>('SELECT gcal_event_id FROM meetings WHERE id = $1', [payload.meetingId]);

@@ -57,51 +57,54 @@ ESQUEMA:
   "suggested_project": "String ou null"
 }
 
-TRANSCRIÇÃO:
+            TRANSCRIÇÃO:
 ${transcript}`;
 
-            const reply = await agent.processInput('system-intelligence', prompt);
-            let data: any;
-            try {
-                data = JSON.parse(reply);
-            } catch {
-                throw new Error('LLM failed to return structured intelligence');
-            }
-
-            const tasks = Array.isArray(data.tasks) ? data.tasks : [];
-            const decisions = Array.isArray(data.decisions) ? data.decisions : [];
-            const ideas = Array.isArray(data.ideas) ? data.ideas : [];
-
-            // 1. Auto-persist Tasks
-            const actionItems = tasks.map((t: any) => ({ 
-                text: t.title, 
-                done: false, 
-                priority: t.priority || 'medium' 
-            }));
-
-            const batchRows = actionItems.map((item: any) => [
-                item.text,
-                'pending',
-                JSON.stringify({
-                    source: 'meeting',
-                    meeting_id: String(meetingId),
-                    created_at: new Date().toISOString()
-                })
-            ]);
-
-            const { text, values } = buildBatchInsert(
-                'tasks',
-                ['title', 'status', 'metadata'],
-                batchRows,
-                `ON CONFLICT (title, (metadata->>'meeting_id')) 
-                 WHERE metadata->>'meeting_id' IS NOT NULL 
-                 DO NOTHING`
-            );
-
-            const memoryManager = new MemoryManager();
-
             await query('BEGIN');
+            const reply = await agent.processInput('system-intelligence', prompt);
+            let actionItems: any[] = [];
+            let decisions: any[] = [];
+            let ideas: any[] = [];
             try {
+                let data: any;
+                try {
+                    data = JSON.parse(reply);
+                } catch {
+                    throw new Error('LLM failed to return structured intelligence');
+                }
+
+                const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+                decisions = Array.isArray(data.decisions) ? data.decisions : [];
+                ideas = Array.isArray(data.ideas) ? data.ideas : [];
+
+                // 1. Auto-persist Tasks
+                actionItems = tasks.map((t: any) => ({ 
+                    text: t.title, 
+                    done: false, 
+                    priority: t.priority || 'medium' 
+                }));
+
+                const batchRows = actionItems.map((item: any) => [
+                    item.text,
+                    'pending',
+                    JSON.stringify({
+                        source: 'meeting',
+                        meeting_id: String(meetingId),
+                        created_at: new Date().toISOString()
+                    })
+                ]);
+
+                const { text, values } = buildBatchInsert(
+                    'tasks',
+                    ['title', 'status', 'metadata'],
+                    batchRows,
+                    `ON CONFLICT (title, (metadata->>'meeting_id')) 
+                     WHERE metadata->>'meeting_id' IS NOT NULL 
+                     DO NOTHING`
+                );
+
+                const memoryManager = new MemoryManager();
+
                 if (actionItems.length > 0) {
                     await query(text, values);
                 }
