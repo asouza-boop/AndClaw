@@ -3,6 +3,7 @@ import { query } from '@/db/postgres';
 import { google } from 'googleapis';
 import { config } from '@/config/env';
 import { decrypt } from '@/lib/crypto';
+import { logger } from '@/infra/logger';
 
 interface SyncPayload {
   taskId?: string;
@@ -55,6 +56,10 @@ async function syncTaskToCalendar(payload: any) {
   const calendarId = account.calendarId || 'primary';
 
   const start = new Date(payload.due_date);
+  if (isNaN(start.getTime())) {
+    logger.warn('calendar.sync.invalid_date', { taskId: payload.taskId });
+    return;
+  }
   const end = new Date(start.getTime() + 30 * 60000);
 
   // Check if task already has a gcal_event_id
@@ -103,6 +108,10 @@ async function syncMeetingToCalendar(payload: any) {
   const calendarId = account.calendarId || 'primary';
 
   const start = new Date(payload.start_time);
+  if (isNaN(start.getTime())) {
+    logger.warn('calendar.sync.invalid_date', { meetingId: payload.meetingId });
+    return;
+  }
   const end = new Date(start.getTime() + 60 * 60000); // Meetings default to 1h
 
   const meetingRows = await query<any>('SELECT gcal_event_id FROM meetings WHERE id = $1', [payload.meetingId]);
@@ -141,7 +150,7 @@ export function registerCalendarSyncListener(): void {
     try {
       await syncTaskToCalendar(payload);
     } catch (e: any) {
-      console.error('[CalendarSyncListener] task sync failed:', e.message);
+      logger.error('calendar.sync.task_failed', { taskId: payload?.taskId, error: e.message });
     }
   });
 
@@ -149,7 +158,7 @@ export function registerCalendarSyncListener(): void {
     try {
       await syncMeetingToCalendar(payload);
     } catch (e: any) {
-      console.error('[CalendarSyncListener] meeting sync failed:', e.message);
+      logger.error('calendar.sync.meeting_failed', { meetingId: payload?.meetingId, error: e.message });
     }
   });
 }

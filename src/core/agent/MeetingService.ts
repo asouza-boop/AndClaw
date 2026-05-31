@@ -61,78 +61,80 @@ TRANSCRIÇÃO:
 ${transcript}`;
 
             const reply = await agent.processInput('system-intelligence', prompt);
-            
-            // Handle reply (which might be wrapped in markdown or have extra text)
-            const jsonMatch = reply.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) throw new Error("LLM failed to return structured intelligence");
-            const data = JSON.parse(jsonMatch[0]);
+            let data: any;
+            try {
+                data = JSON.parse(reply);
+            } catch {
+                throw new Error('LLM failed to return structured intelligence');
+            }
+
+            const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+            const decisions = Array.isArray(data.decisions) ? data.decisions : [];
+            const ideas = Array.isArray(data.ideas) ? data.ideas : [];
 
             // 1. Auto-persist Tasks
-            const actionItems = (data.tasks || []).map((t: any) => ({ 
+            const actionItems = tasks.map((t: any) => ({ 
                 text: t.title, 
                 done: false, 
                 priority: t.priority || 'medium' 
             }));
-            
-            if (actionItems.length > 0) {
-                const batchRows = actionItems.map((item: any) => [
-                    item.text,
-                    'pending',
-                    JSON.stringify({
-                        source: 'meeting',
-                        meeting_id: String(meetingId),
-                        created_at: new Date().toISOString()
-                    })
-                ]);
 
-                const { text, values } = buildBatchInsert(
-                    'tasks',
-                    ['title', 'status', 'metadata'],
-                    batchRows,
-                    `ON CONFLICT (title, (metadata->>'meeting_id')) 
-                     WHERE metadata->>'meeting_id' IS NOT NULL 
-                     DO NOTHING`
-                );
+            const batchRows = actionItems.map((item: any) => [
+                item.text,
+                'pending',
+                JSON.stringify({
+                    source: 'meeting',
+                    meeting_id: String(meetingId),
+                    created_at: new Date().toISOString()
+                })
+            ]);
 
-                await query('BEGIN');
-                try {
-                    await query(text, values);
-                    await query('COMMIT');
-                } catch (err) {
-                    await query('ROLLBACK');
-                    throw err;
-                }
-            }
-
-            // 2. Persist Decisions to Long-term Memory
-            const memoryManager = new MemoryManager();
-            const decisions = data.decisions || [];
-            for (const dec of decisions.slice(0, 5)) {
-                await memoryManager.addSemanticMemory(
-                    `[Meeting Decision] ${dec}`, 
-                    { source: 'meeting', meetingId, type: 'meeting_intelligence', memoryType: 'operational' }
-                );
-            }
-
-            // 3. Persist Ideas to Contextual Memory
-            const ideas = data.ideas || [];
-            for (const idea of ideas.slice(0, 5)) {
-                await memoryManager.addSemanticMemory(
-                    `[Meeting Insight] ${idea}`, 
-                    { source: 'meeting', meetingId, brainstorm: true, type: 'meeting_intelligence', memoryType: 'contextual' }
-                );
-            }
-
-            // 4. Update Meeting Record with processed state
-            await query(
-                `UPDATE meetings 
-                 SET action_items = $1::jsonb, 
-                     decisions = $2::jsonb, 
-                     ideas = $3::jsonb, 
-                     status = 'completed' 
-                 WHERE id = $4`,
-                [JSON.stringify(actionItems), JSON.stringify(decisions), JSON.stringify(ideas), meetingId]
+            const { text, values } = buildBatchInsert(
+                'tasks',
+                ['title', 'status', 'metadata'],
+                batchRows,
+                `ON CONFLICT (title, (metadata->>'meeting_id')) 
+                 WHERE metadata->>'meeting_id' IS NOT NULL 
+                 DO NOTHING`
             );
+
+            const memoryManager = new MemoryManager();
+
+            await query('BEGIN');
+            try {
+                if (actionItems.length > 0) {
+                    await query(text, values);
+                }
+
+                for (const dec of decisions.slice(0, 5)) {
+                    await memoryManager.addSemanticMemory(
+                        `[Meeting Decision] ${dec}`, 
+                        { source: 'meeting', meetingId, type: 'meeting_intelligence', memoryType: 'operational' }
+                    );
+                }
+
+                for (const idea of ideas.slice(0, 5)) {
+                    await memoryManager.addSemanticMemory(
+                        `[Meeting Insight] ${idea}`, 
+                        { source: 'meeting', meetingId, brainstorm: true, type: 'meeting_intelligence', memoryType: 'contextual' }
+                    );
+                }
+
+                await query(
+                    `UPDATE meetings 
+                     SET action_items = $1::jsonb, 
+                         decisions = $2::jsonb, 
+                         ideas = $3::jsonb, 
+                         status = 'completed' 
+                     WHERE id = $4`,
+                    [JSON.stringify(actionItems), JSON.stringify(decisions), JSON.stringify(ideas), meetingId]
+                );
+
+                await query('COMMIT');
+            } catch (err) {
+                await query('ROLLBACK');
+                throw err;
+            }
 
             logger.info('meeting.intelligence.processed', { meetingId, taskCount: actionItems.length, decisionCount: decisions.length });
             return { actionItems, decisions, ideas };
@@ -146,6 +148,17 @@ ${transcript}`;
      * General meeting creation.
      */
     static async create(data: any): Promise<any> {
+        if (data && data.meeting_date === undefined) {
+            if (data.date !== undefined) {
+                data.meeting_date = data.date;
+            } else if (data.start !== undefined) {
+                data.meeting_date = data.start;
+            }
+        }
+        if (data && data.notes === undefined) {
+            const extraNotes = [data.description, data.location].filter(Boolean).join(' | ');
+            if (extraNotes) data.notes = extraNotes;
+        }
         const { title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes } = data;
         const rows = await query<any>(
             `INSERT INTO meetings (title, meeting_date, transcript_text, status, duration, participants, summary, action_items, skills_used, notes)
