@@ -165,4 +165,19 @@ router.post('/calendar/sync', asyncHandler(async (_req: Request, res: Response) 
   res.json({ ok: true });
 }));
 
+router.delete('/meetings/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const meetingRows = await query<any>('SELECT audio_file_name FROM meetings WHERE id = $1', [id]);
+  if (!meetingRows[0]) return res.status(404).json({ error: 'meeting not found' });
+
+  const audioRef = meetingRows[0].audio_file_name;
+  if (audioRef?.startsWith('lo:')) {
+    const { deleteAudioObject } = await import('@/lib/audioStorage');
+    await deleteAudioObject(audioRef);
+  }
+
+  await query('DELETE FROM meetings WHERE id = $1', [id]);
+  res.json({ ok: true });
+}));
+
 export default router;

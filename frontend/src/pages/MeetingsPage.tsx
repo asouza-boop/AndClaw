@@ -115,10 +115,12 @@ function MeetingDetail({
   meeting,
   onBack,
   skills,
+  deleteMeeting,
 }: {
   meeting: Meeting;
   onBack: () => void;
   skills: Skill[];
+  deleteMeeting: { mutate: (id: number) => void; isPending: boolean };
 }) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'intelligence' | 'skills'>('summary');
@@ -451,6 +453,14 @@ function MeetingDetail({
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
           </div>
         </div>
+        <button
+          onClick={() => { if (confirm('Excluir esta reunião?')) deleteMeeting.mutate(Number(id)); }}
+          disabled={deleteMeeting.isPending}
+          style={{ color: 'var(--color-error, #ef4444)', background: 'transparent', border: 'none', fontSize: 'var(--text-sm)', cursor: 'pointer' }}
+          title="Excluir reunião"
+        >
+          {deleteMeeting.isPending ? 'Excluindo...' : 'Excluir'}
+        </button>
       </div>
 
       {/* Detail Content Grid */}
@@ -667,6 +677,21 @@ export default function MeetingsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ title: '', date: '', duration: '30', participants: '' });
+  const authHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const deleteMeeting = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(apiUrl(`/api/meetings/${id}`), { method: 'DELETE', headers: authHeaders() });
+      if (!res.ok) throw new Error('delete failed');
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      setSelected(null);
+    },
+  });
 
   const createMeeting = async () => {
     try {
@@ -705,7 +730,7 @@ export default function MeetingsPage() {
   return (
     <AppLayout sidebar={<AppSidebar />}>
       {currentMeeting ? (
-        <MeetingDetail meeting={currentMeeting} onBack={() => setSelected(null)} skills={skills} />
+        <MeetingDetail meeting={currentMeeting} onBack={() => setSelected(null)} skills={skills} deleteMeeting={deleteMeeting} />
       ) : (
         <>
           <PageHeader 
