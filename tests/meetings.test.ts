@@ -363,3 +363,61 @@ contractTest('CalendarSyncListener skips invalid dates', async () => {
     google.calendar = originalCalendar;
   }
 });
+
+contractTest('DELETE /api/meetings/:id removes the meeting', async () => {
+  const restoreConfig = setContractAuth();
+  const restoreQuery = patchPoolQuery((sql) => {
+    if (sql.includes('SELECT audio_file_name FROM meetings WHERE id = $1')) {
+      return {
+        rows: [{
+          id: 1,
+          audio_file_name: null,
+        }],
+      };
+    }
+    if (sql.includes('DELETE FROM meetings WHERE id = $1')) {
+      return { rows: [] };
+    }
+    return { rows: [] };
+  });
+  const token = issueToken('andclaw-user');
+  const app = buildAuthedApp();
+
+  try {
+    const res = await request(app)
+      .delete('/api/meetings/1')
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.ok, true);
+  } finally {
+    restoreQuery();
+    restoreConfig();
+  }
+});
+
+contractTest('DELETE /api/meetings/:id returns 404 for missing meeting', async () => {
+  const restoreConfig = setContractAuth();
+  const restoreQuery = patchPoolQuery((sql) => {
+    if (sql.includes('SELECT audio_file_name FROM meetings WHERE id = $1')) {
+      return { rows: [] };
+    }
+    if (sql.includes('DELETE FROM meetings WHERE id = $1')) {
+      return { rows: [] };
+    }
+    return { rows: [] };
+  });
+  const token = issueToken('andclaw-user');
+  const app = buildAuthedApp();
+
+  try {
+    const res = await request(app)
+      .delete('/api/meetings/999')
+      .set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 404);
+  } finally {
+    restoreQuery();
+    restoreConfig();
+  }
+});
