@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, MessageSquare, ListTodo, Lightbulb, Link as LinkIcon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api';
 import { toast } from '@/stores/toastStore';
 import { useQuickCaptureStore } from '@/stores/quickCaptureStore';
@@ -13,6 +14,7 @@ const types = [
 
 export function QuickCaptureModal() {
   const { isOpen, close, type: defaultType } = useQuickCaptureStore();
+  const queryClient = useQueryClient();
   const [type, setType] = useState(defaultType);
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,7 @@ export function QuickCaptureModal() {
         body: JSON.stringify({ content: content.trim(), type }),
       });
       toast(`${type === 'task' ? 'Operation' : 'Signal'} captured!`, 'success');
+      queryClient.invalidateQueries({ queryKey: ['captures'] });
       setContent('');
       close();
     } catch (err: any) {
