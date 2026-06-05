@@ -7,17 +7,11 @@ export async function transcribeAudio(filePath: string): Promise<string> {
   const apiKey = config.openai?.apiKey;
   if (!apiKey) throw new Error('WHISPER_NOT_CONFIGURED');
 
-  let buffer: Buffer;
-  let fileName: string;
-  if (filePath.startsWith('lo:')) {
-    const result = await readAudioBuffer(filePath);
-    buffer = result.buffer;
-    fileName = result.originalName;
-  } else {
-    // legacy /tmp path fallback for any rows already in DB
-    buffer = await fs.promises.readFile(filePath);
-    fileName = path.basename(filePath);
-  }
+  const { buffer, originalName: resolvedName } = await readAudioBuffer(filePath).catch(() => {
+    // final fallback for absolute legacy /tmp paths
+    return fs.promises.readFile(filePath).then((buf) => ({ buffer: buf, originalName: path.basename(filePath) }));
+  });
+  const fileName = resolvedName;
   const ext = fileName.split('.').pop() || 'webm';
   const mimeMap: Record<string, string> = {
     mp3: 'audio/mpeg',

@@ -28,6 +28,11 @@ export const config = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
   },
+  r2: {
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID || '',
+    accessKey: process.env.CLOUDFLARE_R2_ACCESS_KEY || '',
+    bucket: process.env.CLOUDFLARE_R2_BUCKET || 'andclaw-audio',
+  },
   db: {
     url: process.env.DATABASE_URL || '',
   },
