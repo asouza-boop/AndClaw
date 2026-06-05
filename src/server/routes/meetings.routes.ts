@@ -113,7 +113,8 @@ router.post('/meetings/:id/process', asyncHandler(async (req: Request, res: Resp
   }
 
   if (action === 'extract_actions') {
-    await MeetingService.processIntelligence(id, meeting.transcript_text, agent);
+    const participants = Array.isArray(meeting.participants) ? meeting.participants : [];
+    const result = await MeetingService.processIntelligence(id, meeting.transcript_text, agent, participants);
     
     const updatedRows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
     return res.json({ ok: true, item: mapMeetingRow(updatedRows[0]) });

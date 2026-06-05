@@ -44,27 +44,62 @@ export class MeetingService {
     /**
      * Extracts multi-dimensional intelligence from transcript and persists to OS subsystems.
      */
-    static async processIntelligence(meetingId: string | number, transcript: string, agent: any): Promise<any> {
+    static async processIntelligence(
+        meetingId: string | number,
+        transcript: string,
+        agent: any,
+        participants: string[] = []
+    ): Promise<any> {
         try {
-            const prompt = `Analise a transcrição de reunião abaixo e extraia informações estruturadas. 
-Responda APENAS em JSON seguindo o esquema abaixo. Use Português (PT-BR) para os conteúdos.
+            const participantsHint = participants && participants.length > 0
+                ? `\nPARTICIPANTES CONHECIDOS: ${participants.join(', ')}`
+                : '';
 
-ESQUEMA:
+            const prompt = `Você é um especialista em análise de reuniões. Analise a transcrição abaixo e extraia inteligência estruturada em 7 dimensões. Responda APENAS em JSON válido. Use Português (PT-BR).${participantsHint}
+
+ESQUEMA OBRIGATÓRIO:
 {
-  "tasks": [{"title": "ação curta e acionável", "priority": "high|medium|low"}],
-  "decisions": ["lista de decisões objetivas tomadas"],
-  "ideas": ["lista de ideias, insights ou pontos criativos"],
-  "suggested_project": "String ou null"
+  "tasks_immediate": [
+    {"title": "ação clara e acionável agora", "priority": "high|medium|low", "owner": "nome ou null"}
+  ],
+  "tasks_future": [
+    {"title": "follow-up ou ação futura com condição ou prazo", "priority": "high|medium|low", "when": "descrição do prazo ou condição"}
+  ],
+  "key_points": [
+    "ponto principal 1",
+    "ponto principal 2"
+  ],
+  "alerts": [
+    {"description": "risco, bloqueador ou sinal de atenção", "severity": "high|medium|low"}
+  ],
+  "ideas": [
+    "insight criativo ou oportunidade identificada"
+  ],
+  "decisions": [
+    "decisão tomada e registrada"
+  ],
+  "memory_highlights": [
+    "informação que mudaria decisões futuras e deve ser lembrada"
+  ],
+  "participants_identified": [
+    {"name": "nome identificado na transcrição", "role": "papel inferido ou null"}
+  ]
 }
 
-            TRANSCRIÇÃO:
+TRANSCRIÇÃO:
 ${transcript}`;
 
             await query('BEGIN');
             const reply = await agent.processInput('system-intelligence', prompt);
             let actionItems: any[] = [];
-            let decisions: any[] = [];
+            let tasks_future: any[] = [];
+            let key_points: any[] = [];
+            let alerts: any[] = [];
             let ideas: any[] = [];
+            let decisions: any[] = [];
+            let memory_highlights: any[] = [];
+            let participants_identified: any[] = [];
+
             try {
                 let data: any;
                 try {
@@ -73,15 +108,20 @@ ${transcript}`;
                     throw new Error('LLM failed to return structured intelligence');
                 }
 
-                const tasks = Array.isArray(data.tasks) ? data.tasks : [];
-                decisions = Array.isArray(data.decisions) ? data.decisions : [];
+                const tasks_immediate = Array.isArray(data.tasks_immediate) ? data.tasks_immediate : [];
+                tasks_future = Array.isArray(data.tasks_future) ? data.tasks_future : [];
+                key_points = Array.isArray(data.key_points) ? data.key_points : [];
+                alerts = Array.isArray(data.alerts) ? data.alerts : [];
                 ideas = Array.isArray(data.ideas) ? data.ideas : [];
+                decisions = Array.isArray(data.decisions) ? data.decisions : [];
+                memory_highlights = Array.isArray(data.memory_highlights) ? data.memory_highlights : [];
+                participants_identified = Array.isArray(data.participants_identified) ? data.participants_identified : [];
 
-                // 1. Auto-persist Tasks
-                actionItems = tasks.map((t: any) => ({ 
-                    text: t.title, 
-                    done: false, 
-                    priority: t.priority || 'medium' 
+                actionItems = tasks_immediate.map((t: any) => ({
+                    text: t.title,
+                    done: false,
+                    priority: t.priority || 'medium',
+                    owner: t.owner || null,
                 }));
 
                 const batchRows = actionItems.map((item: any) => [
@@ -111,26 +151,55 @@ ${transcript}`;
 
                 for (const dec of decisions.slice(0, 5)) {
                     await memoryManager.addSemanticMemory(
-                        `[Meeting Decision] ${dec}`, 
+                        `[Meeting Decision] ${dec}`,
                         { source: 'meeting', meetingId, type: 'meeting_intelligence', memoryType: 'operational' }
                     );
                 }
 
                 for (const idea of ideas.slice(0, 5)) {
                     await memoryManager.addSemanticMemory(
-                        `[Meeting Insight] ${idea}`, 
+                        `[Meeting Insight] ${idea}`,
                         { source: 'meeting', meetingId, brainstorm: true, type: 'meeting_intelligence', memoryType: 'contextual' }
                     );
                 }
 
+                for (const ft of tasks_future.slice(0, 5)) {
+                    await memoryManager.addSemanticMemory(
+                        `[Follow-up] ${ft.title}${ft.when ? ` — ${ft.when}` : ''}`,
+                        { source: 'meeting', meetingId, type: 'meeting_intelligence', memoryType: 'operational' }
+                    );
+                }
+
+                for (const mh of memory_highlights.slice(0, 3)) {
+                    await memoryManager.addSemanticMemory(
+                        `[Memory Highlight] ${mh}`,
+                        { source: 'meeting', meetingId, type: 'meeting_highlight', memoryType: 'permanent', importance: 'high' }
+                    );
+                }
+
                 await query(
-                    `UPDATE meetings 
-                     SET action_items = $1::jsonb, 
-                         decisions = $2::jsonb, 
-                         ideas = $3::jsonb, 
-                         status = 'completed' 
-                     WHERE id = $4`,
-                    [JSON.stringify(actionItems), JSON.stringify(decisions), JSON.stringify(ideas), meetingId]
+                    `UPDATE meetings
+                     SET action_items = $1::jsonb,
+                         decisions = $2::jsonb,
+                         ideas = $3::jsonb,
+                         key_points = $4::jsonb,
+                         alerts = $5::jsonb,
+                         tasks_future = $6::jsonb,
+                         memory_highlights = $7::jsonb,
+                         participants_identified = $8::jsonb,
+                         status = 'completed'
+                     WHERE id = $9`,
+                    [
+                        JSON.stringify(actionItems),
+                        JSON.stringify(decisions),
+                        JSON.stringify(ideas),
+                        JSON.stringify(key_points),
+                        JSON.stringify(alerts),
+                        JSON.stringify(tasks_future),
+                        JSON.stringify(memory_highlights),
+                        JSON.stringify(participants_identified),
+                        meetingId
+                    ]
                 );
 
                 await query('COMMIT');
@@ -139,8 +208,13 @@ ${transcript}`;
                 throw err;
             }
 
-            logger.info('meeting.intelligence.processed', { meetingId, taskCount: actionItems.length, decisionCount: decisions.length });
-            return { actionItems, decisions, ideas };
+            logger.info('meeting.intelligence.processed', {
+                meetingId,
+                taskCount: actionItems.length,
+                decisionCount: decisions.length,
+                futureTaskCount: tasks_future.length,
+            });
+            return { actionItems, tasks_future, decisions, ideas, key_points, alerts, memory_highlights, participants_identified };
         } catch (err: any) {
             logger.error('meeting.intelligence.failed', { meetingId, error: err.message });
             throw err;
