@@ -177,7 +177,14 @@ export default function InboxPage() {
       // O item é salvo inicialmente. O processamento assíncrono continua no backend.
       // O backend vai atualizar o item real. Para refletir sem lag, não invalidamos a query imediatamente.
       // O web socket do app atualizaria os dados. Na ausência dele, deixamos a invalidate rodar normal para puxar.
-      qc.invalidateQueries({ queryKey: ['captures'] });
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        await qc.invalidateQueries({ queryKey: ['captures'] });
+        const current = qc.getQueryData<any[]>(['captures']) || [];
+        const stillProcessing = current.some((c: any) => c.status === 'processing');
+        if (!stillProcessing || attempts >= 5) clearInterval(poll);
+      }, 2000);
     }
   });
 
@@ -488,7 +495,17 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
               </Button>
             </>
           ) : (
-            <Button variant="ghost" size="sm" title="Abrir" onClick={() => window.location.href = `/${item.type}s`}>
+            <Button variant="ghost" size="sm" title="Abrir" onClick={() => {
+              const routeMap: Record<string, string> = {
+                task: '/tasks',
+                meeting: '/meetings',
+                project: '/projects',
+                note: '/inbox',
+                idea: '/inbox',
+                link: '/inbox',
+              };
+              window.location.href = routeMap[item.type] || '/inbox';
+            }}>
               <ChevronRight size={15} />
             </Button>
           )}
@@ -497,5 +514,3 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
     </Card>
   );
 }
-
-
