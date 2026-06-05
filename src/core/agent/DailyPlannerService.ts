@@ -20,21 +20,34 @@ export class DailyPlannerService {
             }
 
             // 2. Aggregate Data
+            // NOTE: tasks table has no user_id column — scoping deferred until column is added
+            // When user_id is added to tasks, filter with: WHERE status = 'pending' AND user_id = $1
             const tasks = await query<any>(
                 `SELECT title, priority FROM tasks WHERE status = 'pending' ORDER BY priority = 'high' DESC LIMIT 10`
             );
+            logger.warn('daily_briefing.tasks_unscoped', { userId, reason: 'tasks table missing user_id column' });
             
-            const meetings = await query<any>(
+            // NOTE: calendar_events table has no user_id column — scoping deferred until column is added
+            // When user_id is added to calendar_events, filter with: WHERE start_time >= CURRENT_DATE AND start_time < CURRENT_DATE + INTERVAL '1 day' AND user_id = $1
+            const todayEvents = await query<any>(
                 `SELECT summary as title, start_time FROM calendar_events 
                  WHERE start_time >= CURRENT_DATE AND start_time < CURRENT_DATE + INTERVAL '1 day' 
                  ORDER BY start_time ASC`
+            );
+            logger.warn('daily_briefing.calendar_events_unscoped', { userId, reason: 'calendar_events table missing user_id column' });
+
+            const upcomingMeetings = await query<any>(
+                `SELECT title, meeting_date, summary FROM meetings
+                 WHERE meeting_date >= CURRENT_DATE AND meeting_date < CURRENT_DATE + INTERVAL '7 day'
+                 AND status != 'cancelled'
+                 ORDER BY meeting_date ASC LIMIT 5`
             );
 
             const memoryService = new MemoryService();
             const recentMemories = await memoryService.searchByText("Recent priorities and work context", 5);
 
             // 3. Generate Briefing via LLM
-            const prompt = this.buildPrompt(tasks, meetings, recentMemories);
+            const prompt = this.buildPrompt(tasks, todayEvents, upcomingMeetings, recentMemories);
             const provider = ProviderFactory.getChain();
             const response = await provider.generateResponse(prompt, [], []);
 
@@ -72,7 +85,7 @@ export class DailyPlannerService {
         }
     }
 
-    private static buildPrompt(tasks: any[], meetings: any[], memories: any[]): string {
+    private static buildPrompt(tasks: any[], todayEvents: any[], upcomingMeetings: any[], memories: any[]): string {
         return `Você é o Daily Copilot do AndClaw OS. Sua missão é preparar o usuário para o dia sintetizando tarefas, reuniões e memórias.
 Responda APENAS em JSON estruturado seguindo o esquema abaixo. Use Português (PT-BR) para o conteúdo.
 
@@ -86,7 +99,8 @@ ESQUEMA:
 
 DADOS ATUAIS:
 - TAREFAS: ${JSON.stringify(tasks)}
-- REUNIÕES: ${JSON.stringify(meetings)}
+- AGENDA DE HOJE: ${JSON.stringify(todayEvents)}
+- REUNIÕES PRÓXIMAS (7 dias): ${JSON.stringify(upcomingMeetings)}
 - CONTEXTO: ${JSON.stringify(memories.map(m => m.content))}
 
 Gere um briefing estratégico, direto e motivador. Evite placeholders.`;

@@ -1,9 +1,9 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
-import routes from '@/server/routes';
 import { authMiddleware } from '@/server/auth';
 import { bootstrapGuard } from '@/server/admin';
 import { attachRequestContext } from '@/server/http';
@@ -13,8 +13,11 @@ import { metrics } from '@/infra/metrics/MetricsService';
 import eventsRouter from '@/server/routes/events.routes';
 import { registerCalendarSyncListener } from '@/core/listeners/CalendarSyncListener';
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+
 export function createApp() {
   const app = express();
+  const routes = require('@/server/routes').default;
   const allowedOrigins = [
     ...config.server.allowedOrigin.split(',').map((origin) => origin.trim()).filter(Boolean),
     'https://and-claw.vercel.app',
@@ -79,3 +82,5 @@ export function createApp() {
 
   return app;
 }
+
+export { upload };

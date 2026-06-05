@@ -115,10 +115,12 @@ function MeetingDetail({
   meeting,
   onBack,
   skills,
+  deleteMeeting,
 }: {
   meeting: Meeting;
   onBack: () => void;
   skills: Skill[];
+  deleteMeeting: { mutate: (id: number) => void; isPending: boolean };
 }) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'transcript' | 'summary' | 'intelligence' | 'skills'>('summary');
@@ -451,6 +453,14 @@ function MeetingDetail({
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
           </div>
         </div>
+        <button
+          onClick={() => { if (confirm('Excluir esta reunião?')) deleteMeeting.mutate(Number(id)); }}
+          disabled={deleteMeeting.isPending}
+          style={{ color: 'var(--color-error, #ef4444)', background: 'transparent', border: 'none', fontSize: 'var(--text-sm)', cursor: 'pointer' }}
+          title="Excluir reunião"
+        >
+          {deleteMeeting.isPending ? 'Excluindo...' : 'Excluir'}
+        </button>
       </div>
 
       {/* Detail Content Grid */}
@@ -593,7 +603,7 @@ function MeetingDetail({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
           <Card padding="lg" border shadow="sm">
             <h4 style={{ fontSize: '11px', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', color: 'var(--color-text-tertiary)', marginBottom: 'var(--space-4)' }}>Gravação / Upload</h4>
-            
+              
             {isRecording ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', padding: 'var(--space-4)', backgroundColor: 'var(--color-error-bg)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-error-border)' }}>
@@ -667,6 +677,21 @@ export default function MeetingsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState({ title: '', date: '', duration: '30', participants: '' });
+  const authHeaders = () => {
+    const token = localStorage.getItem('auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const deleteMeeting = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(apiUrl(`/api/meetings/${id}`), { method: 'DELETE', headers: authHeaders() });
+      if (!res.ok) throw new Error('delete failed');
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meetings'] });
+      setSelected(null);
+    },
+  });
 
   const createMeeting = async () => {
     try {
@@ -705,7 +730,7 @@ export default function MeetingsPage() {
   return (
     <AppLayout sidebar={<AppSidebar />}>
       {currentMeeting ? (
-        <MeetingDetail meeting={currentMeeting} onBack={() => setSelected(null)} skills={skills} />
+        <MeetingDetail meeting={currentMeeting} onBack={() => setSelected(null)} skills={skills} deleteMeeting={deleteMeeting} />
       ) : (
         <>
           <PageHeader 

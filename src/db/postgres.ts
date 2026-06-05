@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { config } from '@/config/env';
 
-let pool: Pool | null = null;
+export let pool: Pool | null = null;
 
 export function getPool(): Pool {
   if (!pool) {

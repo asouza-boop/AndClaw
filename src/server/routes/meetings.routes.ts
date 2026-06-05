@@ -4,15 +4,20 @@ import { MeetingService } from '@/core/agent/MeetingService';
 import { hasLLMConfig, offlineFallbackMessage } from '@/server/llm';
 import { syncGoogleCalendars } from '@/integrations/googleCalendar';
 import { agent, inferActionItems, mapMeetingRow } from './shared';
+import { MemoryManager } from '@/memory/MemoryManager';
+import { upload } from '@/server/app';
+import { saveAudioBuffer } from '@/lib/audioStorage';
+import { transcribeAudio } from '@/lib/transcriptionService';
 
 const router = Router();
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) => Promise.resolve(fn(req, res, next)).catch(next);
 
-router.post('/meetings', async (req: Request, res: Response) => {
+router.post('/meetings', asyncHandler(async (req: Request, res: Response) => {
   const meeting = await MeetingService.create(req.body);
   res.status(201).json({ ok: true, item: mapMeetingRow(meeting), id: meeting?.id });
-});
+}));
 
-router.post('/meetings/analyze', async (req: Request, res: Response) => {
+router.post('/meetings/analyze', asyncHandler(async (req: Request, res: Response) => {
   const { meetingId } = req.body || {};
   if (!meetingId) return res.status(400).json({ error: 'meetingId is required' });
 
@@ -28,51 +33,68 @@ router.post('/meetings/analyze', async (req: Request, res: Response) => {
 
   const reply = await agent.processInput('pwa-user', prompt);
   await query(`UPDATE meetings SET summary = $1 WHERE id = $2`, [reply, meetingId]);
-  await query(
-    `INSERT INTO memory_items (type, content, source_type, source_id)
-     VALUES ($1, $2, $3, $4)`,
-    ['meeting_insight', reply, 'meeting', String(meetingId)]
-  );
+  await new MemoryManager().addSemanticMemory(reply, {
+    source: 'meeting',
+    meetingId: String(meetingId),
+    type: 'meeting_insight',
+    memoryType: 'operational'
+  });
 
   res.json({ ok: true, insight: reply });
-});
+}));
 
-router.get('/meetings/:id', async (req: Request, res: Response) => {
+router.get('/meetings/:id', asyncHandler(async (req: Request, res: Response) => {
   const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'meeting not found' });
   res.json({ ok: true, item: mapMeetingRow(rows[0]) });
-});
+}));
 
-router.put('/meetings/:id', async (req: Request, res: Response) => {
+router.put('/meetings/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const meeting = await MeetingService.update(String(id), req.body);
   if (!meeting) return res.status(400).json({ error: 'nothing to update or meeting not found' });
   res.json({ ok: true, item: mapMeetingRow(meeting) });
-});
+}));
 
-router.post('/meetings/:id/upload-audio', async (req: Request, res: Response) => {
-  const { id } = req.params;
+router.post('/meetings/:id/upload-audio', upload.single('audio'), asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  if (!file) return res.status(400).json({ error: 'No audio file received' });
+
+  const filePath = await saveAudioBuffer(id, file.buffer, file.originalname);
+
   const rows = await query<any>(
-    `UPDATE meetings
-     SET audio_file_name = COALESCE(audio_file_name, 'upload-received'), status = 'in_progress'
-     WHERE id = $1 RETURNING *`,
-    [id]
+    `UPDATE meetings SET audio_file_name = $1, status = 'in_progress' WHERE id = $2 RETURNING *`,
+    [filePath, id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'meeting not found' });
-  res.json({ ok: true, item: mapMeetingRow(rows[0]) });
-});
+  res.json({ ok: true, filePath, item: mapMeetingRow(rows[0]) });
+}));
 
-router.post('/meetings/:id/process', async (req: Request, res: Response) => {
-  const id = req.params.id as string;
+router.post('/meetings/:id/process', asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
   const { action = 'summarize' } = req.body || {};
   const rows = await query<any>(`SELECT * FROM meetings WHERE id = $1`, [id]);
   const meeting = rows[0];
   if (!meeting) return res.status(404).json({ error: 'meeting not found' });
 
   if (action === 'transcribe') {
-    const transcript = meeting.transcript_text || `Áudio recebido para "${meeting.title}". Transcrição automática ainda não está configurada no backend.`;
-    const updated = await query<any>(`UPDATE meetings SET transcript_text = $1, status = 'in_progress' WHERE id = $2 RETURNING *`, [transcript, id]);
-    return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+    if (!meeting.audio_file_name || meeting.audio_file_name === 'upload-received') {
+      return res.status(400).json({ error: 'No audio file available for transcription' });
+    }
+    try {
+      const transcript = await transcribeAudio(meeting.audio_file_name);
+      const updated = await query<any>(
+        `UPDATE meetings SET transcript_text = $1, status = 'in_progress' WHERE id = $2 RETURNING *`,
+        [transcript, id]
+      );
+      return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
+    } catch (err: any) {
+      if (err.message === 'WHISPER_NOT_CONFIGURED') {
+        return res.status(503).json({ error: 'Transcription service not configured', code: 'WHISPER_NOT_CONFIGURED' });
+      }
+      throw err;
+    }
   }
 
   if (!meeting.transcript_text) {
@@ -101,21 +123,21 @@ router.post('/meetings/:id/process', async (req: Request, res: Response) => {
   const reply = await agent.processInput('pwa-user', prompt);
   const updated = await query<any>(`UPDATE meetings SET summary = $1, status = 'completed' WHERE id = $2 RETURNING *`, [reply, id]);
   res.json({ ok: true, item: mapMeetingRow(updated[0]) });
-});
+}));
 
-router.get('/meetings', async (_req: Request, res: Response) => {
+router.get('/meetings', asyncHandler(async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM meetings ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows.map(mapMeetingRow) });
-});
+}));
 
-router.get('/calendar/events', async (_req: Request, res: Response) => {
+router.get('/calendar/events', asyncHandler(async (_req: Request, res: Response) => {
   const rows = await query(
     `SELECT * FROM calendar_events ORDER BY start_time DESC LIMIT 200`
   );
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.get('/calendar/combined', async (req: Request, res: Response) => {
+router.get('/calendar/combined', asyncHandler(async (req: Request, res: Response) => {
   const from = (req.query.from as string) || new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString();
   const to = (req.query.to as string) || new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString();
 
@@ -136,11 +158,26 @@ router.get('/calendar/combined', async (req: Request, res: Response) => {
   );
 
   res.json({ ok: true, items: [...events, ...tasks] });
-});
+}));
 
-router.post('/calendar/sync', async (_req: Request, res: Response) => {
+router.post('/calendar/sync', asyncHandler(async (_req: Request, res: Response) => {
   await syncGoogleCalendars();
   res.json({ ok: true });
-});
+}));
+
+router.delete('/meetings/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const meetingRows = await query<any>('SELECT audio_file_name FROM meetings WHERE id = $1', [id]);
+  if (!meetingRows[0]) return res.status(404).json({ error: 'meeting not found' });
+
+  const audioRef = meetingRows[0].audio_file_name;
+  if (audioRef?.startsWith('lo:')) {
+    const { deleteAudioObject } = await import('@/lib/audioStorage');
+    await deleteAudioObject(audioRef);
+  }
+
+  await query('DELETE FROM meetings WHERE id = $1', [id]);
+  res.json({ ok: true });
+}));
 
 export default router;
