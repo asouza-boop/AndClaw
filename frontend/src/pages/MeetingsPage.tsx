@@ -32,6 +32,11 @@ interface Meeting {
   action_items?: ActionItem[];
   decisions?: string[];
   ideas?: string[];
+  key_points?: string[];
+  alerts?: Array<{ description: string; severity?: 'high' | 'medium' | 'low' }>;
+  tasks_future?: Array<{ title: string; priority?: string; when?: string; owner?: string | null }>;
+  memory_highlights?: string[];
+  participants_identified?: Array<{ name: string; role?: string | null }>;
   skills_used?: string[];
   notes?: string;
 }
@@ -89,6 +94,15 @@ function MeetingCard({ meeting, onClick }: { meeting: Meeting; onClick: () => vo
             {meeting.participants.length}
           </span>
         )}
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem', opacity: 0.7, marginBottom: 'var(--space-2)', flexWrap: 'wrap' }}>
+        {meeting.key_points?.length > 0 && <span>🎯 {meeting.key_points.length}</span>}
+        {meeting.alerts?.filter((a: any) => a.severity === 'high').length > 0 && (
+          <span>🔴 {meeting.alerts.filter((a: any) => a.severity === 'high').length}</span>
+        )}
+        {meeting.tasks_future?.length > 0 && <span>📅 {meeting.tasks_future.length}</span>}
+        {meeting.memory_highlights?.length > 0 && <span>🧠 {meeting.memory_highlights.length}</span>}
       </div>
 
       {meeting.action_items && meeting.action_items.length > 0 && (
@@ -428,6 +442,112 @@ function MeetingDetail({
     { key: 'skills' as const, label: 'Skills', icon: Zap },
   ];
 
+  const IntelligencePanel = () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      {/* KEY POINTS */}
+      {meeting.key_points?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>🎯 Pontos Principais</h4>
+            <ul>
+              {meeting.key_points.map((p: string, i: number) => (
+                <li key={i}>{p}</li>
+              ))}
+            </ul>
+          </section>
+        </Card>
+      )}
+
+      {/* ALERTS */}
+      {meeting.alerts?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>⚠️ Alertas</h4>
+            {meeting.alerts.map((a: any, i: number) => (
+              <div key={i} data-severity={a.severity}>
+                <span>{a.severity === 'high' ? '🔴' : a.severity === 'medium' ? '🟡' : '🟢'}</span>
+                <span>{a.description}</span>
+              </div>
+            ))}
+          </section>
+        </Card>
+      )}
+
+      {/* FUTURE ACTIONS */}
+      {meeting.tasks_future?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>📅 Ações Futuras</h4>
+            {meeting.tasks_future.map((t: any, i: number) => (
+              <div key={i}>
+                <span>{t.title}</span>
+                {t.when && <span style={{ opacity: 0.6 }}> — {t.when}</span>}
+                {t.owner && <span style={{ opacity: 0.6 }}> ({t.owner})</span>}
+              </div>
+            ))}
+          </section>
+        </Card>
+      )}
+
+      {/* IDEAS */}
+      {meeting.ideas?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>💡 Ideias</h4>
+            <ul>
+              {meeting.ideas.map((idea: string, i: number) => (
+                <li key={i}>{idea}</li>
+              ))}
+            </ul>
+          </section>
+        </Card>
+      )}
+
+      {/* DECISIONS */}
+      {meeting.decisions?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>✅ Decisões</h4>
+            <ul>
+              {meeting.decisions.map((d: string, i: number) => (
+                <li key={i}>{d}</li>
+              ))}
+            </ul>
+          </section>
+        </Card>
+      )}
+
+      {/* MEMORY HIGHLIGHTS */}
+      {meeting.memory_highlights?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>🧠 Para Lembrar</h4>
+            <ul>
+              {meeting.memory_highlights.map((m: string, i: number) => (
+                <li key={i}>{m}</li>
+              ))}
+            </ul>
+          </section>
+        </Card>
+      )}
+
+      {/* PARTICIPANTS IDENTIFIED */}
+      {meeting.participants_identified?.length > 0 && (
+        <Card padding="md" border shadow="sm">
+          <section>
+            <h4>👥 Participantes Identificados</h4>
+            {meeting.participants_identified.map((p: any, i: number) => (
+              <div key={i}>
+                <strong>{p.name}</strong>
+                {p.role && <span style={{ opacity: 0.6 }}> — {p.role}</span>}
+              </div>
+            ))}
+          </section>
+        </Card>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* Detail Header */}
@@ -560,6 +680,8 @@ function MeetingDetail({
                     {!meeting.action_items?.length && <p style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>Nenhuma ação identificada.</p>}
                   </div>
                 </Card>
+
+                <IntelligencePanel />
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-6)' }}>
                   <Card padding="md" border shadow="sm" style={{ borderColor: 'var(--color-success-border)' }}>
@@ -796,7 +918,7 @@ export default function MeetingsPage() {
                 <Input label="Duração (min)" type="number" value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
               </div>
 
-              <Input label="Participantes" placeholder="João, Maria (vírgula)" value={form.participants} onChange={(e) => setForm({ ...form, participants: e.target.value })} />
+              <Input label="Participantes" placeholder="Participantes (separados por vírgula)" value={form.participants} onChange={(e) => setForm({ ...form, participants: e.target.value })} />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-8)' }}>

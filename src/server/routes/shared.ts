@@ -51,6 +51,11 @@ export function mapMeetingRow(meeting: any) {
     action_items: Array.isArray(meeting.action_items) ? meeting.action_items : [],
     decisions: Array.isArray(meeting.decisions) ? meeting.decisions : [],
     ideas: Array.isArray(meeting.ideas) ? meeting.ideas : [],
+    key_points: Array.isArray(meeting.key_points) ? meeting.key_points : [],
+    alerts: Array.isArray(meeting.alerts) ? meeting.alerts : [],
+    tasks_future: Array.isArray(meeting.tasks_future) ? meeting.tasks_future : [],
+    memory_highlights: Array.isArray(meeting.memory_highlights) ? meeting.memory_highlights : [],
+    participants_identified: Array.isArray(meeting.participants_identified) ? meeting.participants_identified : [],
     skills_used: meeting.skills_used || [],
     participants: meeting.participants || [],
   };

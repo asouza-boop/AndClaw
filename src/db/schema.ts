@@ -87,9 +87,14 @@ export async function ensureSchema(): Promise<void> {
       notes TEXT,
       audio_file_name TEXT,
       gcal_event_id TEXT,
-      -- Added to match ALTER TABLE migrations above
+      -- Intelligence v2: extended dimensions added feat/meetings-intelligence-v2
       decisions JSONB DEFAULT '[]'::jsonb,
       ideas JSONB DEFAULT '[]'::jsonb,
+      key_points JSONB DEFAULT '[]'::jsonb,
+      alerts JSONB DEFAULT '[]'::jsonb,
+      tasks_future JSONB DEFAULT '[]'::jsonb,
+      memory_highlights JSONB DEFAULT '[]'::jsonb,
+      participants_identified JSONB DEFAULT '[]'::jsonb,
       project_id BIGINT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -261,6 +266,11 @@ export async function ensureSchema(): Promise<void> {
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS action_items JSONB DEFAULT '[]'::jsonb`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS decisions JSONB DEFAULT '[]'::jsonb`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS ideas JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS key_points JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS alerts JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS tasks_future JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS memory_highlights JSONB DEFAULT '[]'::jsonb`);
+  await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS participants_identified JSONB DEFAULT '[]'::jsonb`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS project_id BIGINT`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS skills_used TEXT[] DEFAULT '{}'`);
   await query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS notes TEXT`);
