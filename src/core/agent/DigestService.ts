@@ -50,7 +50,7 @@ export class DigestService {
         }, embedding).then(() => {
           telemetry.info('memory.digestion.completed', { requestId: context.requestId, factLength: fact.length });
           agentEvents.emit(MEMORY_DIGESTED, { timestamp: new Date().toISOString() });
-        });
+        }).catch((err: any) => telemetry.error('memory.digest.background_failed', { error: err.message }));
       }
     }).catch((err: Error) => {
       telemetry.error('memory.digestion.async.failed', { requestId: context.requestId, error: err.message });

@@ -76,8 +76,15 @@ export class EmbeddingService {
       const batch = texts.slice(i, i + batchSize);
       const batchPromises = batch.map(text => this.generateEmbedding(text));
       
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+      const batchResults = await Promise.allSettled(batchPromises);
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          // Failed item gets zero vector — caller can filter by checking all-zeros
+          results.push(new Array(this.dimensions).fill(0));
+        }
+      }
 
       if (i + batchSize < texts.length) {
         await delay(100);

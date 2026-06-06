@@ -9,22 +9,12 @@ export class MemoryDigestionService {
     static isMemorable(input: string, output: string): boolean {
         const text = (input + ' ' + output).toLowerCase();
         
-        // 1. Personal Facts
-        if (/(moro em|meu nome|gosto de|prefiro|minha preferência|sou|trabalho|idade|nasci)/i.test(text)) return true;
-        
-        // 2. Project/Entity Names
-        if (/(projeto|empresa|cliente|produto|serviço|sistema)\s+["']?\w+["']?/i.test(text)) return true;
-        
-        // 3. Technical Solutions / Decisions
-        if (/(decidimos|escolhi|vamos usar|solução|resolvido|consertado|fix)/i.test(text)) return true;
-
-        // 4. Learning/Instructions
-        if (/(sempre que|nunca|toda vez|lembre que|não esqueça)/i.test(text)) return true;
-
-        // 5. Length check (Complex synthesis)
-        if (input.length > 500 || output.length > 800) return true;
-
-        return false;
+        let signals = 0;
+        if (/(moro em|meu nome|gosto de|prefiro|minha preferência|sou|trabalho|idade|nasci)/i.test(text)) signals++;
+        if (/(projeto|empresa|cliente|produto|serviço|sistema)\s+["']?\w+["']?/i.test(text)) signals++;
+        if (/(decidimos|escolhi|vamos usar|solução|resolvido|consertado|fix)/i.test(text)) signals++;
+        if (/(sempre que|nunca|toda vez|lembre que|não esqueça)/i.test(text)) signals++;
+        return signals >= 1;
     }
 
     /**

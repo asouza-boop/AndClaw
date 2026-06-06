@@ -136,28 +136,29 @@ export class MemoryService {
 
   public async semanticSearch(queryStr: string, limit = 10): Promise<SemanticMemoryRecord[]> {
     if (!config.db.url) return [];
-    
     const embedding = await this.embeddings.generateEmbedding(queryStr);
-    
     const start = Date.now();
     metrics.increment('memory.semantic_search.count');
-    
+    const fetchLimit = Math.max(limit * 3, limit);
     const rows = await query<SemanticMemoryRecord>(
-      `SELECT *, 1 - (embedding <=> $1::vector) AS similarity
+      `SELECT *, (embedding <=> $1::vector) AS distance
        FROM memory_items
        WHERE embedding IS NOT NULL
        ORDER BY embedding <=> $1::vector ASC
        LIMIT $2`,
-      [toVectorLiteral(embedding), limit]
+      [toVectorLiteral(embedding), fetchLimit]
     );
-
+    const ranked = rankSemanticMemories(rows, {
+      limit,
+      similarityWeight: ParameterStore.get('memoryWeight'),
+      recencyWeight: ParameterStore.get('recencyWeight'),
+      usageWeight: 0.1,
+    });
     logger.info('memory.semantic_search', {
-      requested: limit,
-      returned: rows.length,
+      requested: limit, returned: ranked.length,
       latencyMs: Date.now() - start,
     });
     metrics.observe('memory.semantic_search.latency', Date.now() - start);
-
-    return rows;
+    return ranked;
   }
 }

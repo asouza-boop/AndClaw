@@ -3,6 +3,7 @@ import { ConversationRepository } from '@/memory/repositories/ConversationReposi
 import { MessageRepository, Message } from '@/memory/repositories/MessageRepository';
 import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { MemoryService, SemanticMemoryRecord } from '@/core/memory/MemoryService';
+import { logger } from '@/infra/logger';
 
 export class MemoryManager {
   private conversationRepo: ConversationRepository;
@@ -76,28 +77,35 @@ export class MemoryManager {
     await this.addMessage(conversationId, 'user', userInput);
     await this.addMessage(conversationId, 'assistant', assistantOutput, trace);
 
-    const inputEmbedding = await this.embeddingService.generateEmbedding(userInput);
-    const outputEmbedding = await this.embeddingService.generateEmbedding(assistantOutput);
+    try {
+      const inputEmbedding = await this.embeddingService.generateEmbedding(userInput);
+      const outputEmbedding = await this.embeddingService.generateEmbedding(assistantOutput);
 
-    await this.memoryService.save(userInput, inputEmbedding, {
-      type: metadata.type || 'conversation_turn',
-      source_type: 'chat',
-      source_id: conversationId,
-      role: 'user',
-      user_id: userId,
-      provider,
-      ...metadata,
-    });
+      await this.memoryService.save(userInput, inputEmbedding, {
+        type: metadata.type || 'conversation_turn',
+        source_type: 'chat',
+        source_id: conversationId,
+        role: 'user',
+        user_id: userId,
+        provider,
+        ...metadata,
+      });
 
-    await this.memoryService.save(assistantOutput, outputEmbedding, {
-      type: metadata.type || 'conversation_turn',
-      source_type: 'chat',
-      source_id: conversationId,
-      role: 'assistant',
-      user_id: userId,
-      provider,
-      ...metadata,
-    });
+      await this.memoryService.save(assistantOutput, outputEmbedding, {
+        type: metadata.type || 'conversation_turn',
+        source_type: 'chat',
+        source_id: conversationId,
+        role: 'assistant',
+        user_id: userId,
+        provider,
+        ...metadata,
+      });
+    } catch (embErr: any) {
+      logger.warn('memory.persist_turn.embedding_skipped', {
+        userId, reason: embErr.message
+      });
+      // Conversation messages are already saved above — embedding failure is non-fatal
+    }
   }
 
   public async addSemanticMemory(
