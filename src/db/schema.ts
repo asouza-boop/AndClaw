@@ -313,4 +313,15 @@ export async function ensureSchema(): Promise<void> {
     ON tasks (title, (metadata->>'meeting_id'))
     WHERE metadata->>'meeting_id' IS NOT NULL;
   `);
+
+  // Memory subsystem performance indexes — fix/memory-audit-cycle
+  await query(`CREATE INDEX IF NOT EXISTS memory_items_created_at_idx
+    ON memory_items (created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS memory_items_source_idx
+    ON memory_items (source_type, source_id)
+    WHERE source_type IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS memory_items_memory_type_idx
+    ON memory_items (memory_type)`);
+  await query(`CREATE INDEX IF NOT EXISTS messages_conversation_id_idx
+    ON messages (conversation_id)`);
 }

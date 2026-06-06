@@ -33,7 +33,10 @@ export function rankSemanticMemories(
     .filter((record) => Boolean(record.content?.trim()))
     .map((record) => {
       const similarity = Number.isFinite(record.distance) ? Number(record.distance) : Number.POSITIVE_INFINITY;
-      const recency = recencyScore(record.created_at, now);
+      const itemDate = record.last_accessed_at
+        ? record.last_accessed_at
+        : (record.created_at || new Date().toISOString());
+      const recency = recencyScore(itemDate, now);
       const usage = Math.log1p(record.usage_count || 0) / 5; // Normalized usage score
       
       // Memory type bias (lower is better)
@@ -42,11 +45,16 @@ export function rankSemanticMemories(
       else if (record.memory_type === 'problem_solution') typeBias = -0.1;
       else if (record.memory_type === 'operational') typeBias = -0.05;
 
+      const highlightBias = record.memory_type === 'permanent' || record.type === 'meeting_highlight' ? 0.85 : 1.0;
+      const baseScore = (similarity * similarityWeight) - (recency * recencyWeight) - (usage * usageWeight) + typeBias;
+      // If baseScore is negative, multiplying by 0.85 would make it worse (higher), so we divide instead to ensure it always improves the rank.
+      const finalScore = baseScore > 0 ? baseScore * highlightBias : baseScore / highlightBias;
+
       return {
         ...record,
         similarityScore: similarity,
         recencyScore: recency,
-        rankScore: (similarity * similarityWeight) - (recency * recencyWeight) - (usage * usageWeight) + typeBias,
+        rankScore: finalScore,
       };
     })
     .sort((a, b) => {
