@@ -8,6 +8,9 @@ import path from 'path';
 
 const router = Router();
 
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
@@ -36,7 +39,7 @@ async function listSkillsFromDisk() {
   return skills;
 }
 
-router.get('/agents', async (_req: Request, res: Response) => {
+router.get('/agents', asyncHandler(async (_req: Request, res: Response) => {
   const agents = await query<any>(`SELECT * FROM agents ORDER BY created_at DESC`);
   const skills = await query<any>(`SELECT agent_id, skill_slug FROM agent_skills`);
   const tags = await query<any>(
@@ -68,9 +71,9 @@ router.get('/agents', async (_req: Request, res: Response) => {
     tags: tagMap.get(String(agent.id)) || [],
   }));
   res.json({ ok: true, items });
-});
+}));
 
-router.post('/agents', async (req: Request, res: Response) => {
+router.post('/agents', asyncHandler(async (req: Request, res: Response) => {
   const { name, level, status, areas = [], description, base_doc, skills = [], tags = [], personality = 50 } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const rows = await query<any>(
@@ -99,9 +102,9 @@ router.post('/agents', async (req: Request, res: Response) => {
     level: agentRow?.level,
     status: agentRow?.status,
   });
-});
+}));
 
-router.patch('/agents/:id', async (req: Request, res: Response) => {
+router.patch('/agents/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, level, status, areas, description, base_doc, personality } = req.body || {};
   const updates: string[] = [];
@@ -117,22 +120,22 @@ router.patch('/agents/:id', async (req: Request, res: Response) => {
   params.push(id);
   const rows = await query<any>(`UPDATE agents SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
   res.json({ ok: true, item: rows[0] });
-});
+}));
 
-router.delete('/agents/:id', async (req: Request, res: Response) => {
+router.delete('/agents/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   await query(`DELETE FROM agents WHERE id = $1`, [id]);
   res.json({ ok: true });
-});
+}));
 
-router.post('/agents/:id/tags', async (req: Request, res: Response) => {
+router.post('/agents/:id/tags', asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
   const { tags = [] } = req.body || {};
   await setEntityTags(query, 'agent', String(id), tags);
   res.json({ ok: true });
-});
+}));
 
-router.post('/agents/:id/skills', async (req: Request, res: Response) => {
+router.post('/agents/:id/skills', asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
   const { skills = [] } = req.body || {};
   await query(`DELETE FROM agent_skills WHERE agent_id = $1`, [id]);
@@ -145,9 +148,9 @@ router.post('/agents/:id/skills', async (req: Request, res: Response) => {
     );
   }
   res.json({ ok: true });
-});
+}));
 
-router.post('/agents/:id/execute', async (req: Request, res: Response) => {
+router.post('/agents/:id/execute', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { skill_id, skill_ids, task_id, task_title, task_description } = req.body || {};
 
@@ -242,6 +245,6 @@ router.post('/agents/:id/execute', async (req: Request, res: Response) => {
     items: outputs,
     offline: !hasLLMConfig(),
   });
-});
+}));
 
 export default router;

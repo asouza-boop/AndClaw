@@ -90,8 +90,8 @@ router.post('/meetings/:id/process', asyncHandler(async (req: Request, res: Resp
       );
       return res.json({ ok: true, item: mapMeetingRow(updated[0]) });
     } catch (err: any) {
-      if (err.message === 'WHISPER_NOT_CONFIGURED') {
-        return res.status(503).json({ error: 'Transcription service not configured', code: 'WHISPER_NOT_CONFIGURED' });
+      if (err.message === 'WHISPER_NOT_CONFIGURED' || err.message === 'GEMINI_NOT_CONFIGURED') {
+        return res.status(503).json({ error: 'Transcription service not configured', code: 'TRANSCRIPTION_NOT_CONFIGURED' });
       }
       throw err;
     }

@@ -11,6 +11,9 @@ import { Tool } from '@/modules/tools/Tool';
 import type { Skill } from '@/skills/SkillLoader';
 import { z } from 'zod';
 import { Pool } from 'pg';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
+EmbeddingService.prototype.generateEmbedding = async () => Array(1536).fill(0.1);
+
 
 class FakeProvider implements ILLMProvider {
   public calls = 0;
@@ -272,7 +275,7 @@ test('AgentLoop pause gate rejects with PauseTimeoutError after TTL expires', as
   }
 });
 
-test('AgentLoop routeToCapture throws on persistence failure', async () => {
+test('AgentLoop routeToCapture returns null on persistence failure', async () => {
   const registry = new ToolRegistry();
   const loop = new AgentLoop(
     'fake-provider',
@@ -295,10 +298,8 @@ test('AgentLoop routeToCapture throws on persistence failure', async () => {
   }) as any;
 
   try {
-    await assert.rejects(
-      () => (loop as any).routeToCapture('hello', { type: 'note', confidence: 0.9 }, 'req-failure'),
-      /forced persistence failure/
-    );
+    const result = await (loop as any).routeToCapture('hello', { type: 'note', confidence: 0.9 }, 'req-failure');
+    assert.equal(result, null);
   } finally {
     Pool.prototype.query = originalQuery;
   }

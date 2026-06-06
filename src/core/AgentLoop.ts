@@ -96,7 +96,7 @@ export class AgentLoop {
         this.evaluationService = new EvaluationService();
         this.classificationService = new ClassificationService();
         this.digestService = new DigestService({
-          addSemanticMemory: this.memoryManager.addSemanticMemory.bind(this.memoryManager),
+          addSemanticMemory: this.memoryManager.addSemanticMemory ? this.memoryManager.addSemanticMemory.bind(this.memoryManager) : async () => null,
         });
         this.providerOverride = deps.provider;
         this.contextBuilder = deps.contextBuilder || new ContextBuilder();
@@ -453,27 +453,35 @@ export class AgentLoop {
 
             const provider = this.providerOverride || ProviderFactory.getChain();
             const cacheInput = this.buildCacheInput(parsed.systemPrompt, parsed.history, parsed.userInput, profile, userId, parsed.options);
-            const cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
-            const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
-            if (cacheHit) {
-              await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, cacheHit.output, {
-                source: 'semantic-cache',
-                provider: this.providerName,
-                cacheHit: true,
-              }, trace);
-              addStep('agent.cache.hit', 'hit', { similarity: cacheHit.distance });
-              addStep('agent.run.complete', 'success', { mode: 'cache-hit' });
-              logger.info('agent.run.complete', {
-                provider: this.providerName,
-                answerLength: cacheHit.output.length,
-                requestId,
-                cache: 'hit',
-              });
-              metrics.increment('agent.run.success');
-              metrics.observe('agent.latency', Date.now() - startedAt);
-              executionPath = 'cache-hit';
-              success = true;
-              return finalResponse(cacheHit.output);
+            let cacheEmbedding: number[] | null = null;
+            try {
+              cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
+            } catch (embErr: any) {
+              logger.warn('agent.cache.embedding_skipped', { reason: embErr.message });
+            }
+
+            if (cacheEmbedding) {
+              const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
+              if (cacheHit) {
+                await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, cacheHit.output, {
+                  source: 'semantic-cache',
+                  provider: this.providerName,
+                  cacheHit: true,
+                }, trace);
+                addStep('agent.cache.hit', 'hit', { similarity: cacheHit.distance });
+                addStep('agent.run.complete', 'success', { mode: 'cache-hit' });
+                logger.info('agent.run.complete', {
+                  provider: this.providerName,
+                  answerLength: cacheHit.output.length,
+                  requestId,
+                  cache: 'hit',
+                });
+                metrics.increment('agent.run.success');
+                metrics.observe('agent.latency', Date.now() - startedAt);
+                executionPath = 'cache-hit';
+                success = true;
+                return finalResponse(cacheHit.output);
+              }
             }
             addStep('agent.cache.miss', 'miss');
 
@@ -527,284 +535,6 @@ export class AgentLoop {
               timestamp: new Date().toISOString(),
           });
         }
-    }
-
-    private async executeSkillPlan(params: {
-      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
-      intent: DetectedIntent;
-      skill: Skill;
-      profile: Array<{ key?: string; value?: string }>;
-      userId: string;
-      availableTools: Array<{ name: string; description: string; category: string; parameters: any }>;
-      requestId?: string;
-      startedAt: number;
-      trace: ExecutionTrace;
-      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
-      checkpoint: () => Promise<void>;
-      onIteration?: () => void;
-    }): Promise<{ ok: boolean; output?: string }> {
-      const { parsed, intent, skill, profile, userId, availableTools, requestId, startedAt, trace, addStep, checkpoint, onIteration } = params;
-      const normalizedProfile = this.normalizeProfileEntries(profile);
-      const semanticContext = await this.memoryManager.buildSemanticContext(parsed.userInput, parsed.options.memoryLimit || 5);
-      const composedSystemPrompt = this.contextBuilder.build({
-        systemPrompt: this.composeSkillSystemPrompt(parsed.systemPrompt, skill),
-        profile: normalizedProfile,
-        semanticContext,
-      });
-
-      const cacheInput = this.buildCacheInput(
-        composedSystemPrompt,
-        parsed.history,
-        parsed.userInput,
-        normalizedProfile,
-        userId,
-        parsed.options,
-      );
-      const cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
-      const cacheHit = await this.cacheService.get(cacheEmbedding, { requestId });
-
-      if (cacheHit) {
-        logger.info('agent.skill.executed', {
-          requestId,
-          intent: intent.name,
-          skill: skill.metadata.name,
-          source: 'semantic-cache',
-          answerLength: cacheHit.output.length,
-        });
-        await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, cacheHit.output, {
-          source: 'skill-cache',
-          provider: this.providerName,
-          intent: intent.name,
-          skill: skill.metadata.name,
-          cacheHit: true,
-        });
-        logger.info('agent.run.complete', {
-          provider: this.providerName,
-          answerLength: cacheHit.output.length,
-          requestId,
-          mode: 'skill-cache',
-        });
-        metrics.increment('agent.run.success');
-        metrics.observe('agent.latency', Date.now() - startedAt);
-        return { ok: true, output: cacheHit.output };
-      }
-
-      const provider = this.providerOverride || ProviderFactory.getChain();
-      const output = await this.toolExecutor.executeLLMFlow({
-        provider,
-        composedSystemPrompt,
-        availableTools,
-        userId,
-        parsed,
-        requestId,
-        startedAt,
-        cacheContext: { cacheInput, cacheEmbedding },
-        trace,
-        addStep,
-        checkpoint,
-        onIteration
-      });
-
-      return { ok: true, output };
-    }
-
-    private async executeLLMFlow(params: {
-      provider: ILLMProvider;
-      composedSystemPrompt: string;
-      availableTools: Array<{ name: string; description: string; category: string; parameters: any }>;
-      userId: string;
-      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
-      requestId?: string;
-      startedAt: number;
-      cacheContext?: { cacheInput: string; cacheEmbedding: number[] };
-      initialMessages?: Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
-      trace: ExecutionTrace;
-      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
-      checkpoint: () => Promise<void>;
-      onIteration?: () => void;
-    }): Promise<string> {
-      const {
-        provider,
-        composedSystemPrompt,
-        availableTools,
-        userId,
-        parsed,
-        requestId,
-        startedAt,
-        cacheContext,
-        initialMessages,
-        trace,
-        addStep,
-        checkpoint,
-        onIteration,
-      } = params;
-
-      const messages = initialMessages
-        ? initialMessages.map((message) => ({ ...message }))
-        : this.buildInitialMessages(parsed);
-      const llmClient = new LLMClient(provider);
-      let iterations = 0;
-      while (iterations < this.maxIterations) {
-        iterations++;
-        onIteration?.();
-        logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.maxIterations, requestId });
-
-        try {
-          const response = await llmClient.generate(composedSystemPrompt, messages, availableTools, parsed.options);
-
-          if (response.toolCalls && response.toolCalls.length > 0) {
-            // --- 3. Spec Governance Verification ---
-            const planValidation = this.plannerService.validate(response.toolCalls);
-            if (!planValidation.isValid) {
-                logger.warn('agent.spec.violation', { reason: planValidation.reason, requestId });
-                return `[Bloqueio de Governança] ${planValidation.reason}`;
-            }
-
-            for (const call of response.toolCalls) {
-              logger.info('agent.tool.call', { tool: call.name, requestId });
-
-              const tool = this.registry.getTool(call.name);
-              let observation = '';
-
-              if (!tool) {
-                observation = `Erro: Ferramenta '${call.name}' não existe no ToolRegistry local.`;
-              } else {
-                try {
-                  const normalizedCall = ToolInputSchema.safeParse({
-                    name: call.name,
-                    arguments: call.arguments,
-                  });
-                  if (!normalizedCall.success) {
-                    throw new Error(normalizedCall.error.message);
-                  }
-
-                  const normalizedArgs = this.normalizeToolArguments(normalizedCall.data.arguments);
-                  const toolArgs = tool.inputSchema
-                    ? tool.inputSchema.parse(normalizedArgs)
-                    : z.object({}).passthrough().parse(normalizedArgs);
-
-                  const orchestrator = new ExecutionOrchestrator(this.registry);
-                  const executionResults = await orchestrator.executeSteps([{
-                    name: call.name,
-                    arguments: toolArgs
-                  }]);
-                  observation = executionResults[0]?.observation || 'No output';
-                  ToolExecutionResultSchema.parse(observation);
-                  metrics.increment('tool.execution.count');
-                } catch (e: any) {
-                  observation = `Falha ao executar ${call.name}: ${e.message}`;
-                  logger.warn('agent.tool.error', { tool: call.name, error: e.message, requestId });
-                  metrics.increment('tool.execution.error');
-                }
-              }
-
-              const stringifiedArgs = typeof call.arguments === 'string'
-                ? call.arguments
-                : JSON.stringify(call.arguments);
-
-              messages.push({
-                role: 'assistant',
-                content: `Eu decidi usar a ferramenta ${call.name} com os argumentos: ${stringifiedArgs}`,
-              });
-              messages.push({
-                role: 'user',
-                content: `Resultado da Ferramenta (Observation): ${observation}`,
-              });
-              logger.info('agent.tool.observation', {
-                tool: call.name,
-                observationLength: observation.length,
-                requestId,
-              });
-            }
-            continue;
-          }
-
-          if (cacheContext) {
-            await this.cacheService.set(cacheContext.cacheInput, cacheContext.cacheEmbedding, response.text, { requestId });
-          }
-
-          await this.memoryManager.persistTurn(userId, this.providerName, parsed.userInput, response.text, {
-            source: cacheContext ? 'agent-loop' : 'agent-loop',
-            provider: this.providerName,
-          }, trace);
-
-          // PHASE 4: Autonomous Learning (Background)
-          void this.digestService.process(parsed.userInput, response.text, provider, {
-            requestId,
-            userId,
-          });
-          addStep('agent.run.complete', 'success', { 
-            provider: response?.providerUsed || this.providerName 
-          });
-          logger.info('agent.run.complete', {
-            provider: this.providerName,
-            answerLength: response.text.length,
-            requestId,
-          });
-          metrics.increment('agent.run.success');
-          metrics.observe('agent.latency', Date.now() - startedAt);
-          return response.text;
-        } catch (e: any) {
-          logger.error('agent.run.crash', { provider: this.providerName, error: e.message, requestId });
-          metrics.increment('agent.run.error');
-          metrics.observe('agent.latency', Date.now() - startedAt);
-          return `[Sistema] O pipeline do agente sofreu uma falha crítica na iteracão ${iterations}:\n\`\`\`\n${e.message}\n\`\`\``;
-        }
-      }
-
-      metrics.increment('agent.run.error');
-      metrics.observe('agent.latency', Date.now() - startedAt);
-      return `[Sistema] Limite de iterações atingido (${this.maxIterations}). Operação abortada por segurança.`;
-    }
-
-    private async executeActionPlan(params: {
-      parsed: ReturnType<typeof AgentRunInputSchema.parse>;
-      intent: DetectedIntent;
-      plan: ToolActionPlan;
-      requestId?: string;
-      trace: ExecutionTrace;
-      addStep: (type: string, status: TraceStep['status'], data?: Record<string, any>) => void;
-    }): Promise<{ ok: boolean; output?: string; messages: Array<{ role: string; content: string }>; reason?: string }> {
-      const { parsed, intent, plan, requestId, trace, addStep } = params;
-      const messages = this.buildInitialMessages(parsed);
-      const state: Record<string, any> = {
-        input: parsed.userInput,
-        ...intent.slots,
-      };
-      const outputs: string[] = [];
-
-      const orchestrator = new ExecutionOrchestrator(this.registry);
-      const steps = plan.steps.map(step => ({
-        name: step.tool,
-        arguments: this.resolvePlannedToolInput(step, intent, state) || {}
-      }));
-
-      const executionResults = await orchestrator.executeSteps(steps);
-      
-      for (let i = 0; i < executionResults.length; i++) {
-        const result = executionResults[i];
-        const step = plan.steps[i];
-        if (!result.success) {
-          return { ok: false, reason: `step_failed:${step.tool}:${result.observation}`, messages };
-        }
-        state[step.outputKey] = result.observation;
-        outputs.push(result.observation);
-        messages.push({ role: 'assistant', content: `Resultado da ferramenta ${step.tool}: ${result.observation}` });
-        messages.push({ role: 'user', content: `Resultado da Ferramenta (Observation): ${result.observation}` });
-      }
-
-      const summary = outputs.length === 1
-        ? outputs[0]
-        : ['[Ação executada]', ...outputs.map((output, index) => `${index + 1}. ${output}`)].join('\n');
-
-      logger.info('agent.plan.result', {
-        requestId,
-        intent: intent.name,
-        stepCount: plan.steps.length,
-        outputLength: summary.length,
-      });
-
-      return { ok: true, output: summary, messages };
     }
 
     private isFailureObservation(output: unknown): boolean {
@@ -885,7 +615,7 @@ export class AgentLoop {
             return actionMessage;
         } catch (err: any) {
             logger.warn('agent.routing.failed', { requestId, error: err.message });
-            throw err;
+            return null;
         }
     }
 

@@ -159,6 +159,7 @@ export class ToolExecutor {
       ? initialMessages.map((message) => ({ ...message }))
       : this.deps.buildInitialMessages(parsed);
     const llmClient = new LLMClient(provider);
+    const seenToolCalls = new Set<string>();
     let iterations = 0;
     while (iterations < this.deps.maxIterations) {
       iterations++;
@@ -166,7 +167,34 @@ export class ToolExecutor {
       logger.info('agent.loop.iteration', { iteration: iterations, maxIterations: this.deps.maxIterations, requestId });
 
       try {
-        const response = await llmClient.generate(composedSystemPrompt, messages, availableTools, parsed.options);
+        const MAX_LLM_RETRIES = 2;
+        const TRANSIENT_PATTERNS = ['429', '503', 'rate limit', 'timeout', 'network', 'ECONNRESET'];
+
+        let response: any = null;
+        let lastError: any = null;
+
+        for (let attempt = 0; attempt <= MAX_LLM_RETRIES; attempt++) {
+          try {
+            response = await llmClient.generate(composedSystemPrompt, messages, availableTools, parsed.options);
+            break; // success
+          } catch (err: any) {
+            lastError = err;
+            const isTransient = TRANSIENT_PATTERNS.some(p =>
+              err.message?.toLowerCase().includes(p.toLowerCase())
+            );
+            if (isTransient && attempt < MAX_LLM_RETRIES) {
+              const backoff = Math.pow(2, attempt) * 1000;
+              logger.warn('agent.llm.retry', { attempt: attempt + 1, backoff, error: err.message });
+              await new Promise(r => setTimeout(r, backoff));
+              continue;
+            }
+            break; // non-transient or max retries reached
+          }
+        }
+
+        if (!response) {
+          throw lastError;
+        }
 
         if (response.toolCalls && response.toolCalls.length > 0) {
           const planValidation = this.deps.plannerService.validate(response.toolCalls);
@@ -177,6 +205,19 @@ export class ToolExecutor {
 
           for (const call of response.toolCalls) {
             logger.info('agent.tool.call', { tool: call.name, requestId });
+
+            const toolName = call.name;
+            const toolArgs = call.arguments;
+            const callSignature = `${toolName}:${JSON.stringify(toolArgs)}`;
+            if (seenToolCalls.has(callSignature)) {
+              logger.warn('agent.tool.duplicate_call_detected', { toolName, iterations });
+              messages.push({
+                role: 'user',
+                content: `[Sistema] Você já executou ${toolName} com esses mesmos argumentos. Por favor, avance para a próxima etapa ou forneça a resposta final.`
+              });
+              break;
+            }
+            seenToolCalls.add(callSignature);
 
             const tool = this.deps.registry.getTool(call.name);
             let observation = '';
@@ -279,7 +320,12 @@ export class ToolExecutor {
         });
         metrics.increment('agent.run.success');
         metrics.observe('agent.latency', Date.now() - startedAt);
-        return response.text;
+        const finalText = response?.text?.trim();
+        if (!finalText) {
+          logger.warn('agent.llm.empty_response', { iterations });
+          return '[Sistema] O modelo não retornou uma resposta. Por favor, tente novamente.';
+        }
+        return finalText;
       } catch (e: any) {
         logger.error('agent.run.crash', { provider: this.deps.providerName, error: e.message, requestId });
         metrics.increment('agent.run.error');

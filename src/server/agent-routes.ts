@@ -5,6 +5,7 @@ import { config as defaultConfig } from '@/config/env';
 import { offlineFallbackMessage, hasLLMConfig as defaultHasLLMConfig } from '@/server/llm';
 import { AgentRunRequestSchema } from '@/contracts/api';
 import { AgentControlState } from '@/contracts/trace';
+import { agent } from '@/server/routes/shared';
 
 export type AgentRouteDeps = {
   processInput: (userId: string, input: string, options?: any) => Promise<any>;
@@ -15,7 +16,7 @@ export type AgentRouteDeps = {
 };
 
 const defaultDeps: AgentRouteDeps = {
-  processInput: (userId, input, options) => new AgentController().processInput(userId, input, options),
+  processInput: (userId, input, options) => agent.processInput(userId, input, options),
   hasLLMConfig: defaultHasLLMConfig,
   offlineFallbackMessage,
   getUserId: (req: Request) => (req as any).user?.sub || 'pwa-user',
