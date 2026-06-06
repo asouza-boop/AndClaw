@@ -49,7 +49,14 @@ export class LLMClient implements ILLMClient {
       }
 
       // Default single provider behavior (Phase 1)
-      const response = await this.defaultProvider.generateResponse(systemPrompt, messages, tools);
+      const TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS || '90000', 10);
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('LLM_TIMEOUT: provider did not respond within ' + TIMEOUT_MS + 'ms')), TIMEOUT_MS)
+      );
+
+      const responsePromise = this.defaultProvider.generateResponse(systemPrompt, messages, tools);
+      const response = await Promise.race([responsePromise, timeoutPromise]);
       const latency = Date.now() - start;
       const providerUsed = (this.defaultProvider as any).model || 'default';
       

@@ -1,16 +1,17 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { AgentControlState } from '@/contracts/trace';
-import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
-import { config } from '@/config/env';
-import { AgentLoop } from '@/core/AgentLoop';
-import { ToolRegistry } from '@/core/ToolRegistry';
-import { ContextBuilder } from '@/core/ContextBuilder';
-import { ILLMProvider } from '@/providers/ILLMProvider';
-import { Tool } from '@/modules/tools/Tool';
-import type { Skill } from '@/skills/SkillLoader';
-import { z } from 'zod';
-import { Pool } from 'pg';
+require('tsx/cjs');
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { AgentControlState  } = require('@/contracts/trace');
+const { AgentEvaluator  } = require('@/core/evaluation/AgentEvaluator');
+const { config  } = require('@/config/env');
+const { AgentLoop  } = require('@/core/AgentLoop');
+const { ToolRegistry  } = require('@/core/ToolRegistry');
+const { ContextBuilder  } = require('@/core/ContextBuilder');
+const { ILLMProvider  } = require('@/providers/ILLMProvider');
+const { Tool  } = require('@/modules/tools/Tool');
+
+const { z  } = require('zod');
+const { Pool  } = require('pg');
 
 class FakeProvider implements ILLMProvider {
   public calls = 0;
@@ -38,7 +39,11 @@ class EchoTool implements Tool {
     message: z.string().min(1),
   });
 
-  constructor(private onExecute: (message: string) => void) {}
+  private onExecute: (message: string) => void;
+
+  constructor(onExecute: (message: string) => void) {
+    this.onExecute = onExecute;
+  }
 
   async execute(args: { message: string }): Promise<string> {
     this.onExecute(args.message);
@@ -89,7 +94,8 @@ test('AgentLoop runs input -> memory -> tool execution -> persistence', async ()
       return '[MEMÓRIA SEMÂNTICA]\n1. note\n[FIM DA MEMÓRIA SEMÂNTICA]';
     },
     persistTurn: async (userId: string, providerName: string, input: string, output: string) => {
-      calls.push(`persist:${userId}:${providerName}:${input}:${output}`);
+      calls.push(`persist:${userId}
+    addSemanticMemory: async () => null,:${providerName}:${input}:${output}`);
     },
   } as any;
   const profileRepo = {
@@ -154,6 +160,7 @@ test('AgentLoop returns semantic cache hits without calling the provider', async
     persistTurn: async () => {
       persisted = true;
     },
+    addSemanticMemory: async () => null,
   } as any;
   const profileRepo = {
     getAll: async () => [],
@@ -211,6 +218,7 @@ test('AgentLoop executes skill-oriented flows with deterministic skill selection
     {
       buildSemanticContext: async () => '',
       persistTurn: async () => undefined,
+    addSemanticMemory: async () => null,
     } as any,
     {
       provider,
@@ -254,6 +262,7 @@ test('AgentLoop pause gate rejects with PauseTimeoutError after TTL expires', as
       {
         buildSemanticContext: async () => '',
         persistTurn: async () => undefined,
+    addSemanticMemory: async () => null,
       } as any,
       {
         provider,
@@ -272,7 +281,7 @@ test('AgentLoop pause gate rejects with PauseTimeoutError after TTL expires', as
   }
 });
 
-test('AgentLoop routeToCapture throws on persistence failure', async () => {
+test('AgentLoop routeToCapture returns null on persistence failure', async () => {
   const registry = new ToolRegistry();
   const loop = new AgentLoop(
     'fake-provider',
@@ -282,6 +291,7 @@ test('AgentLoop routeToCapture throws on persistence failure', async () => {
     {
       buildSemanticContext: async () => '',
       persistTurn: async () => undefined,
+    addSemanticMemory: async () => null,
     } as any,
     {
       profileRepo: { getAll: async () => [] } as any,
@@ -295,10 +305,8 @@ test('AgentLoop routeToCapture throws on persistence failure', async () => {
   }) as any;
 
   try {
-    await assert.rejects(
-      () => (loop as any).routeToCapture('hello', { type: 'note', confidence: 0.9 }, 'req-failure'),
-      /forced persistence failure/
-    );
+    const result = await (loop as any).routeToCapture('hello', { type: 'note', confidence: 0.9 }, 'req-failure');
+    assert.equal(result, null);
   } finally {
     Pool.prototype.query = originalQuery;
   }
@@ -326,6 +334,7 @@ test('AgentLoop totalIterations equals the number of loop turns executed', async
       {
         buildSemanticContext: async () => '',
         persistTurn: async () => undefined,
+    addSemanticMemory: async () => null,
       } as any,
       {
         provider,

@@ -19,7 +19,7 @@ export class PlannerService {
 
   constructor(deps: PlannerServiceDeps = {}) {
     this.actionPlanner = deps.actionPlanner || new ActionPlanner();
-    this.validatePlan = deps.validatePlan || SpecService.validatePlan;
+    this.validatePlan = deps.validatePlan || SpecService.validatePlan.bind(SpecService);
     this.memoryService = deps.memoryService;
   }
 

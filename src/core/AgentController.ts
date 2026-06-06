@@ -34,11 +34,10 @@ export class AgentController {
             const history = await this.memoryManager.getHistory(userId, providerName);
 
             // 3. Salvar query atual
-            const conversationId = await this.memoryManager.getOrCreateActiveConversation(userId, providerName);
-            await this.memoryManager.addMessage(conversationId, 'user', input);
+            // 3. (Removido: save was done here previously)
 
             // 4. Executar Agent Loop unificado
-            const loop = new AgentLoop(providerName, this.registry);
+            const loop = new AgentLoop(providerName, this.registry, undefined, undefined, this.memoryManager);
             const result = await loop.run(
               options.systemPrompt || `Você é o AndClaw, um agente assistente inteligente projetado para ${process.env.AGENT_USER_NAME || 'usuário'}. Você tem acesso a ferramentas locais.`,
               history,
@@ -47,7 +46,7 @@ export class AgentController {
             );
 
             // 5. Salvar mensagem do assistente
-            await this.memoryManager.addMessage(conversationId, 'assistant', result);
+            // 5. (Removido: save was done here previously)
 
             // 6. Proactive Intelligence
             const suggestions = SuggestionService.detect(result);
