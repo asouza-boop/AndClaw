@@ -1,15 +1,12 @@
-require('tsx/cjs');
-const express = require('express');
-const request = require('supertest');
-const assert = require('node:assert/strict');
-const test = require('node:test');
-const { EmbeddingService, EmbeddingError  } = require('@/core/memory/EmbeddingService');
-const { MemoryService  } = require('@/core/memory/MemoryService');
-const { MemoryDigestionService  } = require('@/core/agent/MemoryDigestionService');
-const { config  } = require('@/config/env');
-
-
-
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { EmbeddingService, EmbeddingError } from '@/core/memory/EmbeddingService';
+import { MemoryService } from '@/core/memory/MemoryService';
+import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
+import { config } from '@/config/env';
+import createMemoryRoutes from '@/server/memory-routes';
+import express from 'express';
+import request from 'supertest';
 
 test('EmbeddingService throws EmbeddingError when apiKey is empty', async () => {
   const service = new EmbeddingService({ apiKey: '' });
@@ -84,7 +81,7 @@ test('memory-routes POST /memory returns 201', async () => {
   // Actually, createMemoryRoutes is exported as well!
   // I imported it as createMemoryRoutes above (wait, is it exported? Yes, let's check).
   // In memory-routes.ts: `export function createMemoryRoutes(overrides: Partial<MemoryRouteDeps> = {})`
-  const { createMemoryRoutes } = require('@/server/memory-routes');
+  const { createMemoryRoutes } = await import('@/server/memory-routes');
   const router = createMemoryRoutes(mockDeps as any);
   app.use('/', router);
 

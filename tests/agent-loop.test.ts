@@ -1,17 +1,19 @@
-require('tsx/cjs');
-const assert = require('node:assert/strict');
-const test = require('node:test');
-const { AgentControlState  } = require('@/contracts/trace');
-const { AgentEvaluator  } = require('@/core/evaluation/AgentEvaluator');
-const { config  } = require('@/config/env');
-const { AgentLoop  } = require('@/core/AgentLoop');
-const { ToolRegistry  } = require('@/core/ToolRegistry');
-const { ContextBuilder  } = require('@/core/ContextBuilder');
-const { ILLMProvider  } = require('@/providers/ILLMProvider');
-const { Tool  } = require('@/modules/tools/Tool');
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { AgentControlState } from '@/contracts/trace';
+import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
+import { config } from '@/config/env';
+import { AgentLoop } from '@/core/AgentLoop';
+import { ToolRegistry } from '@/core/ToolRegistry';
+import { ContextBuilder } from '@/core/ContextBuilder';
+import { ILLMProvider } from '@/providers/ILLMProvider';
+import { Tool } from '@/modules/tools/Tool';
+import type { Skill } from '@/skills/SkillLoader';
+import { z } from 'zod';
+import { Pool } from 'pg';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
+EmbeddingService.prototype.generateEmbedding = async () => Array(1536).fill(0.1);
 
-const { z  } = require('zod');
-const { Pool  } = require('pg');
 
 class FakeProvider implements ILLMProvider {
   public calls = 0;
@@ -39,11 +41,7 @@ class EchoTool implements Tool {
     message: z.string().min(1),
   });
 
-  private onExecute: (message: string) => void;
-
-  constructor(onExecute: (message: string) => void) {
-    this.onExecute = onExecute;
-  }
+  constructor(private onExecute: (message: string) => void) {}
 
   async execute(args: { message: string }): Promise<string> {
     this.onExecute(args.message);
@@ -94,8 +92,7 @@ test('AgentLoop runs input -> memory -> tool execution -> persistence', async ()
       return '[MEMÓRIA SEMÂNTICA]\n1. note\n[FIM DA MEMÓRIA SEMÂNTICA]';
     },
     persistTurn: async (userId: string, providerName: string, input: string, output: string) => {
-      calls.push(`persist:${userId}
-    addSemanticMemory: async () => null,:${providerName}:${input}:${output}`);
+      calls.push(`persist:${userId}:${providerName}:${input}:${output}`);
     },
   } as any;
   const profileRepo = {
@@ -160,7 +157,6 @@ test('AgentLoop returns semantic cache hits without calling the provider', async
     persistTurn: async () => {
       persisted = true;
     },
-    addSemanticMemory: async () => null,
   } as any;
   const profileRepo = {
     getAll: async () => [],
@@ -218,7 +214,6 @@ test('AgentLoop executes skill-oriented flows with deterministic skill selection
     {
       buildSemanticContext: async () => '',
       persistTurn: async () => undefined,
-    addSemanticMemory: async () => null,
     } as any,
     {
       provider,
@@ -262,7 +257,6 @@ test('AgentLoop pause gate rejects with PauseTimeoutError after TTL expires', as
       {
         buildSemanticContext: async () => '',
         persistTurn: async () => undefined,
-    addSemanticMemory: async () => null,
       } as any,
       {
         provider,
@@ -291,7 +285,6 @@ test('AgentLoop routeToCapture returns null on persistence failure', async () =>
     {
       buildSemanticContext: async () => '',
       persistTurn: async () => undefined,
-    addSemanticMemory: async () => null,
     } as any,
     {
       profileRepo: { getAll: async () => [] } as any,
@@ -334,7 +327,6 @@ test('AgentLoop totalIterations equals the number of loop turns executed', async
       {
         buildSemanticContext: async () => '',
         persistTurn: async () => undefined,
-    addSemanticMemory: async () => null,
       } as any,
       {
         provider,
