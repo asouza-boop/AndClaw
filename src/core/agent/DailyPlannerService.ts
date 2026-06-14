@@ -23,7 +23,7 @@ export class DailyPlannerService {
             // NOTE: tasks table has no user_id column — scoping deferred until column is added
             // When user_id is added to tasks, filter with: WHERE status = 'pending' AND user_id = $1
             const tasks = await query<any>(
-                `SELECT title, priority FROM tasks WHERE status = 'pending' ORDER BY priority = 'high' DESC LIMIT 10`
+                `SELECT title, priority FROM tasks WHERE status NOT IN ('done', 'cancelled') ORDER BY priority = 'high' DESC LIMIT 10`
             );
             logger.warn('daily_briefing.tasks_unscoped', { userId, reason: 'tasks table missing user_id column' });
             

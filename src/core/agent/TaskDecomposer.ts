@@ -1,4 +1,5 @@
 import { ProviderFactory } from '../../providers/ProviderFactory';
+import { logger } from '@/infra/logger';
 
 export interface SubTask {
     id: number;
@@ -34,7 +35,7 @@ export class TaskDecomposer {
             return { isComplex: false, subTasks: [] };
         }
 
-        console.log(`[Observability] agent.decomposition: Analyzing task complexity...`);
+        logger.info('agent.decomposition.analyzing', { inputLength: userInput.length });
 
         try {
             const provider = ProviderFactory.getChain();
@@ -63,8 +64,10 @@ REGRAS:
                 []
             );
 
-            const jsonText = response.text.replace(/```json|```/g, '').trim();
-            const parsed = JSON.parse(jsonText);
+            const match = response.text.match(/\{[\s\S]*\}/);
+            if (!match) throw new Error('NO_JSON_BLOCK');
+            const parsed = JSON.parse(match[0]);
+            if (!parsed || typeof parsed !== 'object') throw new Error('INVALID_SHAPE');
 
             if (parsed.isComplex && Array.isArray(parsed.subTasks) && parsed.subTasks.length > 0) {
                 // Cap at 4 sub-tasks for safety
@@ -74,13 +77,13 @@ REGRAS:
                     context: String(st.context || '')
                 }));
 
-                console.log(`[Observability] agent.decomposition: Task decomposed into ${capped.length} sub-tasks.`);
+                logger.info('agent.decomposition.result', { subTaskCount: capped.length });
                 return { isComplex: true, subTasks: capped };
             }
 
             return { isComplex: false, subTasks: [] };
         } catch (e: any) {
-            console.warn(`[TaskDecomposer] Decomposition failed, falling back to simple mode: ${e.message}`);
+            logger.warn('agent.decomposition.failed', { error: e.message });
             return { isComplex: false, subTasks: [] };
         }
     }
