@@ -19,6 +19,17 @@ import { EvaluationService } from '@/core/agent/EvaluationService';
 import type { ExecutionTrace, TraceStep } from '@/contracts/trace';
 import type { ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 
+function estimateTokens(messages: any[]): number {
+  return messages.reduce((total, m) => {
+    const content = typeof m.content === 'string'
+      ? m.content
+      : JSON.stringify(m.content);
+    return total + Math.ceil(content.length / 4);
+  }, 0);
+}
+
+const MAX_CONTEXT_TOKENS = parseInt(process.env.MAX_CONTEXT_TOKENS || '28000', 10);
+
 export type ToolExecutorDeps = {
   providerName: string;
   registry: ToolRegistry;
@@ -172,6 +183,18 @@ export class ToolExecutor {
 
         let response: any = null;
         let lastError: any = null;
+
+        // Trim oldest messages if context window is approaching limit
+        while (estimateTokens(messages) > MAX_CONTEXT_TOKENS && messages.length > 2) {
+          // Always keep system message (index 0) and latest user message
+          messages.splice(1, 1);
+        }
+        if (estimateTokens(messages) > MAX_CONTEXT_TOKENS) {
+          logger.warn('agent.context.overflow', {
+            estimatedTokens: estimateTokens(messages),
+            messageCount: messages.length
+          });
+        }
 
         for (let attempt = 0; attempt <= MAX_LLM_RETRIES; attempt++) {
           try {
