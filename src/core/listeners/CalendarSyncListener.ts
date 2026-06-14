@@ -50,11 +50,31 @@ async function syncTaskToCalendar(payload: any) {
   const accounts = await loadAccounts();
   if (accounts.length === 0) return;
 
-  const start = new Date(payload.due_date);
-  if (isNaN(start.getTime())) {
+  if (payload.deleted && payload.gcal_event_id) {
+    // Remove orphaned calendar event
+    for (const account of accounts) {
+      const calendar = getCalendarClient(account);
+      try {
+        await calendar.events.delete({
+          calendarId: account.calendarId || 'primary',
+          eventId: payload.gcal_event_id,
+        });
+        await query(`UPDATE tasks SET gcal_event_id = NULL WHERE id = $1`, [payload.taskId]);
+        logger.info('calendar.sync.task_event_deleted', { taskId: payload.taskId });
+      } catch (e: any) {
+        logger.error('calendar.sync.task_delete_failed', { taskId: payload.taskId, error: e.message });
+      }
+    }
+    return;
+  }
+
+  // Existing invalid date guard continues here...
+  const due = new Date(payload.due_date);
+  if (!payload.due_date || isNaN(due.getTime())) {
     logger.warn('calendar.sync.invalid_date', { taskId: payload.taskId });
     return;
   }
+  const start = new Date(payload.due_date);
   const end = new Date(start.getTime() + 30 * 60000);
 
   // Check if task already has a gcal_event_id

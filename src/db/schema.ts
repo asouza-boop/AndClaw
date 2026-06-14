@@ -324,4 +324,14 @@ export async function ensureSchema(): Promise<void> {
     ON memory_items (memory_type)`);
   await query(`CREATE INDEX IF NOT EXISTS messages_conversation_id_idx
     ON messages (conversation_id)`);
+
+  // Normalize legacy status values — fix/tasks-audit-cycle
+  await query(`UPDATE tasks SET status = 'todo' WHERE status IN ('pending', 'new', 'open')`);
+  await query(`UPDATE tasks SET status = 'done' WHERE status = 'completed'`);
+
+  // Tasks subsystem performance indexes — fix/tasks-audit-cycle
+  await query(`CREATE INDEX IF NOT EXISTS tasks_status_idx ON tasks (status)`);
+  await query(`CREATE INDEX IF NOT EXISTS tasks_project_id_idx ON tasks (project_id) WHERE project_id IS NOT NULL`);
+  await query(`CREATE INDEX IF NOT EXISTS tasks_created_at_idx ON tasks (created_at DESC)`);
+  await query(`CREATE INDEX IF NOT EXISTS tasks_capture_id_idx ON tasks (capture_id) WHERE capture_id IS NOT NULL`);
 }
