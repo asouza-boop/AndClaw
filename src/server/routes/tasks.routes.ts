@@ -13,17 +13,39 @@ router.post('/tasks', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 router.get('/tasks', asyncHandler(async (req: Request, res: Response) => {
-  const { status, priority, project_id } = req.query as { status?: string; priority?: string; project_id?: string };
-  let sql = 'SELECT * FROM tasks';
+  const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+  const cursor = req.query.cursor as string | undefined;
+  const status = req.query.status as string | undefined;
+  const project_id = req.query.project_id as string | undefined;
+
   const params: any[] = [];
   const conditions: string[] = [];
-  if (status) { params.push(status); conditions.push(`status = $${params.length}`); }
-  if (priority) { params.push(priority); conditions.push(`priority = $${params.length}`); }
-  if (project_id) { params.push(project_id); conditions.push(`project_id = $${params.length}`); }
-  if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
-  sql += ' ORDER BY created_at DESC LIMIT 500';
-  const rows = await query(sql, params);
-  res.json({ ok: true, items: rows });
+
+  if (cursor) {
+    params.push(cursor);
+    conditions.push(`created_at < $${params.length}`);
+  }
+  if (status) {
+    params.push(status);
+    conditions.push(`status = $${params.length}`);
+  }
+  if (project_id) {
+    params.push(project_id);
+    conditions.push(`project_id = $${params.length}`);
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limit + 1);
+  const rows = await query<any>(
+    `SELECT * FROM tasks ${where} ORDER BY created_at DESC LIMIT $${params.length}`,
+    params
+  );
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? items[items.length - 1].created_at : null;
+
+  res.json({ ok: true, items, nextCursor, hasMore });
 }));
 
 router.patch('/tasks/:id', asyncHandler(async (req: Request, res: Response) => {

@@ -12,19 +12,25 @@ export class TaskService {
         type: string;
         project_id?: string | number | null;
         due_date?: string | Date | null;
+        metadata?: Record<string, any> | null;
     }): Promise<void> {
         if (capture.type !== 'task') return;
 
+        // meeting_id: canonical column, not JSONB metadata — consolidated in fix/tasks-audit-cycle
+        const meetingId = capture.metadata?.meeting_id || null;
+
         try {
             const rows = await query(
-                `INSERT INTO tasks (title, status, due_date, project_id, capture_id)
-                 VALUES ($1, $2, $3, $4, $5) RETURNING id, title, due_date`,
+                `INSERT INTO tasks (title, description, status, due_date, project_id, capture_id, meeting_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, due_date`,
                 [
                     capture.content,
+                    null,
                     'todo',
                     capture.due_date || null,
                     capture.project_id || null,
-                    capture.id
+                    capture.id,
+                    meetingId
                 ]
             );
             logger.info('task.bridge.created', { captureId: capture.id });

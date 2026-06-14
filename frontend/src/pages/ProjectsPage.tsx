@@ -29,7 +29,7 @@ interface Task {
   id: string;
   title: string;
   description?: string;
-  status: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done';
+  status: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done' | 'cancelled';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   agent_id?: string;
   skill_ids?: string[];
@@ -53,6 +53,7 @@ const COLUMNS: { key: Task['status']; label: string; variant: 'default' | 'succe
   { key: 'in_progress', label: 'Em Execução', variant: 'warning' },
   { key: 'review', label: 'Revisão', variant: 'default' },
   { key: 'done', label: 'Concluído', variant: 'success' },
+  { key: 'cancelled', label: 'Cancelado', variant: 'error' },
 ];
 
 const PRIORITY_LABELS: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' | 'info' }> = {
@@ -111,17 +112,20 @@ export default function ProjectsPage() {
         ? apiFetch(`/api/tasks/${t.id}`, { method: 'PATCH', body: JSON.stringify(t) })
         : apiFetch('/api/tasks', { method: 'POST', body: JSON.stringify(t) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); setTaskDialog(false); setEditingTask(null); setNewTask({ status: 'todo', priority: 'medium' }); },
+    onError: (err: any) => toast(err.message || 'Erro ao salvar tarefa', 'error'),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/tasks/${id}`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    onError: (err: any) => toast(err.message || 'Erro ao excluir tarefa', 'error'),
   });
 
   const projectMut = useMutation({
     mutationFn: (p: Partial<Project>) =>
       apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(p) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setProjectDialog(false); setNewProject({ color: PROJECT_COLORS[0] }); },
+    onError: (err: any) => toast(err.message || 'Erro ao criar projeto', 'error'),
   });
 
   const executeSkillsMut = useMutation({
@@ -505,6 +509,7 @@ function StatusDot({ status }: { status: string }) {
     in_progress: 'var(--color-warning)',
     review: 'var(--color-text-primary)', 
     done: 'var(--color-success)',
+    cancelled: 'var(--color-error)',
   };
   return <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: colors[status] || 'var(--color-text-tertiary)' }} />;
 }

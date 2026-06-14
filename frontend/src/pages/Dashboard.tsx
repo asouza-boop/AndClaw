@@ -34,8 +34,8 @@ export default function Dashboard() {
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string; suggestions?: any[] }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
 
-  const pendingTasks = tasks?.filter((t: any) => t.status !== 'done') || [];
-  const highPriority = tasks?.filter((t: any) => t.priority === 'high' && t.status !== 'done') || [];
+  const pendingTasks = tasks?.filter((t: any) => t.status !== 'done' && t.status !== 'cancelled') || [];
+  const highPriority = tasks?.filter((t: any) => (t.priority === 'high' || t.priority === 'urgent') && t.status !== 'done' && t.status !== 'cancelled') || [];
   const unprocessed = captures?.filter((c: any) => c.status !== 'processed') || [];
 
   const handleSuggestion = async (s: any) => {
