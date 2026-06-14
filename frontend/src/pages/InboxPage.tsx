@@ -118,20 +118,37 @@ export default function InboxPage() {
   const deleteCapture = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/captures/${id}`, { method: 'DELETE' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Signal deletado', 'success'); },
+    onError: (err: any) => { toast(`Erro: ${err.message || 'tente novamente'}`, 'error'); },
   });
 
   const archiveCapture = useMutation({
     mutationFn: (id: string) => apiFetch(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'processed' }) }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['captures'] }); toast('Signal arquivado', 'success'); },
+    onError: (err: any) => { toast(`Erro: ${err.message || 'tente novamente'}`, 'error'); },
   });
 
   const processAI = useMutation({
-    mutationFn: () => apiFetch('/api/captures/bulk', { method: 'POST', body: JSON.stringify({ action: 'extract' }) }),
+    mutationFn: async () => {
+      const pendingIds = captures
+        .filter((c: any) => c.status !== 'processed' && c.content?.trim())
+        .map((c: any) => c.id || c._id);
+      if (pendingIds.length === 0) {
+        toast('Nenhum sinal pendente para processar', 'info');
+        return;
+      }
+      return apiFetch('/api/captures/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'extract', ids: pendingIds })
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['captures'] });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['meetings'] });
       toast('Processamento de IA concluído', 'success');
+    },
+    onError: (err: any) => {
+      toast(`Erro no processamento: ${err.message || 'tente novamente'}`, 'error');
     },
   });
 
@@ -156,6 +173,7 @@ export default function InboxPage() {
       qc.invalidateQueries({ queryKey: ['projects'] });
       toast(`Sinal evoluído: ${variables.evolution}`, 'success');
     },
+    onError: (err: any) => { toast(`Erro: ${err.message || 'tente novamente'}`, 'error'); },
   });
 
   const smartCapture = useMutation({
@@ -497,9 +515,9 @@ function InboxItemRow({ item, onArchive, onDelete, onEvolve }: { item: UnifiedIt
           ) : (
             <Button variant="ghost" size="sm" title="Abrir" onClick={() => {
               const routeMap: Record<string, string> = {
-                task: '/tasks',
-                meeting: '/meetings',
-                project: '/projects',
+                task: '/projetos',
+                meeting: '/reunioes',
+                project: '/projetos',
                 note: '/inbox',
                 idea: '/inbox',
                 link: '/inbox',
