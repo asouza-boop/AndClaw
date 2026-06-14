@@ -7,6 +7,9 @@ import { SkillLoader } from '@/skills/SkillLoader';
 
 const router = Router();
 
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 async function listSkillsFromDisk() {
   const root = config.paths.skills;
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
@@ -65,12 +68,12 @@ async function deleteSkillOnDisk(slug: string) {
   await fs.rm(skillDir, { recursive: true, force: true });
 }
 
-router.get('/skills', async (_req: Request, res: Response) => {
+router.get('/skills', asyncHandler(async (_req: Request, res: Response) => {
   const skills = await listSkillsFromDisk();
   res.json({ ok: true, items: skills });
-});
+}));
 
-router.post('/skills', async (req: Request, res: Response) => {
+router.post('/skills', asyncHandler(async (req: Request, res: Response) => {
   const body = req.body || {};
   const slug = body.slug || body.name;
   const title = body.title || body.name || slug;
@@ -80,22 +83,22 @@ router.post('/skills', async (req: Request, res: Response) => {
   await createSkillOnDisk(safeSlug, title, description || title, content, allowedTools);
   SkillLoader.invalidateAll();
   res.status(201).json({ ok: true, slug: safeSlug, name: safeSlug, title, id: safeSlug });
-});
+}));
 
-router.put('/skills/:id', async (req: Request, res: Response) => {
+router.put('/skills/:id', asyncHandler(async (req: Request, res: Response) => {
   const slug = String(req.params.id);
   const { content } = req.body || {};
   if (!content) return res.status(400).json({ error: 'content is required' });
   await updateSkillOnDisk(slug, String(content));
   SkillLoader.invalidate(slug);
   res.json({ ok: true, id: slug });
-});
+}));
 
-router.delete('/skills/:id', async (req: Request, res: Response) => {
+router.delete('/skills/:id', asyncHandler(async (req: Request, res: Response) => {
   const slug = String(req.params.id);
   await deleteSkillOnDisk(slug);
   SkillLoader.invalidate(slug);
   res.json({ ok: true, id: slug });
-});
+}));
 
 export default router;

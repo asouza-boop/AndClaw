@@ -6,7 +6,10 @@ import { agent } from './shared';
 
 const router = Router();
 
-router.post('/messages', async (req: Request, res: Response) => {
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+router.post('/messages', asyncHandler(async (req: Request, res: Response) => {
   const { content, conversationId = 'default', client_message_id, sender, role } = req.body || {};
   const resolvedRole = role || sender || 'user';
   if (!content) return res.status(400).json({ error: 'content is required' });
@@ -22,18 +25,18 @@ router.post('/messages', async (req: Request, res: Response) => {
     [conversationId, resolvedRole, content, client_message_id || null]
   );
   res.status(201).json({ ok: true, id: rows[0]?.id, message: rows[0] || null, item: rows[0] || null });
-});
+}));
 
-router.get('/messages', async (req: Request, res: Response) => {
+router.get('/messages', asyncHandler(async (req: Request, res: Response) => {
   const limit = Math.min(parseInt((req.query.limit as string) || '50', 10), 200);
   const rows = await query(
     `SELECT * FROM messages ORDER BY created_at DESC LIMIT $1`,
     [limit]
   );
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.get('/messages/by-conversation/:id', async (req: Request, res: Response) => {
+router.get('/messages/by-conversation/:id', asyncHandler(async (req: Request, res: Response) => {
   const conversationId = req.params.id;
   const limit = Math.min(parseInt((req.query.limit as string) || '200', 10), 500);
   const rows = await query(
@@ -41,16 +44,16 @@ router.get('/messages/by-conversation/:id', async (req: Request, res: Response) 
     [conversationId, limit]
   );
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.get('/messages/:id/trace', async (req: Request, res: Response) => {
+router.get('/messages/:id/trace', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const rows = await query<any>(`SELECT trace FROM messages WHERE id = $1`, [id]);
   if (!rows[0]) return res.status(404).json({ error: 'message not found' });
   res.json({ ok: true, trace: rows[0].trace });
-});
+}));
 
-router.get('/conversations/:id/latest-trace', async (req: Request, res: Response) => {
+router.get('/conversations/:id/latest-trace', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const rows = await query<any>(
     `SELECT trace FROM messages 
@@ -59,8 +62,9 @@ router.get('/conversations/:id/latest-trace', async (req: Request, res: Response
     [id]
   );
   res.json({ ok: true, trace: rows[0]?.trace || null });
-});
+}));
 
+// Has explicit try/catch — not double-wrapped
 router.post('/skill-chat', async (req: Request, res: Response) => {
   const { system, messages } = req.body || {};
   if (!messages?.length) return res.status(400).json({ error: 'messages required' });

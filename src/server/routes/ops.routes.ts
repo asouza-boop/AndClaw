@@ -11,14 +11,18 @@ import { setEntityTags } from './shared';
 
 const router = Router();
 
-router.get('/admin/metrics', async (_req: Request, res: Response) => {
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+router.get('/admin/metrics', asyncHandler(async (_req: Request, res: Response) => {
   res.json({ ok: true, metrics: metrics.getMetrics(), history: metrics.getHistory() });
-});
+}));
 
-router.get('/experiments', async (_req: Request, res: Response) => {
+router.get('/experiments', asyncHandler(async (_req: Request, res: Response) => {
   res.json({ ok: true, ...AgentEvaluator.getExperimentStats() });
-});
+}));
 
+// Has explicit try/catch — not double-wrapped
 router.get('/learning/dashboard', async (_req: Request, res: Response) => {
   try {
     const data = await MetricsService.getDashboardSnapshot();
@@ -44,7 +48,7 @@ router.post('/learning/params/reset', (_req: Request, res: Response) => {
   res.json({ ok: true, message: 'Parâmetros resetados para padrões de fábrica.' });
 });
 
-router.get('/notifications', async (_req: Request, res: Response) => {
+router.get('/notifications', asyncHandler(async (_req: Request, res: Response) => {
   const items = [
     ...(await query<any>(`SELECT id::text, 'task' as type, 'Nova tarefa' as title, title as body, false as read, created_at FROM tasks ORDER BY created_at DESC LIMIT 5`)),
     ...(await query<any>(`SELECT id::text, 'meeting' as type, 'Reunião registrada' as title, title as body, false as read, created_at FROM meetings ORDER BY created_at DESC LIMIT 5`)),
@@ -62,9 +66,9 @@ router.get('/notifications', async (_req: Request, res: Response) => {
     }));
 
   res.json({ ok: true, items });
-});
+}));
 
-router.get('/settings', async (_req: Request, res: Response) => {
+router.get('/settings', asyncHandler(async (_req: Request, res: Response) => {
   const settings = await loadAppSettings();
   const safe: Record<string, any> = {
     DEFAULT_LLM_PROVIDER: settings.DEFAULT_LLM_PROVIDER || '',
@@ -85,9 +89,9 @@ router.get('/settings', async (_req: Request, res: Response) => {
     RAINDROP_TOKEN: settings.RAINDROP_TOKEN ? 'configured' : ''
   };
   res.json({ ok: true, settings: safe });
-});
+}));
 
-router.post('/settings', async (req: Request, res: Response) => {
+router.post('/settings', asyncHandler(async (req: Request, res: Response) => {
   const allowed = [
     'GEMINI_API_KEY',
     'OPENROUTER_API_KEY',
@@ -119,9 +123,9 @@ router.post('/settings', async (req: Request, res: Response) => {
   applyAppSettingsToConfig(settings);
 
   res.json({ ok: true });
-});
+}));
 
-router.post('/deploy', async (_req: Request, res: Response) => {
+router.post('/deploy', asyncHandler(async (_req: Request, res: Response) => {
   const settings = await loadAppSettings();
   const hook = settings.RENDER_DEPLOY_HOOK_URL;
   if (!hook) return res.status(400).json({ error: 'deploy hook not configured' });
@@ -131,14 +135,14 @@ router.post('/deploy', async (_req: Request, res: Response) => {
 
   await setSetting('LAST_DEPLOY_AT', new Date().toISOString());
   res.json({ ok: true });
-});
+}));
 
-router.get('/projects', async (_req: Request, res: Response) => {
+router.get('/projects', asyncHandler(async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM projects ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.post('/projects', async (req: Request, res: Response) => {
+router.post('/projects', asyncHandler(async (req: Request, res: Response) => {
   const { name, status = 'active', summary } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const rows = await query(
@@ -146,14 +150,14 @@ router.post('/projects', async (req: Request, res: Response) => {
     [name, status, summary || null]
   );
   res.status(201).json({ ok: true, id: rows[0]?.id, item: rows[0] });
-});
+}));
 
-router.get('/links', async (_req: Request, res: Response) => {
+router.get('/links', asyncHandler(async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM page_links ORDER BY created_at DESC LIMIT 200`);
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.post('/links', async (req: Request, res: Response) => {
+router.post('/links', asyncHandler(async (req: Request, res: Response) => {
   const { from_type, from_id, to_type, to_id, label } = req.body || {};
   if (!from_type || !from_id || !to_type || !to_id) {
     return res.status(400).json({ error: 'from_type, from_id, to_type, to_id are required' });
@@ -164,9 +168,9 @@ router.post('/links', async (req: Request, res: Response) => {
     [from_type, String(from_id), to_type, String(to_id), label || null]
   );
   res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
-});
+}));
 
-router.get('/favorites', async (_req: Request, res: Response) => {
+router.get('/favorites', asyncHandler(async (_req: Request, res: Response) => {
   const favorites = await query<any>(`SELECT * FROM favorites ORDER BY created_at DESC LIMIT 200`);
   const tags = await query<any>(
     `SELECT et.entity_id, t.name, t.color
@@ -188,9 +192,9 @@ router.get('/favorites', async (_req: Request, res: Response) => {
     tags: tagMap.get(String(fav.id)) || []
   }));
   res.json({ ok: true, items });
-});
+}));
 
-router.post('/favorites', async (req: Request, res: Response) => {
+router.post('/favorites', asyncHandler(async (req: Request, res: Response) => {
   const { title, url, tags = [] } = req.body || {};
   if (!title || !url) return res.status(400).json({ error: 'title and url are required' });
   const rows = await query<any>(
@@ -201,32 +205,32 @@ router.post('/favorites', async (req: Request, res: Response) => {
   const fav = rows[0];
   await setEntityTags(query, 'favorite', String(fav.id), tags);
   res.status(201).json({ ok: true, item: fav, id: fav?.id });
-});
+}));
 
-router.get('/raindrop/collections', async (_req: Request, res: Response) => {
+router.get('/raindrop/collections', asyncHandler(async (_req: Request, res: Response) => {
   if (!config.raindrop.token) return res.json({ ok: true, items: [] });
   const items = await listRaindropCollections();
   res.json({ ok: true, items });
-});
+}));
 
-router.get('/raindrop/items', async (req: Request, res: Response) => {
+router.get('/raindrop/items', asyncHandler(async (req: Request, res: Response) => {
   if (!config.raindrop.token) return res.json({ ok: true, items: [] });
   const collectionId = (req.query.collectionId as string) || config.raindrop.collectionId;
   const perpage = parseInt((req.query.perpage as string) || '30', 10);
   const page = parseInt((req.query.page as string) || '0', 10);
   const items = await listRaindrops(collectionId, perpage, page);
   res.json({ ok: true, items });
-});
+}));
 
-router.post('/raindrop/sync', async (req: Request, res: Response) => {
+router.post('/raindrop/sync', asyncHandler(async (req: Request, res: Response) => {
   if (!config.raindrop.token) return res.status(400).json({ error: 'raindrop token not configured' });
   const { collectionId, perpage = 50, page = 0 } = req.body || {};
   const items = await listRaindrops(collectionId || config.raindrop.collectionId, perpage, page);
   let upserted = 0;
   for (const item of items) {
-    const externalId = String(item._id || item.id || '');
-    const title = item.title || item.link || 'Sem titulo';
-    const link = item.link || item.url;
+    const externalId = String((item as any)._id || (item as any).id || '');
+    const title = (item as any).title || (item as any).link || 'Sem titulo';
+    const link = (item as any).link || (item as any).url;
     if (!externalId || !link) continue;
     const rows = await query<any>(
       `INSERT INTO favorites (title, url, source, external_id)
@@ -239,6 +243,6 @@ router.post('/raindrop/sync', async (req: Request, res: Response) => {
     if (rows[0]) upserted += 1;
   }
   res.json({ ok: true, count: upserted });
-});
+}));
 
 export default router;

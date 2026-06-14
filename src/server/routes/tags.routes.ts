@@ -3,18 +3,21 @@ import { query } from '@/db/postgres';
 
 const router = Router();
 
-router.get('/tags', async (_req: Request, res: Response) => {
+const asyncHandler = (fn: Function) => (req: any, res: any, next: any) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
+router.get('/tags', asyncHandler(async (_req: Request, res: Response) => {
   const rows = await query(`SELECT * FROM tags ORDER BY name ASC`);
   res.json({ ok: true, items: rows });
-});
+}));
 
-router.delete('/tags/:id', async (req: Request, res: Response) => {
+router.delete('/tags/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   await query(`DELETE FROM tags WHERE id = $1`, [id]);
   res.json({ ok: true });
-});
+}));
 
-router.post('/tags', async (req: Request, res: Response) => {
+router.post('/tags', asyncHandler(async (req: Request, res: Response) => {
   const { name, color } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   const rows = await query(
@@ -25,6 +28,6 @@ router.post('/tags', async (req: Request, res: Response) => {
     [name, color || null]
   );
   res.status(201).json({ ok: true, item: rows[0], id: rows[0]?.id });
-});
+}));
 
 export default router;
