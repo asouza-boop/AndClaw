@@ -27,13 +27,18 @@ interface UnifiedItem {
 }
 
 const typeConfig: Record<string, { label: string; icon: any; variant: 'default' | 'success' | 'warning' | 'error' | 'info' }> = {
-  task:    { label: 'Tarefa',  icon: CheckSquare,  variant: 'success' },
-  meeting: { label: 'Reunião', icon: Calendar,     variant: 'info'    },
-  project: { label: 'Projeto', icon: FolderKanban, variant: 'warning' },
-  link:    { label: 'Link',    icon: LinkIcon,      variant: 'default' },
-  note:    { label: 'Nota',    icon: MessageSquare, variant: 'default' },
-  idea:    { label: 'Ideia',   icon: Sparkles,      variant: 'default' },
+  task:    { label: 'Tarefa',     icon: CheckSquare,   variant: 'success' },
+  meeting: { label: 'Reunião',   icon: Calendar,      variant: 'info'    },
+  project: { label: 'Projeto',   icon: FolderKanban,  variant: 'warning' },
+  link:    { label: 'Link',      icon: LinkIcon,       variant: 'default' },
+  note:    { label: 'Nota',      icon: MessageSquare,  variant: 'default' },
+  idea:    { label: 'Ideia',     icon: Sparkles,       variant: 'default' },
+  tool:    { label: 'Ferramenta', icon: MessageSquare, variant: 'default' },
 };
+
+function getTypeConfig(type: string | undefined | null) {
+  return typeConfig[type || 'note'] ?? typeConfig['note'];
+}
 
 function timeAgo(date: string) {
   if (!date) return '—';
@@ -130,7 +135,7 @@ function ContextCard({ item }: { item: UnifiedItem }) {
     meeting: '/reunioes',
     project: '/projetos',
   };
-  const Icon = typeConfig[item.type]?.icon || MessageSquare;
+  const Icon = getTypeConfig(item.type).icon;
 
   return (
     <Card style={{ padding: '0.75rem', display: 'flex',
@@ -142,7 +147,7 @@ function ContextCard({ item }: { item: UnifiedItem }) {
           {item.title}
         </div>
         <div style={{ fontSize: '0.7rem', opacity: 0.4 }}>
-          {typeConfig[item.type]?.label} · {timeAgo(item.createdAt)}
+          {getTypeConfig(item.type).label} · {timeAgo(item.createdAt)}
         </div>
       </div>
       <Button variant="ghost" size="sm"
@@ -167,7 +172,11 @@ export default function InboxPage() {
   /* Section A — Sinais para Triagem */
   const triageItems = useMemo(() =>
     captures
-      .filter((c: any) => c.status !== 'processed' && c.status !== 'archived')
+      .filter((c: any) =>
+        c != null &&
+        c.status !== 'processed' &&
+        c.status !== 'archived'
+      )
       .sort((a: any, b: any) =>
         new Date(b.created_at || b.createdAt).getTime() -
         new Date(a.created_at || a.createdAt).getTime()
@@ -198,9 +207,11 @@ export default function InboxPage() {
         status: m.status || 'scheduled', createdAt: m.meeting_date || m.created_at, raw: m
       }));
 
-    return items.sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    return items.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
   }, [tasks, meetings]);
 
   /* Mutations */
