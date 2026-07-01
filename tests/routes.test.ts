@@ -74,3 +74,39 @@ test('POST /api/llm/providers never exposes api_key and GET results are masked',
     globalConfig.db.url = originalDbUrl;
   }
 });
+
+test('POST /api/llm/providers rejects unsupported provider names before DB write', async () => {
+  const originalAuth = { ...globalConfig.auth };
+  const originalDbUrl = globalConfig.db.url;
+  globalConfig.auth.password = 'hash:secret-123';
+  globalConfig.auth.tokenSecret = 'integration-secret';
+  globalConfig.db.url = 'postgres://localhost/test';
+
+  const token = issueToken('andclaw-user');
+  const app = express();
+  app.use(express.json());
+  app.use('/api', authMiddleware);
+  app.use('/api', routes);
+
+  try {
+    const res = await request(app)
+      .post('/api/llm/providers')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        id: 'provider-2',
+        name: 'unknown-provider',
+        api_key: 'sk-secret',
+        base_url: 'https://example.com',
+        model: 'gpt-4o-mini',
+        priority: 10,
+      });
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.ok, false);
+    assert.equal(res.body.error, 'invalid_provider_name');
+  } finally {
+    globalConfig.auth.password = originalAuth.password;
+    globalConfig.auth.tokenSecret = originalAuth.tokenSecret;
+    globalConfig.db.url = originalDbUrl;
+  }
+});

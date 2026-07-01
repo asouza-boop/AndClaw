@@ -101,19 +101,32 @@ export class SkillLoader {
     
     const skillIndex = SkillLoader.skillsCache.findIndex(s => s.metadata.name === skillName);
     if (skillIndex !== -1) {
-      const skill = SkillLoader.skillsCache[skillIndex];
-      skill.metadata.status = 'active';
-      skill.metadata.plannerEnabled = true;
-      console.log(`[Observability] skill.promoted: '${skillName}'`);
-      
-      // Attempt to rewrite frontmatter on disk for persistence
       try {
-        // Simplified disk update: practically would parse string, update yaml and rewrite.
-        // For this step, we just update the cache and let future operations persist if needed.
+        const skill = SkillLoader.skillsCache[skillIndex];
+        const skillPath = path.join(this.skillsPath, skill.folderName, 'SKILL.md');
+        const fileContent = fs.readFileSync(skillPath, 'utf-8');
+        const match = fileContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+        if (!match) {
+          throw new Error(`Invalid skill frontmatter in ${skillPath}`);
+        }
+
+        const metadata = yaml.load(match[1]) as SkillMetadata;
+        metadata.status = 'active';
+        metadata.plannerEnabled = true;
+
+        const rewritten = `---\n${yaml.dump(metadata, { lineWidth: -1 }).trimEnd()}\n---\n${match[2]}`;
+        fs.writeFileSync(skillPath, rewritten, 'utf-8');
+
+        skill.metadata.status = 'active';
+        skill.metadata.plannerEnabled = true;
+        console.log(`[Observability] skill.promoted: '${skillName}'`);
+        return true;
       } catch (e) {
-         console.warn(`[SkillLoader] Could not persist promotion for '${skillName}' to disk.`);
+        console.warn(`[SkillLoader] Could not persist promotion for '${skillName}' to disk.`);
+        SkillLoader.skillsCache[skillIndex].metadata.status = 'experimental';
+        SkillLoader.skillsCache[skillIndex].metadata.plannerEnabled = false;
+        return false;
       }
-      return true;
     }
     return false;
   }

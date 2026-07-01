@@ -14,6 +14,8 @@ export interface ProviderRecord {
 }
 
 export class LLMProviderManager {
+  private static readonly MAX_FALLBACK_ATTEMPTS = 8;
+
   /**
    * Fetches all enabled providers from the database, ordered by priority.
    */
@@ -39,26 +41,28 @@ export class LLMProviderManager {
     defaultProvider: ILLMProvider
   ): Promise<{ response: any; providerUsed: string }> {
     const enabledProviders = await this.listEnabledProviders();
-    const candidates = enabledProviders.length > 0 
-      ? enabledProviders.map(p => this.mapToProvider(p))
-      : [defaultProvider];
+    const candidates = enabledProviders.length > 0
+      ? enabledProviders.map((p) => ({
+          provider: this.mapToProvider(p),
+          providerName: p.name,
+        }))
+      : [{ provider: defaultProvider, providerName: (defaultProvider as any).name || (defaultProvider as any).model || 'default' }];
 
     let lastError: any = null;
-    for (let i = 0; i < candidates.length; i++) {
-        const provider = candidates[i];
+    for (let i = 0; i < Math.min(candidates.length, LLMProviderManager.MAX_FALLBACK_ATTEMPTS); i++) {
+        const candidate = candidates[i];
         try {
             const start = Date.now();
-            const response = await provider.generateResponse(systemPrompt, messages, tools);
+            const response = await candidate.provider.generateResponse(systemPrompt, messages, tools);
             const latency = Date.now() - start;
-            
-            const providerName = (provider as any).model || 'unknown';
+
             logger.info('llm.fallback.success', { 
                 attempt: i + 1, 
-                provider: providerName,
+                provider: candidate.providerName,
                 latency 
             });
 
-            return { response, providerUsed: providerName };
+            return { response, providerUsed: candidate.providerName };
         } catch (err: any) {
             lastError = err;
             logger.warn('llm.fallback.attempt.failed', { 
@@ -75,7 +79,6 @@ export class LLMProviderManager {
    * Maps a DB record to an ILLMProvider instance.
    */
   private static mapToProvider(record: ProviderRecord): ILLMProvider {
-    // DB rows are keyed by provider name; keep id for bookkeeping only.
-    return ProviderFactory.getProvider(record.name || record.id);
+    return ProviderFactory.getProvider(record.name);
   }
 }
