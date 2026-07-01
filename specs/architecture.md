@@ -17,7 +17,7 @@ O AndClaw é um agente pessoal composto por:
 - **MemoryManager + pgvector** como camada de memória persistente
 - **ToolRegistry** como catálogo de capacidades executáveis
 
-O sistema passou a operar como **monólito modular**, com separação lógica entre core, memória, providers, server, DB e integrações.
+O sistema passou a operar como **monólito modular**, com separação lógica entre frontend, core, memória, providers, server, DB e integrações.
 
 ---
 
@@ -82,7 +82,8 @@ O sistema passou a operar como **monólito modular**, com separação lógica en
 
 ```mermaid
 flowchart LR
-  U[Usuário] --> S[Server/API]
+  U[Usuário] --> F[Frontend PWA]
+  F --> S[Server/API]
   S --> C[AgentController]
   C --> L[AgentLoop]
   L --> M[MemoryManager]
@@ -121,6 +122,5 @@ flowchart LR
 
 1. separar server em submódulos reais
 2. migrar `ToolRegistry` para ferramentas moduladas
-3. padronizar imports e camadas
+3. reforçar contratos da API do frontend
 4. revisar specs sempre que o código mudar
-

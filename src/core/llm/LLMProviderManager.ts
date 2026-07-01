@@ -30,19 +30,6 @@ export class LLMProviderManager {
   }
 
   /**
-   * Gets the primary provider (highest priority).
-   * Fallback to the default system provider if none found in DB.
-   */
-  static async getPrimaryProvider(): Promise<ILLMProvider | null> {
-    const providers = await this.listEnabledProviders();
-    if (providers.length > 0) {
-      const p = providers[0];
-      return this.mapToProvider(p);
-    }
-    return null;
-  }
-
-  /**
    * Executes an LLM call with a single-retry fallback mechanism.
    */
   static async executeWithFallback(
@@ -57,9 +44,7 @@ export class LLMProviderManager {
       : [defaultProvider];
 
     let lastError: any = null;
-    const maxRetries = 1; // Try primary + 1 fallback
-
-    for (let i = 0; i <= maxRetries && i < candidates.length; i++) {
+    for (let i = 0; i < candidates.length; i++) {
         const provider = candidates[i];
         try {
             const start = Date.now();
@@ -90,8 +75,7 @@ export class LLMProviderManager {
    * Maps a DB record to an ILLMProvider instance.
    */
   private static mapToProvider(record: ProviderRecord): ILLMProvider {
-    // We leverage the existing ProviderFactory logic but override config as needed
-    // This assumes names in DB match factory cases (gemini, deepseek, etc.)
-    return ProviderFactory.getProvider(record.id || record.name);
+    // DB rows are keyed by provider name; keep id for bookkeeping only.
+    return ProviderFactory.getProvider(record.name || record.id);
   }
 }
