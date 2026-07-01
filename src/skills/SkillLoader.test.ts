@@ -1,8 +1,14 @@
 import { SkillLoader } from './SkillLoader';
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { config } from '@/config/env';
 
 async function runTests() {
   const originalDateNow = Date.now;
+  const originalSkillsPath = config.paths.skills;
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'andclaw-skillloader-'));
 
   try {
     console.log("Running SkillLoader tests...");
@@ -43,9 +49,29 @@ async function runTests() {
     const skillsAfterTTL = newLoader.fetchSkills();
     assert.strictEqual(skillsAfterTTL.length, initialCount, "Should reload from disk after TTL");
 
+    // 5. promoteSkill persists to disk
+    const promotedSlug = 'promote-persist-test';
+    const promotedDir = path.join(tmpRoot, promotedSlug);
+    fs.mkdirSync(promotedDir, { recursive: true });
+    fs.writeFileSync(path.join(promotedDir, 'SKILL.md'), `---\nname: ${promotedSlug}\ndescription: test skill\nstatus: experimental\nplannerEnabled: false\n---\n\n# Test\n`, 'utf-8');
+    config.paths.skills = tmpRoot;
+    SkillLoader.invalidateAll();
+    const promotedLoader = new SkillLoader();
+    promotedLoader.fetchSkills();
+    assert.strictEqual(promotedLoader.promoteSkill(promotedSlug), true, 'promoteSkill should return true');
+    SkillLoader.invalidateAll();
+    const reloaded = promotedLoader.fetchSkills();
+    const promoted = reloaded.find((skill) => skill.metadata.name === promotedSlug);
+    assert.ok(promoted, 'Promoted skill must be reloaded from disk');
+    assert.strictEqual(promoted!.metadata.status, 'active');
+    assert.strictEqual(promoted!.metadata.plannerEnabled, true);
+
     console.log("✅ src/skills/SkillLoader.test.ts passed");
   } finally {
     Date.now = originalDateNow;
+    config.paths.skills = originalSkillsPath;
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+    SkillLoader.invalidateAll();
   }
 }
 

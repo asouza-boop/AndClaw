@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '@/db/postgres';
 import { maskLlmProvider } from './shared';
+import { ProviderFactory } from '@/providers/ProviderFactory';
 
 const router = Router();
 
@@ -14,6 +15,14 @@ router.get('/llm/providers', asyncHandler(async (_req: Request, res: Response) =
 
 router.post('/llm/providers', asyncHandler(async (req: Request, res: Response) => {
   const { id, name, api_key, base_url, model, priority } = req.body;
+  const supportedNames = ProviderFactory.getSupportedProviderNames();
+  if (!name || !supportedNames.includes(String(name).toLowerCase())) {
+    return res.status(400).json({
+      ok: false,
+      error: 'invalid_provider_name',
+      message: `Provider name must be one of: ${supportedNames.join(', ')}`,
+    });
+  }
   const rows = await query(
     `INSERT INTO llm_providers (id, name, api_key, base_url, model, priority)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,

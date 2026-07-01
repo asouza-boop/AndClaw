@@ -7,6 +7,23 @@ import { config } from '@/config/env';
 import { LocalOllamaProvider } from './LocalOllamaProvider';
 
 export class ProviderFactory {
+  private static readonly SUPPORTED_PROVIDER_NAMES = [
+    'gemini',
+    'gemini-flash',
+    'gemini-flash-key2',
+    'gemini-flash-key3',
+    'gemini-flash-lite',
+    'gemini-flash-lite-key2',
+    'openrouter',
+    'deepseek',
+    'ollama',
+    'local-ollama',
+  ];
+
+  static getSupportedProviderNames(): string[] {
+    return [...ProviderFactory.SUPPORTED_PROVIDER_NAMES];
+  }
+
   /**
    * Returns a single named provider.
    */
