@@ -9,6 +9,17 @@ export interface Initializer {
 
 export type ITool = Tool;
 
+const workspaceRoot = path.resolve(process.cwd());
+
+function resolveWorkspacePath(targetPath: string): string {
+    const absolute = path.resolve(workspaceRoot, targetPath);
+    const relative = path.relative(workspaceRoot, absolute);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error('Acesso fora do workspace bloqueado.');
+    }
+    return absolute;
+}
+
 export class ToolRegistry {
     private tools: Map<string, Tool> = new Map();
 
@@ -60,7 +71,7 @@ class FileSystemReadTool implements ITool {
     
     async execute({ path: filePath }: { path: string }): Promise<string> {
         try {
-            return fs.readFileSync(path.resolve(process.cwd(), filePath), 'utf-8');
+            return fs.readFileSync(resolveWorkspacePath(filePath), 'utf-8');
         } catch (e: any) {
             return `Erro ao ler arquivo: ${e.message}`;
         }
@@ -83,7 +94,7 @@ class FileSystemWriteTool implements ITool {
     
     async execute({ path: filePath, content }: { path: string, content: string }): Promise<string> {
         try {
-            const absolute = path.resolve(process.cwd(), filePath);
+            const absolute = resolveWorkspacePath(filePath);
             fs.mkdirSync(path.dirname(absolute), { recursive: true });
             fs.writeFileSync(absolute, content, 'utf-8');
             return `Arquivo salvo com sucesso em ${absolute}`;
@@ -109,7 +120,7 @@ class LSTool implements ITool {
 
     async execute({ path: dirPath = "." }: { path?: string }): Promise<string> {
         try {
-            const absolute = path.resolve(process.cwd(), dirPath);
+            const absolute = resolveWorkspacePath(dirPath);
             const files = fs.readdirSync(absolute);
             return files.join('\n');
         } catch (e: any) {
@@ -135,7 +146,7 @@ class GlobTool implements ITool {
 
     async execute({ pattern }: { pattern: string }): Promise<string> {
         try {
-            const matches = await glob(pattern, { cwd: process.cwd(), nodir: true });
+            const matches = await glob(pattern, { cwd: workspaceRoot, nodir: true });
             return matches.join('\n');
         } catch (e: any) {
             return `Erro ao executar glob: ${e.message}`;
@@ -162,7 +173,7 @@ class GrepTool implements ITool {
 
     async execute({ pattern, path: searchPath }: { pattern: string, path: string }): Promise<string> {
         try {
-            const absolute = path.resolve(process.cwd(), searchPath);
+            const absolute = resolveWorkspacePath(searchPath);
             const regex = new RegExp(pattern, 'i');
             const results: string[] = [];
 
