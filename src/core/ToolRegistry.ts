@@ -1,7 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+import { glob } from 'glob';
+import { z } from 'zod';
 import { Tool } from '@/modules/tools/Tool';
 import { UpdateProfileTool, DeleteProfileTool } from '@/modules/tools/profile';
 import { NotionTool } from '@/core/tools/NotionTool';
-import { z } from 'zod';
+import { config } from '@/config/env';
 
 export interface Initializer {
     execute(args: any): Promise<string>;
@@ -9,9 +13,12 @@ export interface Initializer {
 
 export type ITool = Tool;
 
-const workspaceRoot = path.resolve(process.cwd());
+function getWorkspaceRoot() {
+    return path.resolve(process.cwd());
+}
 
 function resolveWorkspacePath(targetPath: string): string {
+    const workspaceRoot = getWorkspaceRoot();
     const absolute = path.resolve(workspaceRoot, targetPath);
     const relative = path.relative(workspaceRoot, absolute);
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
@@ -51,10 +58,6 @@ export class ToolRegistry {
 }
 
 // Minimal implementation of default tools for the Agent Loop tests
-import fs from 'fs';
-import path from 'path';
-import { glob } from 'glob';
-import { config } from '@/config/env';
 
 class FileSystemReadTool implements ITool {
     name = "read_file";
@@ -146,7 +149,7 @@ class GlobTool implements ITool {
 
     async execute({ pattern }: { pattern: string }): Promise<string> {
         try {
-            const matches = await glob(pattern, { cwd: workspaceRoot, nodir: true });
+            const matches = await glob(pattern, { cwd: getWorkspaceRoot(), nodir: true });
             return matches.join('\n');
         } catch (e: any) {
             return `Erro ao executar glob: ${e.message}`;
