@@ -52,12 +52,12 @@ export function verifyLoginPassword(password: string): boolean {
   return verifyPassword(password, config.auth.password);
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+function authenticateRequest(req: Request, res: Response, next: NextFunction, allowQueryToken: boolean) {
   const auth = req.headers.authorization || '';
   let token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   
-  // Support token in query for SSE (EventSource doesn't support headers)
-  if (!token && req.query.token) {
+  // ponytail: query-token only for SSE, because EventSource cannot send Authorization headers.
+  if (allowQueryToken && !token && req.query.token) {
     token = String(req.query.token);
   }
 
@@ -67,4 +67,12 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
   }
   (req as any).user = verified;
   next();
+}
+
+export function authMiddleware(req: Request, res: Response, next: NextFunction) {
+  return authenticateRequest(req, res, next, false);
+}
+
+export function sseAuthMiddleware(req: Request, res: Response, next: NextFunction) {
+  return authenticateRequest(req, res, next, true);
 }

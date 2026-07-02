@@ -4,7 +4,7 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 import fs from 'fs';
 import path from 'path';
-import { authMiddleware } from '@/server/auth';
+import { authMiddleware, sseAuthMiddleware } from '@/server/auth';
 import { bootstrapGuard } from '@/server/admin';
 import { attachRequestContext } from '@/server/http';
 import { errorHandler } from '@/server/error-handler';
@@ -63,11 +63,13 @@ export function createApp() {
     const openPaths = ['/health', '/health/db', '/health/runtime', '/auth/login', '/auth/bootstrap', '/google/oauth/callback', '/api/auth/google', '/api/auth/google/callback'];
     if (openPaths.includes(req.path) || openPaths.includes(req.originalUrl.split('?')[0])) return next();
 
+    if (req.path.startsWith('/events')) return next();
+
     return bootstrapGuard(req, res, () => authMiddleware(req, res, next));
   });
 
   app.use('/api', routes);
-  app.use('/api/events', eventsRouter);
+  app.use('/api/events', (req, res, next) => bootstrapGuard(req, res, () => sseAuthMiddleware(req, res, next)), eventsRouter);
   registerCalendarSyncListener();
   app.get('/admin/metrics', (req, res, next) => {
     bootstrapGuard(req, res, () => authMiddleware(req, res, next));
