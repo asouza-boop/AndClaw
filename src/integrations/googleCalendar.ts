@@ -125,33 +125,42 @@ export async function importGoogleEvents(): Promise<void> {
   const batchRows: any[][] = [];
   
   for (const account of accounts) {
-    const calendar = getClient(account);
-    const calendars = await calendar.calendarList.list();
-    const list = calendars.data.items || [];
+    try {
+      const calendar = getClient(account);
+      const calendars = await calendar.calendarList.list();
+      const list = calendars.data.items || [];
 
-    for (const cal of list) {
-      const calendarId = cal.id || 'primary';
-      const events = await calendar.events.list({
-        calendarId,
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: 'startTime',
-      });
-
-      const items = events.data.items || [];
-      for (const event of items) {
-        const externalId = event.id || '';
-        if (!externalId) continue;
-
-        batchRows.push([
-          account.email,
+      for (const cal of list) {
+        const calendarId = cal.id || 'primary';
+        const events = await calendar.events.list({
           calendarId,
-          externalId,
-          event.summary || '',
-          event.start?.dateTime || event.start?.date || null,
-          event.end?.dateTime || event.end?.date || null,
-        ]);
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          orderBy: 'startTime',
+        });
+
+        const items = events.data.items || [];
+        for (const event of items) {
+          const externalId = event.id || '';
+          if (!externalId) continue;
+
+          batchRows.push([
+            account.email,
+            calendarId,
+            externalId,
+            event.summary || '',
+            event.start?.dateTime || event.start?.date || null,
+            event.end?.dateTime || event.end?.date || null,
+          ]);
+        }
+      }
+    } catch (err: any) {
+      const isScope = err?.code === 403 || err?.response?.headers?.['www-authenticate']?.includes('insufficient_scope');
+      if (isScope) {
+        console.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
+      } else {
+        console.error(`[GoogleCalendar] Erro ao sincronizar conta ${account.email}:`, err?.message ?? err);
       }
     }
   }
@@ -187,27 +196,36 @@ export async function exportTasksToGoogle(): Promise<void> {
   const exportAccounts = accounts.filter((account, idx) => account.exportTasks ?? idx === 0);
 
   for (const account of exportAccounts) {
-    const calendar = getClient(account);
-    const calendarId = account.calendarId || 'primary';
+    try {
+      const calendar = getClient(account);
+      const calendarId = account.calendarId || 'primary';
 
-    for (const task of tasks) {
-      const start = new Date(task.due_date);
-      const end = new Date(start.getTime() + 30 * 60000);
+      for (const task of tasks) {
+        const start = new Date(task.due_date);
+        const end = new Date(start.getTime() + 30 * 60000);
 
-      const event = await calendar.events.insert({
-        calendarId,
-        requestBody: {
-          summary: task.title,
-          description: `Task ID: ${task.id}`,
-          start: { dateTime: start.toISOString() },
-          end: { dateTime: end.toISOString() },
-          reminders: { useDefault: true },
-        },
-      });
+        const event = await calendar.events.insert({
+          calendarId,
+          requestBody: {
+            summary: task.title,
+            description: `Task ID: ${task.id}`,
+            start: { dateTime: start.toISOString() },
+            end: { dateTime: end.toISOString() },
+            reminders: { useDefault: true },
+          },
+        });
 
-      const eventId = event.data.id || null;
-      if (eventId) {
-        await query(`UPDATE tasks SET gcal_event_id = $1 WHERE id = $2`, [eventId, task.id]);
+        const eventId = event.data.id || null;
+        if (eventId) {
+          await query(`UPDATE tasks SET gcal_event_id = $1 WHERE id = $2`, [eventId, task.id]);
+        }
+      }
+    } catch (err: any) {
+      const isScope = err?.code === 403 || err?.response?.headers?.['www-authenticate']?.includes('insufficient_scope');
+      if (isScope) {
+        console.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
+      } else {
+        console.error(`[GoogleCalendar] Erro ao exportar tarefas para ${account.email}:`, err?.message ?? err);
       }
     }
   }
