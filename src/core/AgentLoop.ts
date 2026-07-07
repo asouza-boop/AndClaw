@@ -707,7 +707,7 @@ export class AgentLoop {
     }
 
     private buildInitialMessages(parsed: ReturnType<typeof AgentRunInputSchema.parse>): Array<{ role: string; content: string; audioData?: string; mimeType?: string }> {
-      const messages = this.contextBuilder.formatHistory(parsed.history) as Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
+      const messages = parsed.history.map(m => ({ role: m.role, content: m.content.trim() })) as Array<{ role: string; content: string; audioData?: string; mimeType?: string }>;
       const lastUserMessage: { role: string; content: string; audioData?: string; mimeType?: string } = { role: 'user', content: parsed.userInput };
 
       if (parsed.options.audioData) {
