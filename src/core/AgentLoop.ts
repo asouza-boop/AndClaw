@@ -26,8 +26,7 @@ import { ExecutionOrchestrator } from './execution/ExecutionOrchestrator';
 import { TaskDecomposer } from './agent/TaskDecomposer';
 import { TaskService } from './agent/TaskService';
 import { SubAgentSpawner } from './agent/SubAgentSpawner';
-import { ResultAggregator } from './agent/ResultAggregator';
-import { FeedbackEntry } from './learning/FeedbackCollector';
+import { FeedbackEntry } from './learning/OptimizationEngine';
 import { MeetingService } from './agent/MeetingService';
 import { ProjectService } from './agent/ProjectService';
 import { ExperimentEngine, ExperimentVariant } from './experiments/ExperimentEngine';
@@ -251,7 +250,32 @@ export class AgentLoop {
                     processOptimization: false,
                 });
 
-                return finalResponse(ResultAggregator.aggregate(subResults));
+                let aggregated = '';
+                if (subResults.length === 0) {
+                    aggregated = '[Sistema] Nenhum resultado de sub-agente para agregar.';
+                } else if (subResults.length === 1) {
+                    aggregated = subResults[0].output;
+                } else {
+                    const successes = subResults.filter(r => r.success);
+                    const failures = subResults.filter(r => !r.success);
+
+                    if (successes.length > 0) {
+                        for (const r of successes) {
+                            aggregated += `**Etapa ${r.taskId}** — ${r.description}\n${r.output}\n\n`;
+                        }
+                    }
+
+                    if (failures.length > 0) {
+                        aggregated += `---\n⚠️ **Etapas com falha:**\n`;
+                        for (const r of failures) {
+                            aggregated += `- Etapa ${r.taskId} (${r.description}): ${r.output.substring(0, 200)}\n`;
+                        }
+                    }
+                    console.log(`[Observability] agent.aggregation.complete: ${successes.length} succeeded, ${failures.length} failed.`);
+                    aggregated = aggregated.trim();
+                }
+
+                return finalResponse(aggregated);
             }
 
         try {

@@ -1,4 +1,4 @@
-import { FeedbackCollector, FeedbackEntry } from './src/core/learning/FeedbackCollector';
+import { FeedbackCollector, FeedbackEntry } from './src/core/learning/OptimizationEngine';
 import { PerformanceStore } from './src/core/learning/PerformanceStore';
 import { OptimizationEngine } from './src/core/learning/OptimizationEngine';
 
