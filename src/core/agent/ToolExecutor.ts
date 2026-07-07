@@ -19,13 +19,8 @@ import { EvaluationService } from '@/core/agent/EvaluationService';
 import type { ExecutionTrace, TraceStep } from '@/contracts/trace';
 import type { ActionPlanStep, ToolActionPlan } from '@/core/planner/ActionPlanner';
 
-function estimateTokens(messages: any[]): number {
-  return messages.reduce((total, m) => {
-    const content = typeof m.content === 'string'
-      ? m.content
-      : JSON.stringify(m.content);
-    return total + Math.ceil(content.length / 4);
-  }, 0);
+function estimateTokens(messages: Array<{ content: string }>): number {
+  return messages.reduce((total, m) => total + Math.ceil(m.content.length / 4), 0);
 }
 
 const MAX_CONTEXT_TOKENS = parseInt(process.env.MAX_CONTEXT_TOKENS || '28000', 10);

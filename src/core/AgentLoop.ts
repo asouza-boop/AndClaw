@@ -40,12 +40,6 @@ import { ToolExecutor } from './agent/ToolExecutor';
 
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-export class PauseTimeoutError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'PauseTimeoutError';
-    }
-}
 
 type AgentLoopDeps = {
     provider?: ILLMProvider;
@@ -176,7 +170,9 @@ export class AgentLoop {
             const pausedAt = Date.now();
             while (AgentControlState.isPaused(requestId)) {
                 if (Date.now() - pausedAt >= this.pauseTimeoutMs) {
-                    throw new PauseTimeoutError(`Pause timeout exceeded after ${this.pauseTimeoutMs}ms for request ${requestId}`);
+                    const err = new Error(`Pause timeout exceeded after ${this.pauseTimeoutMs}ms for request ${requestId}`);
+                    err.name = 'PauseTimeoutError';
+                    throw err;
                 }
                 if (!pausedOnce) {
                     addStep('agent.control.paused', 'pending', { requestId });
