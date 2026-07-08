@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EvaluationService } from '@/core/agent/EvaluationService';
-import { FeedbackEntry } from '@/core/learning/FeedbackCollector';
+import { FeedbackEntry } from '@/core/learning/OptimizationEngine';
 
 test('EvaluationService delegates evaluation and background telemetry', () => {
   const calls: string[] = [];
