@@ -1,6 +1,5 @@
 import { AgentEvaluator } from '@/core/evaluation/AgentEvaluator';
-import { FeedbackCollector, FeedbackEntry } from '@/core/learning/FeedbackCollector';
-import { OptimizationEngine } from '@/core/learning/OptimizationEngine';
+import { FeedbackCollector, FeedbackEntry, OptimizationEngine } from '@/core/learning/OptimizationEngine';
 import type { ExperimentVariant } from '@/core/experiments/ExperimentEngine';
 
 export type EvaluationServiceMetrics = {

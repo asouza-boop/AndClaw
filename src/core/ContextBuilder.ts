@@ -29,11 +29,4 @@ export class ContextBuilder {
 
     return blocks.filter(Boolean).join('\n\n');
   }
-
-  public formatHistory(history: AgentHistoryItem[]): AgentHistoryItem[] {
-    return history.map((message) => ({
-      role: message.role,
-      content: message.content.trim(),
-    }));
-  }
 }
