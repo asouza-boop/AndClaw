@@ -7,13 +7,17 @@ test('Step 2 Batch: MeetingService batch insert behavior', async (t) => {
     // Mock agent
     const mockAgent = {
         processInput: async () => JSON.stringify({
-            tasks: [
+            tasks_immediate: [
                 { title: 'Task A', priority: 'high' },
                 { title: 'Task B', priority: 'low' }
             ],
-            decisions: [],
+            tasks_future: [],
+            key_points: [],
+            alerts: [],
             ideas: [],
-            suggested_project: null
+            decisions: [],
+            memory_highlights: [],
+            participants_identified: []
         })
     };
 
@@ -35,13 +39,17 @@ test('Step 2 Batch: MeetingService batch insert behavior', async (t) => {
         // Run again with one new task and one duplicate
         const mockAgent2 = {
             processInput: async () => JSON.stringify({
-                tasks: [
+                tasks_immediate: [
                     { title: 'Task A', priority: 'high' }, // Duplicate
                     { title: 'Task C', priority: 'medium' } // New
                 ],
-                decisions: [],
+                tasks_future: [],
+                key_points: [],
+                alerts: [],
                 ideas: [],
-                suggested_project: null
+                decisions: [],
+                memory_highlights: [],
+                participants_identified: []
             })
         };
 
@@ -66,12 +74,16 @@ test('Step 2 Batch: MeetingService batch insert behavior', async (t) => {
         
         const mockAgentFail = {
             processInput: async () => JSON.stringify({
-                tasks: [
+                tasks_immediate: [
                     { title: null, priority: 'high' } // Should fail DB constraint
                 ],
-                decisions: [],
+                tasks_future: [],
+                key_points: [],
+                alerts: [],
                 ideas: [],
-                suggested_project: null
+                decisions: [],
+                memory_highlights: [],
+                participants_identified: []
             })
         };
 
@@ -83,13 +95,17 @@ test('Step 2 Batch: MeetingService batch insert behavior', async (t) => {
         // Let's try with one good, one bad.
         const mockAgentPartialFail = {
             processInput: async () => JSON.stringify({
-                tasks: [
+                tasks_immediate: [
                     { title: 'Task D', priority: 'high' },
                     { title: null, priority: 'low' }
                 ],
-                decisions: [],
+                tasks_future: [],
+                key_points: [],
+                alerts: [],
                 ideas: [],
-                suggested_project: null
+                decisions: [],
+                memory_highlights: [],
+                participants_identified: []
             })
         };
 
