@@ -154,7 +154,7 @@ test('API routes validate inputs, authorize requests and stay observable', async
       .post('/api/memory')
       .set('Authorization', `Bearer ${token}`)
       .send({ type: 'note', content: 'hello memory' });
-    assert.equal(memoryCreate.status, 200);
+    assert.equal(memoryCreate.status, 201);
     assert.equal(memoryCreate.body.item.content, 'hello memory');
 
     const memoryList = await request(app)
