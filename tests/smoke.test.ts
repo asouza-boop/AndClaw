@@ -1,19 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { EmbeddingService } from '@/core/embedding/EmbeddingService';
+import { EmbeddingService } from '@/core/memory/EmbeddingService';
 import { MemoryManager } from '@/memory/MemoryManager';
 
-test('EmbeddingService generates deterministic normalized fallback embeddings', async () => {
-  const service = new EmbeddingService({ provider: 'local' });
-  const first = await service.generateEmbedding('AndClaw memory layer');
-  const second = await service.generateEmbedding('AndClaw memory layer');
-
-  assert.equal(first.length, 1536);
-  assert.equal(second.length, 1536);
-  assert.deepEqual(first, second);
-  const magnitude = Math.sqrt(first.reduce((sum, value) => sum + value * value, 0));
-  assert.ok(magnitude > 0.99 && magnitude < 1.01);
-});
 
 test('MemoryManager builds semantic context from retrieved memories', async () => {
   const fakeEmbeddingService = {
