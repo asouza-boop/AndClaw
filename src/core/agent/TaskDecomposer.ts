@@ -24,14 +24,31 @@ export class TaskDecomposer {
         /\bvários?\b/i,
     ];
 
+    private static readonly EXCLUSION_INDICATORS = [
+        /\bcódigo\b/i,
+        /\brefatore\b/i,
+        /\brefatora\b/i,
+        /\bscript\b/i,
+        /\bfunção\b/i,
+        /\bexplique\b/i,
+        /\bexplica\b/i,
+        /\bresuma\b/i,
+        /\bresume\b/i,
+    ];
+
     /**
      * Determines if a task is complex based on heuristics.
      * If complex, calls the LLM to decompose it into sub-tasks.
      */
     public static async decompose(userInput: string): Promise<DecompositionResult> {
+        const hasExclusion = this.EXCLUSION_INDICATORS.some(p => p.test(userInput));
+        if (hasExclusion) {
+            return { isComplex: false, subTasks: [] };
+        }
+
         const isLikelyComplex = this.COMPLEXITY_INDICATORS.some(p => p.test(userInput));
 
-        if (!isLikelyComplex || userInput.length < 80) {
+        if (!isLikelyComplex || userInput.length < 150) {
             return { isComplex: false, subTasks: [] };
         }
 
