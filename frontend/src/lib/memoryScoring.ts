@@ -36,7 +36,10 @@ export function similarityScore(source: string, context: string) {
 }
 
 export function recencyScore(createdAt?: string) {
-  const timestamp = createdAt ? Date.parse(createdAt) : Date.now();
+  if (!createdAt) return 0;
+  const timestamp = Date.parse(createdAt);
+  if (Number.isNaN(timestamp)) return 0;
+  
   const ageHours = Math.max(0, (Date.now() - timestamp) / (1000 * 60 * 60));
   return 1 / (1 + ageHours / 24);
 }
