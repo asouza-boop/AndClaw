@@ -1,4 +1,5 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
+import { logger } from '@/infra/logger';
 
 export class LocalOllamaProvider implements ILLMProvider {
   private model: string;
@@ -13,9 +14,9 @@ export class LocalOllamaProvider implements ILLMProvider {
     try {
       const resp = await fetch('http://localhost:11434/api/tags');
       if (!resp.ok) throw new Error();
-      console.log(`[Ollama] Conectado com sucesso ao servidor local.`);
+      logger.info(`[Ollama] Conectado com sucesso ao servidor local.`);
     } catch (e) {
-      console.warn(`[Ollama] Servidor local não detectado em localhost:11434. Verifique se o Ollama está rodando.`);
+      logger.warn(`[Ollama] Servidor local não detectado em localhost:11434. Verifique se o Ollama está rodando.`);
       // We don't throw here to allow the chain to continue if it's just one provider failing
     }
   }
@@ -58,7 +59,10 @@ export class LocalOllamaProvider implements ILLMProvider {
       };
 
     } catch (e: any) {
-      console.error('[Ollama] Erro ao gerar resposta:', e.message);
+      logger.error('ollama.generate_failed', {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       throw e;
     }
   }

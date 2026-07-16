@@ -1,6 +1,7 @@
 import { ProviderFactory } from '@/providers/ProviderFactory';
 import { Skill } from './SkillLoader';
 import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
 
 export class SkillRouter {
   
@@ -24,7 +25,7 @@ export class SkillRouter {
       const triggers = skill.metadata.intentTriggers || [];
       for (const trigger of triggers) {
         if (normalizedInput.includes(trigger.toLowerCase())) {
-          console.log(`[SkillRouter] Exact trigger match: '${trigger}' -> ${skill.metadata.name}`);
+          logger.info(`[SkillRouter] Exact trigger match: '${trigger}' -> ${skill.metadata.name}`);
           return skill;
         }
       }
@@ -63,7 +64,10 @@ ${skillsPrompt}
       }
       return null;
     } catch (e) {
-      console.error('[SkillRouter] Error routing intent:', e);
+      logger.error('skill_router.routing_failed', {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       return null; // Fallback to casual chat
     }
   }

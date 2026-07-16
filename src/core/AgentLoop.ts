@@ -223,7 +223,7 @@ export class AgentLoop {
 
             const decomposition = await TaskDecomposer.decompose(parsed.userInput);
             if (decomposition.isComplex && decomposition.subTasks.length > 1) {
-                console.log(`[AgentLoop] Complex task detected. Spawning ${decomposition.subTasks.length} sub-agents.`);
+                logger.info(`[AgentLoop] Complex task detected. Spawning ${decomposition.subTasks.length} sub-agents.`);
                 const spawner = new SubAgentSpawner(this.providerName, this.registry);
                 const subResults = await spawner.spawnAll(decomposition.subTasks);
                 
@@ -271,7 +271,7 @@ export class AgentLoop {
                             aggregated += `- Etapa ${r.taskId} (${r.description}): ${r.output.substring(0, 200)}\n`;
                         }
                     }
-                    console.log(`[Observability] agent.aggregation.complete: ${successes.length} succeeded, ${failures.length} failed.`);
+                    logger.info(`[Observability] agent.aggregation.complete: ${successes.length} succeeded, ${failures.length} failed.`);
                     aggregated = aggregated.trim();
                 }
 
@@ -477,7 +477,10 @@ export class AgentLoop {
             try {
               cacheEmbedding = await this.embeddingService.generateEmbedding(cacheInput);
             } catch (embErr: any) {
-              logger.warn('agent.cache.embedding_skipped', { reason: embErr.message });
+              logger.warn('agent.cache.embedding_skipped', {
+                error: embErr instanceof Error ? embErr.message : String(embErr),
+                stack: embErr instanceof Error ? embErr.stack : undefined,
+              });
             }
 
             if (cacheEmbedding) {
@@ -634,7 +637,11 @@ export class AgentLoop {
             }
             return actionMessage;
         } catch (err: any) {
-            logger.warn('agent.routing.failed', { requestId, error: err.message });
+            logger.warn('agent.routing.failed', {
+              requestId,
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
             return null;
         }
     }

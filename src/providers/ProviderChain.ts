@@ -1,4 +1,5 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
+import { logger } from '@/infra/logger';
 
 /**
  * ProviderChain - wraps multiple providers and automatically retries on quota errors (429).
@@ -38,7 +39,7 @@ export class ProviderChain implements ILLMProvider {
         }
 
         if (i > 0) {
-          console.log(`[ProviderChain] ✅ Succeeded with fallback provider #${i + 1}: ${providerName}`);
+          logger.info(`[ProviderChain] ✅ Succeeded with fallback provider #${i + 1}: ${providerName}`);
         }
         return response;
 
@@ -53,27 +54,27 @@ export class ProviderChain implements ILLMProvider {
         const isProviderError = msg.includes('400') || msg.includes('Provider returned error');
 
         if (isQuotaError) {
-          console.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) hit quota limit. Trying next...`);
+          logger.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) hit quota limit. Trying next...`);
           continue;
         }
 
         if (isAuthError) {
-          console.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) not configured (missing/invalid key). Skipping...`);
+          logger.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) not configured (missing/invalid key). Skipping...`);
           continue;
         }
 
         if (isBalanceError) {
-          console.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) has no balance/credits. Skipping...`);
+          logger.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) has no balance/credits. Skipping...`);
           continue;
         }
 
         if (isPolicyError || isProviderError) {
-          console.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) error (400/Policy). Skipping...`);
+          logger.warn(`[ProviderChain] ⚠️ Provider #${i + 1} (${providerName}) error (400/Policy). Skipping...`);
           continue;
         }
 
         // Other errors - log and try next 
-        console.error(`[ProviderChain] ❌ Provider #${i + 1} (${providerName}) failed:`, msg);
+        logger.error('provider_chain.provider_failed', { provider: providerName, index: i + 1, error: msg });
         continue;
       }
     }

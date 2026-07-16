@@ -1,5 +1,6 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
 import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
 
 /**
  * OpenRouter provider - free tier supports Llama, Mistral, Gemma, etc.
@@ -79,7 +80,10 @@ export class OpenRouterProvider implements ILLMProvider {
       };
 
     } catch (e: any) {
-      console.error('[OpenRouter] Fetch error:', e.message);
+      logger.error('open_router.fetch_failed', {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       throw e;
     }
   }

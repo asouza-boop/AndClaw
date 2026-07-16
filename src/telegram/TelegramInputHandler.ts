@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 const pdf = require('pdf-parse');
 import * as XLSX from 'xlsx';
+import { logger } from '@/infra/logger';
 
 export class TelegramInputHandler {
     private bot: Bot;
@@ -23,7 +24,7 @@ export class TelegramInputHandler {
             if (!userId) return;
 
             if (!config.telegram.allowedUsers.includes(userId)) {
-                console.warn(`[TelegramInput] Tentativa de acesso bloqueado do UID: ${userId}`);
+                logger.warn(`[TelegramInput] Tentativa de acesso bloqueado do UID: ${userId}`);
                 return;
             }
             await next();
@@ -37,9 +38,13 @@ export class TelegramInputHandler {
         // Voice and Audio Handler
         this.bot.on(['message:voice', 'message:audio'], async (ctx) => {
             const userId = ctx.from.id.toString();
-            console.log(`[TelegramInput] Recebido áudio de ${userId}`);
+            logger.info(`[TelegramInput] Recebido áudio de ${userId}`);
 
-            ctx.replyWithChatAction('record_voice').catch(console.error);
+            ctx.replyWithChatAction('record_voice').catch((e) =>
+              logger.error('telegram.chat_action_failed', {
+                error: e instanceof Error ? e.message : String(e),
+              })
+            );
             const typingInterval = this.startTypingEffect(ctx, 'record_voice');
 
             try {
@@ -64,7 +69,10 @@ export class TelegramInputHandler {
                 
                 await this.safeReply(ctx, response);
             } catch (e: any) {
-                console.error(`[TelegramInput] Erro ao processar áudio:`, e);
+                logger.error('telegram.audio.process_failed', {
+                  error: e instanceof Error ? e.message : String(e),
+                  stack: e instanceof Error ? e.stack : undefined,
+                });
                 await this.safeReply(ctx, `[Sistema] Erro ao processar seu áudio: ${e.message}`);
             } finally {
                 clearInterval(typingInterval);
@@ -77,7 +85,11 @@ export class TelegramInputHandler {
         const doc = ctx.message.document;
         const fileName = doc.file_name || 'documento';
         
-        ctx.replyWithChatAction('typing').catch(console.error);
+        ctx.replyWithChatAction('typing').catch((e) =>
+          logger.error('telegram.chat_action_failed', {
+            error: e instanceof Error ? e.message : String(e),
+          })
+        );
         const typingInterval = this.startTypingEffect(ctx, 'typing');
 
         try {
@@ -106,7 +118,10 @@ export class TelegramInputHandler {
             
             await this.safeReply(ctx, result);
         } catch (e: any) {
-            console.error(`[TelegramInput] Erro ao processar documento:`, e);
+            logger.error('telegram.document.process_failed', {
+              error: e instanceof Error ? e.message : String(e),
+              stack: e instanceof Error ? e.stack : undefined,
+            });
             await this.safeReply(ctx, `[Sistema] Erro ao processar seu documento: ${e.message}`);
         } finally {
             clearInterval(typingInterval);
@@ -175,7 +190,10 @@ export class TelegramInputHandler {
 
         // Error Handler
         this.bot.catch((err) => {
-            console.error(`[Telegram Global Error]:`, err);
+            logger.error('telegram.global_error', {
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
         });
     }
 
@@ -193,16 +211,23 @@ export class TelegramInputHandler {
             );
         }
 
-        console.log(`[TelegramInput] Recebido de ${userId}: ${text.substring(0, 100)}...`);
+        logger.info(`[TelegramInput] Recebido de ${userId}: ${text.substring(0, 100)}...`);
 
-        ctx.replyWithChatAction('typing').catch(console.error);
+        ctx.replyWithChatAction('typing').catch((e) =>
+          logger.error('telegram.chat_action_failed', {
+            error: e instanceof Error ? e.message : String(e),
+          })
+        );
         const typingInterval = this.startTypingEffect(ctx, 'typing');
 
         try {
             const response = await this.controller.processInput(userId, text);
             await this.safeReply(ctx, response);
         } catch (e: any) {
-            console.error(`[TelegramInput] Erro ao processar mensagem:`, e);
+            logger.error('telegram.message.process_failed', {
+              error: e instanceof Error ? e.message : String(e),
+              stack: e instanceof Error ? e.stack : undefined,
+            });
             await this.safeReply(ctx, `[Sistema] Ocorreu um erro interno: ${e.message}`);
         } finally {
             clearInterval(typingInterval);
@@ -211,7 +236,11 @@ export class TelegramInputHandler {
 
     private startTypingEffect(ctx: Context, action: 'typing' | 'record_voice' = 'typing') {
         return setInterval(() => {
-            ctx.replyWithChatAction(action).catch(console.error);
+            ctx.replyWithChatAction(action).catch((e) =>
+              logger.error('telegram.chat_action_failed', {
+                error: e instanceof Error ? e.message : String(e),
+              })
+            );
         }, 4000);
     }
 
@@ -221,7 +250,7 @@ export class TelegramInputHandler {
      */
     private async safeReply(ctx: Context, text: string): Promise<void> {
         if (!text || text.trim().length === 0) {
-            console.warn('[TelegramInput] Tentativa de enviar mensagem vazia. Ignorando.');
+            logger.warn('[TelegramInput] Tentativa de enviar mensagem vazia. Ignorando.');
             return;
         }
 
@@ -230,12 +259,16 @@ export class TelegramInputHandler {
             await ctx.reply(sanitizeMarkdownV2(text), { parse_mode: 'MarkdownV2' });
         } catch (e: any) {
             // Fallback is no longer needed with the sanitizer, but keeping a simple log just in case
-            console.error('[TelegramInput] Falha crítica ao enviar resposta final (MarkdownV2):', e.message);
+            logger.error('telegram.safe_reply.markdown_failed', {
+              error: e instanceof Error ? e.message : String(e),
+            });
             // If even sanitizer fails, send as plain text
             try {
                 await ctx.reply(text);
             } catch (innerError: any) {
-                console.error('[TelegramInput] Falha total ao enviar resposta:', innerError.message);
+                logger.error('telegram.safe_reply.plain_failed', {
+                  error: innerError instanceof Error ? innerError.message : String(innerError),
+                });
             }
         }
     }

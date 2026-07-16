@@ -6,6 +6,7 @@ import { loadAuthFromDb as defaultLoadAuthFromDb, setSetting as defaultSetSettin
 import { hashPassword as defaultHashPassword, randomSecret as defaultRandomSecret } from '@/server/crypto';
 import { sendApiError } from '@/server/http';
 import { OAuth2Client } from 'google-auth-library';
+import { logger } from '@/infra/logger';
 
 export type AuthRouteDeps = {
   query: typeof defaultQuery;
@@ -169,7 +170,7 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
 
       // Check allowed emails
       if (deps.config.auth.allowedEmails.length > 0 && !deps.config.auth.allowedEmails.includes(email)) {
-        console.warn(`[AUTH] Blocked unauthorized login attempt from: ${email}`);
+        logger.warn(`[AUTH] Blocked unauthorized login attempt from: ${email}`);
         return res.redirect(`${frontendUrl}/login?error=auth_failed`);
       }
 
@@ -195,7 +196,10 @@ export function createAuthRoutes(overrides: Partial<AuthRouteDeps> = {}) {
       // Redirect to frontend callback route to store token
       res.redirect(`${frontendUrl}/auth/callback?token=${encodeURIComponent(jwt)}&state=${encodeURIComponent(state)}`);
     } catch (error) {
-      console.error('[AUTH] Google callback error:', error);
+      logger.error('auth.google_callback_failed', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       res.redirect(`${frontendUrl}/login?error=auth_failed`);
     }
   });

@@ -1,5 +1,6 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
 import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
 
 export class GeminiProvider implements ILLMProvider {
   private apiKey: string;
@@ -99,7 +100,10 @@ export class GeminiProvider implements ILLMProvider {
       };
       
     } catch (e: any) {
-      console.error('[GeminiProvider] Fetch error:', e.message);
+      logger.error('gemini.fetch_failed', {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       throw e;
     }
   }

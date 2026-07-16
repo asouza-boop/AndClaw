@@ -1,6 +1,7 @@
 import { AgentLoop } from '../AgentLoop';
 import { ToolRegistry } from '../ToolRegistry';
 import { SubTask } from './TaskDecomposer';
+import { logger } from '@/infra/logger';
 
 export interface SubAgentResult {
     taskId: number;
@@ -26,7 +27,7 @@ export class SubAgentSpawner {
         const results: SubAgentResult[] = [];
 
         for (const task of subTasks) {
-            console.log(`[Observability] agent.subagent.spawned: Sub-agent #${task.id} - "${task.description.substring(0, 60)}"`);
+            logger.info(`[Observability] agent.subagent.spawned: Sub-agent #${task.id} - "${task.description.substring(0, 60)}"`);
 
             const scopedPrompt = this.buildScopedPrompt(task, results);
 
@@ -43,7 +44,7 @@ export class SubAgentSpawner {
                 success = false;
             }
 
-            console.log(`[Observability] agent.subagent.completed: Sub-agent #${task.id} (success: ${success})`);
+            logger.info(`[Observability] agent.subagent.completed: Sub-agent #${task.id} (success: ${success})`);
 
             results.push({
                 taskId: task.id,

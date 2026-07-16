@@ -1,3 +1,4 @@
+import { logger } from '@/infra/logger';
 export class PromptInjectionDetector {
   private static readonly INJECTION_PATTERNS = [
     /ignore (all )?previous instructions/i,
@@ -19,13 +20,13 @@ export class PromptInjectionDetector {
 
     for (const pattern of this.INJECTION_PATTERNS) {
       if (pattern.test(normalizedInput)) {
-        console.log(`[Observability] security.scan.result: Failed (Prompt Injection)`);
-        console.warn(`[Observability] security.blocked: Execution blocked due to suspicious prompt injection pattern matching ${pattern.toString()}`);
+        logger.info(`[Observability] security.scan.result: Failed (Prompt Injection)`);
+        logger.warn(`[Observability] security.blocked: Execution blocked due to suspicious prompt injection pattern matching ${pattern.toString()}`);
         return { isSafe: false, reason: 'Suspicious prompt injection phrase detected' };
       }
     }
 
-    // console.log(`[Observability] security.scan.result: Passed (Prompt Injection)`);
+    // logger.info(`[Observability] security.scan.result: Passed (Prompt Injection)`);
     return { isSafe: true };
   }
 }

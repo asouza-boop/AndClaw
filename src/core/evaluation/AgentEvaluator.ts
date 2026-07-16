@@ -60,19 +60,19 @@ export class AgentEvaluator {
             }
         });
 
-        console.log(`\n--- [Agent Evaluation Metrics | Variant ${variant}] ---`);
-        console.log(`[Observability] agent.eval.latency: ${metrics.latencyMs}ms`);
-        console.log(`[Observability] agent.eval.toolsUsage: ${metrics.toolUsageCount} calls`);
-        console.log(`[Observability] agent.eval.iterations: ${metrics.totalIterations}`);
-        console.log(`[Observability] agent.eval.internalErrors: ${metrics.errorCount}`);
-        console.log(`[Observability] agent.eval.fallback: ${metrics.isFallback ? 'YES' : 'NO'}`);
+        logger.info(`\n--- [Agent Evaluation Metrics | Variant ${variant}] ---`);
+        logger.info(`[Observability] agent.eval.latency: ${metrics.latencyMs}ms`);
+        logger.info(`[Observability] agent.eval.toolsUsage: ${metrics.toolUsageCount} calls`);
+        logger.info(`[Observability] agent.eval.iterations: ${metrics.totalIterations}`);
+        logger.info(`[Observability] agent.eval.internalErrors: ${metrics.errorCount}`);
+        logger.info(`[Observability] agent.eval.fallback: ${metrics.isFallback ? 'YES' : 'NO'}`);
 
         if (metrics.success) {
-            console.log(`[Observability] agent.eval.success: Agent completed the workflow successfully.`);
+            logger.info(`[Observability] agent.eval.success: Agent completed the workflow successfully.`);
         } else {
-            console.warn(`[Observability] agent.eval.failure: Agent was aborted, blocked, or crashed.`);
+            logger.warn(`[Observability] agent.eval.failure: Agent was aborted, blocked, or crashed.`);
         }
-        console.log('----------------------------------\n');
+        logger.info('----------------------------------\n');
     }
 
     /**

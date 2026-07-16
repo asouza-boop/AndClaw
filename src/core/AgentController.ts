@@ -6,6 +6,7 @@ import { config } from '@/config/env';
 
 import { SuggestionService } from '@/core/agent/SuggestionService';
 import { MemoryDigestionService } from '@/core/agent/MemoryDigestionService';
+import { logger } from '@/infra/logger';
 
 export class AgentController {
     private memoryManager: MemoryManager;
@@ -23,11 +24,11 @@ export class AgentController {
      */
     public async processInput(userId: string, input: string, options: any = {}): Promise<any> {
         try {
-            console.log(`\n[Controller] Novo input de ${userId}`);
+            logger.info(`\n[Controller] Novo input de ${userId}`);
             
             // 1. Carregar habilidades do Disco (.agents/skills)
             const availableSkills = this.skillLoader.fetchSkills();
-            console.log(`[Controller] ${availableSkills.length} skills carregadas do sistema.`);
+            logger.info(`[Controller] ${availableSkills.length} skills carregadas do sistema.`);
 
             // 2. Pegar Histórico da Conversa Ativa
             const providerName = config.llm.defaultProvider;
@@ -57,7 +58,10 @@ export class AgentController {
             }
             return result;
         } catch (e: any) {
-            console.error(`[Controller] Falha crítica no pipeline:`, e);
+            logger.error('controller.pipeline_critical_failure', {
+              error: e instanceof Error ? e.message : String(e),
+              stack: e instanceof Error ? e.stack : undefined,
+            });
             return `[Erro Crítico] Ocorreu uma falha ao processar sua solicitação: ${e.message}. Por favor, tente novamente em instantes.`;
         }
     }
@@ -68,7 +72,7 @@ export class AgentController {
     public async clearHistory(userId: string): Promise<void> {
         const providerName = config.llm.defaultProvider;
         await this.memoryManager.initConversation(userId, providerName);
-        console.log(`[Controller] Histórico limpo para usuário ${userId}`);
+        logger.info(`[Controller] Histórico limpo para usuário ${userId}`);
     }
 
     /**

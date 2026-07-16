@@ -5,6 +5,7 @@ import { OpenRouterProvider } from './OpenRouterProvider';
 import { ProviderChain } from './ProviderChain';
 import { config } from '@/config/env';
 import { LocalOllamaProvider } from './LocalOllamaProvider';
+import { logger } from '@/infra/logger';
 
 export class ProviderFactory {
   private static readonly SUPPORTED_PROVIDER_NAMES = [
@@ -48,7 +49,7 @@ export class ProviderFactory {
       case 'local-ollama':
         return new LocalOllamaProvider(config.llm.ollamaModel);
       default:
-        console.warn(`[Factory] Unknown provider '${name}'. Falling back to Gemini.`);
+        logger.warn(`[Factory] Unknown provider '${name}'. Falling back to Gemini.`);
         return new GeminiProvider('gemini-2.0-flash', config.llm.geminiKey);
     }
   }
@@ -62,17 +63,17 @@ export class ProviderFactory {
       try {
         return ProviderFactory.getProvider(name);
       } catch {
-        console.warn(`[Factory] Could not create provider '${name}', skipping.`);
+        logger.warn(`[Factory] Could not create provider '${name}', skipping.`);
         return null;
       }
     }).filter((p): p is ILLMProvider => p !== null);
 
     if (providers.length === 0) {
-      console.error('[Factory] No providers in chain! Defaulting to Gemini Flash.');
+      logger.error('[Factory] No providers in chain! Defaulting to Gemini Flash.');
       return new ProviderChain([new GeminiProvider('gemini-1.5-flash')]);
     }
 
-    console.log(`[Factory] Provider chain: ${config.llm.providerChain.join(' → ')}`);
+    logger.info(`[Factory] Provider chain: ${config.llm.providerChain.join(' → ')}`);
     return new ProviderChain(providers);
   }
 }

@@ -2,17 +2,18 @@ import { Bot } from 'grammy';
 import { config } from './config/env';
 import { TelegramInputHandler } from './telegram/TelegramInputHandler';
 import { startServer } from './server';
+import { logger } from '@/infra/logger';
 
 async function bootstrap() {
-    console.log("================================================");
-    console.log("   🚀 Inicializando AndClaw       ");
-    console.log("================================================");
+    logger.info("================================================");
+    logger.info("   🚀 Inicializando AndClaw       ");
+    logger.info("================================================");
     
     await startServer();
 
     try {
         if (!config.telegram.token || config.telegram.token === 'YOUR_TELEGRAM_BOT_TOKEN') {
-            console.warn("⚠️ Telegram desativado: TOKEN inválido.");
+            logger.warn("⚠️ Telegram desativado: TOKEN inválido.");
             return;
         }
 
@@ -21,30 +22,39 @@ async function bootstrap() {
         
         inputHandler.startListen();
 
-        console.log(`✅ Conectando ao Telegram...`);
-        console.log(`🔒 ID Protegidos: [${config.telegram.allowedUsers.join(', ')}]`);
+        logger.info(`✅ Conectando ao Telegram...`);
+        logger.info(`🔒 ID Protegidos: [${config.telegram.allowedUsers.join(', ')}]`);
         
         // Start long polling
         await bot.start({
             onStart: (botInfo) => {
-                console.log(`🤖 Bot iniciado com sucesso como @${botInfo.username}`);
-                console.log(`🧠 Provider Ativo: ${config.llm.defaultProvider.toUpperCase()}`);
+                logger.info(`🤖 Bot iniciado com sucesso como @${botInfo.username}`);
+                logger.info(`🧠 Provider Ativo: ${config.llm.defaultProvider.toUpperCase()}`);
             }
         });
 
     } catch (e: any) {
-        console.error("❌ Falha na inicialização do serviço:", e);
+        logger.error('bootstrap.init_failed', {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
         process.exit(1);
     }
 }
 
 // Global exception handling
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Unhandled Rejection]', reason);
+  logger.error('process.unhandled_rejection', {
+    error: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('[Uncaught Exception]', error);
+  logger.error('process.uncaught_exception', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
 });
 
 bootstrap();
