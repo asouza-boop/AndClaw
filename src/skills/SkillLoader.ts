@@ -85,7 +85,11 @@ export class SkillLoader {
           }
         }
       } catch (e) {
-        logger.error(`[SkillLoader] Error reading directory ${searchPath}`, e as any);
+        logger.error('skill_loader.read_dir_failed', {
+          path: searchPath,
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
       }
     }
     
@@ -162,7 +166,9 @@ export class SkillLoader {
            return { metadata, markdown: match[2] };
         }
       } catch (e) {
-         logger.warn('[SkillLoader] YAML Parse Error:', e as any);
+         logger.warn('skill_loader.yaml_parse_error', {
+          error: e instanceof Error ? e.message : String(e),
+        });
       }
     }
     return null;

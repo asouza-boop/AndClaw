@@ -74,7 +74,7 @@ export class ProviderChain implements ILLMProvider {
         }
 
         // Other errors - log and try next 
-        logger.error(`[ProviderChain] ❌ Provider #${i + 1} (${providerName}) failed:`, msg);
+        logger.error('provider_chain.provider_failed', { provider: providerName, index: i + 1, error: msg });
         continue;
       }
     }

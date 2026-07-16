@@ -34,18 +34,27 @@ async function bootstrap() {
         });
 
     } catch (e: any) {
-        logger.error("❌ Falha na inicialização do serviço:", e as any);
+        logger.error('bootstrap.init_failed', {
+          error: e instanceof Error ? e.message : String(e),
+          stack: e instanceof Error ? e.stack : undefined,
+        });
         process.exit(1);
     }
 }
 
 // Global exception handling
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('[Unhandled Rejection]', reason as any);
+  logger.error('process.unhandled_rejection', {
+    error: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
 });
 
 process.on('uncaughtException', (error) => {
-  logger.error('[Uncaught Exception]', error as any);
+  logger.error('process.uncaught_exception', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
 });
 
 bootstrap();
