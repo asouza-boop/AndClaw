@@ -4,6 +4,7 @@ import yaml from 'js-yaml';
 import { config } from '@/config/env';
 import { SkillValidator } from '../core/skills/SkillValidator';
 import { SkillContract } from '../core/skills/SkillContract';
+import { logger } from '@/infra/logger';
 
 // Backward-compatible alias — all consumers importing SkillMetadata continue to work
 export type SkillMetadata = SkillContract;
@@ -19,7 +20,7 @@ export class SkillLoader {
 
   constructor() {
     if (!fs.existsSync(this.skillsPath)) {
-      console.log(`[SkillLoader] Creating skills dir at ${this.skillsPath}`);
+      logger.info(`[SkillLoader] Creating skills dir at ${this.skillsPath}`);
       fs.mkdirSync(this.skillsPath, { recursive: true });
     }
   }
@@ -31,11 +32,11 @@ export class SkillLoader {
   public fetchSkills(): Skill[] {
     const now = Date.now();
     if (SkillLoader.skillsCache && (now - SkillLoader.cacheTimestamp) < SkillLoader.CACHE_TTL_MS) {
-      // console.log(`[SkillLoader] Servindo ${SkillLoader.skillsCache.length} skills do cache.`);
+      // logger.info(`[SkillLoader] Servindo ${SkillLoader.skillsCache.length} skills do cache.`);
       return SkillLoader.skillsCache;
     }
 
-    console.log(`[SkillLoader] Cache vazio. Carregando skills do disco...`);
+    logger.info(`[SkillLoader] Cache vazio. Carregando skills do disco...`);
     const skills: Skill[] = [];
     const possiblePaths = [
       this.skillsPath,
@@ -74,17 +75,17 @@ export class SkillLoader {
                     skills[existingIndex] = skillData;
                   } else {
                     skills.push(skillData);
-                    console.log(`[Observability] skill.created: '${skillData.metadata.name}' (Status: ${skillData.metadata.status})`);
+                    logger.info(`[Observability] skill.created: '${skillData.metadata.name}' (Status: ${skillData.metadata.status})`);
                   }
                 } else {
-                   console.log(`[Observability] skill.rejected: '${parsed.metadata.name}'`);
+                   logger.info(`[Observability] skill.rejected: '${parsed.metadata.name}'`);
                 }
               }
             }
           }
         }
       } catch (e) {
-        console.error(`[SkillLoader] Error reading directory ${searchPath}`, e);
+        logger.error(`[SkillLoader] Error reading directory ${searchPath}`, e as any);
       }
     }
     
@@ -119,10 +120,10 @@ export class SkillLoader {
 
         skill.metadata.status = 'active';
         skill.metadata.plannerEnabled = true;
-        console.log(`[Observability] skill.promoted: '${skillName}'`);
+        logger.info(`[Observability] skill.promoted: '${skillName}'`);
         return true;
       } catch (e) {
-        console.warn(`[SkillLoader] Could not persist promotion for '${skillName}' to disk.`);
+        logger.warn(`[SkillLoader] Could not persist promotion for '${skillName}' to disk.`);
         SkillLoader.skillsCache[skillIndex].metadata.status = 'experimental';
         SkillLoader.skillsCache[skillIndex].metadata.plannerEnabled = false;
         return false;
@@ -161,7 +162,7 @@ export class SkillLoader {
            return { metadata, markdown: match[2] };
         }
       } catch (e) {
-         console.warn('[SkillLoader] YAML Parse Error:', e);
+         logger.warn('[SkillLoader] YAML Parse Error:', e as any);
       }
     }
     return null;
