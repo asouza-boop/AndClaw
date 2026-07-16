@@ -1,3 +1,4 @@
+import { logger } from '@/infra/logger';
 export class DependencyScanner {
   // Simple heuristic for potentially malicious dependency execution patterns
   private static readonly SUSPICIOUS_PATTERNS = [
@@ -20,8 +21,8 @@ export class DependencyScanner {
     // 1. Detect suspicious execution patterns
     for (const pattern of this.SUSPICIOUS_PATTERNS) {
       if (pattern.test(normalizedPayload)) {
-         console.log(`[Observability] security.scan.result: Failed (Dependency/Payload Scanner)`);
-         console.warn(`[Observability] security.blocked: Execution blocked due to suspicious payload pattern matching ${pattern.toString()}`);
+         logger.info(`[Observability] security.scan.result: Failed (Dependency/Payload Scanner)`);
+         logger.warn(`[Observability] security.blocked: Execution blocked due to suspicious payload pattern matching ${pattern.toString()}`);
          return { isSafe: false, reason: 'Suspicious payload or command injection pattern detected' };
       }
     }
@@ -33,13 +34,13 @@ export class DependencyScanner {
       const packageName = installMatch[3];
       // If the package name contains strange characters, flag it.
       if (/[<>&|!*$]/.test(packageName)) {
-         console.log(`[Observability] security.scan.result: Failed (Dependency/Payload Scanner)`);
-         console.warn(`[Observability] security.blocked: Execution blocked due to malformed dependency name: ${packageName}`);
+         logger.info(`[Observability] security.scan.result: Failed (Dependency/Payload Scanner)`);
+         logger.warn(`[Observability] security.blocked: Execution blocked due to malformed dependency name: ${packageName}`);
          return { isSafe: false, reason: 'Malformed dependency name detected' };
       }
     }
 
-    // console.log(`[Observability] security.scan.result: Passed (Dependency Scanner)`);
+    // logger.info(`[Observability] security.scan.result: Passed (Dependency Scanner)`);
     return { isSafe: true };
   }
 }

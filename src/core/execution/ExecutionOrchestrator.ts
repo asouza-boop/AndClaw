@@ -1,5 +1,6 @@
 import { ToolRegistry } from '../ToolRegistry';
 import { DependencyScanner } from '../../modules/tools/security/dependencyScanner';
+import { logger } from '@/infra/logger';
 
 export interface ExecutionStep {
     name: string;
@@ -29,7 +30,7 @@ export class ExecutionOrchestrator {
         let previousOutput: any = null;
 
         for (const step of steps) {
-            console.log(`[Observability] execution.step.start: ${step.name}`);
+            logger.info(`[Observability] execution.step.start: ${step.name}`);
             let observation = "";
             let success = false;
             
@@ -37,13 +38,13 @@ export class ExecutionOrchestrator {
 
             if (!tool) {
                 observation = `Erro: Ferramenta '${step.name}' não existe no ToolRegistry local.`;
-                console.log(`[Observability] execution.error: ${observation}`);
+                logger.info(`[Observability] execution.error: ${observation}`);
             } else {
                 // 1. Dependency/Security check
                 const dependencyCheck = DependencyScanner.scan(step.arguments);
                 if (!dependencyCheck.isSafe) {
                     observation = `[Erro de Segurança] O agente tentou executar uma ação bloqueada pelas diretrizes de proteção (Supply Chain Sentinel): ${dependencyCheck.reason}`;
-                    console.log(`[Observability] execution.error: Security Blocked for ${step.name}`);
+                    logger.info(`[Observability] execution.error: Security Blocked for ${step.name}`);
                     // Throw immediately to abort the whole loop
                     throw new Error(observation);
                 }
@@ -60,9 +61,9 @@ export class ExecutionOrchestrator {
                         previousOutput = observation;
                         break; 
                     } catch (e: any) {
-                        console.log(`[Observability] execution.error: Failed to execute ${step.name}: ${e.message}`);
+                        logger.info(`[Observability] execution.error: Failed to execute ${step.name}: ${e.message}`);
                         if (retries > 0) {
-                            console.log(`[ExecutionOrchestrator] Retrying step ${step.name}...`);
+                            logger.info(`[ExecutionOrchestrator] Retrying step ${step.name}...`);
                             retries--;
                         } else {
                             observation = `Falha ao executar ${step.name}: ${e.message}`;
@@ -72,7 +73,7 @@ export class ExecutionOrchestrator {
                 }
             }
 
-            console.log(`[Observability] execution.step.end: ${step.name}`);
+            logger.info(`[Observability] execution.step.end: ${step.name}`);
             results.push({ name: step.name, observation, success });
         }
 
