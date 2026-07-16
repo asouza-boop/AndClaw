@@ -1,5 +1,6 @@
 import { ILLMProvider, LLMResponse } from './ILLMProvider';
 import { config } from '@/config/env';
+import { logger } from '@/infra/logger';
 
 export class DeepSeekProvider implements ILLMProvider {
   private apiKey: string;
@@ -76,7 +77,10 @@ export class DeepSeekProvider implements ILLMProvider {
       };
       
     } catch (e: any) {
-      console.error('[DeepSeekProvider] Fetch error:', e.message);
+      logger.error('deepseek.fetch_failed', {
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
       throw e;
     }
   }

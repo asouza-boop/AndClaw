@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import { logger } from '@/infra/logger';
 
 // Load .env file
 dotenv.config();
@@ -81,9 +82,9 @@ export const config = {
 
 // Validate critical variables
 if (!config.telegram.token) {
-  console.warn('WARNING: TELEGRAM_BOT_TOKEN is not set in environment variables.');
+  logger.warn('WARNING: TELEGRAM_BOT_TOKEN is not set in environment variables.');
 }
 
 if (config.telegram.allowedUsers.length === 0 || config.telegram.allowedUsers[0] === '') {
-  console.warn('WARNING: TELEGRAM_ALLOWED_USER_IDS is not set. Bot will reject all users.');
+  logger.warn('WARNING: TELEGRAM_ALLOWED_USER_IDS is not set. Bot will reject all users.');
 }

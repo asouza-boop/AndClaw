@@ -12,6 +12,7 @@ import { config } from '@/config/env';
 import { metrics } from '@/infra/metrics/MetricsService';
 import eventsRouter from '@/server/routes/events.routes';
 import { registerCalendarSyncListener } from '@/core/listeners/CalendarSyncListener';
+import { logger } from '@/infra/logger';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
 
@@ -55,7 +56,7 @@ export function createApp() {
 
   const frontendDistDir = path.join(process.cwd(), 'frontend', 'dist');
   if (!fs.existsSync(frontendDistDir)) {
-    console.warn('[frontend] frontend/dist not found. Run `npm run frontend:build` before starting the server.');
+    logger.warn('[frontend] frontend/dist not found. Run `npm run frontend:build` before starting the server.');
   }
   app.use(express.static(frontendDistDir));
 
