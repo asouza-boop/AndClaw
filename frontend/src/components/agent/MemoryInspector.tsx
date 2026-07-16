@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Clock3, Eye, Pin, PinOff, Sparkles, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { computeMemoryScore, recencyScore, similarityScore } from '@/lib/memoryScoring';
 import type { MemoryItem } from '@/components/memory/MemoryCard';
 import { useAgentStore } from '@/stores/agentStore';
 
@@ -40,39 +41,6 @@ function parseMemory(memory: MemoryItem) {
     body: body || content,
     summary: summary || 'No summary available.',
   };
-}
-
-function tokenize(text: string) {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-      .split(/\s+/)
-      .map((word) => word.trim())
-      .filter((word) => word.length > 2),
-  );
-}
-
-function similarityScore(source: string, context: string) {
-  const sourceTokens = tokenize(source);
-  const contextTokens = tokenize(context);
-  if (sourceTokens.size === 0 || contextTokens.size === 0) return 0;
-  
-  let matches = 0;
-  sourceTokens.forEach((token) => {
-    if (contextTokens.has(token)) matches += 1;
-  });
-  
-  return matches / Math.max(sourceTokens.size, contextTokens.size);
-}
-
-function recencyScore(createdAt?: string) {
-  if (!createdAt) return 0;
-  const timestamp = Date.parse(createdAt);
-  if (Number.isNaN(timestamp)) return 0;
-  
-  const ageHours = Math.max(0, (Date.now() - timestamp) / (1000 * 60 * 60));
-  return 1 / (1 + ageHours / 24);
 }
 
 function formatRecency(createdAt?: string) {
@@ -132,7 +100,7 @@ export function MemoryInspector({
         const recency = recencyScore(item.created_at);
         const pinned = pinnedIds.includes(String(item.id));
         const used = usedMemoryIds.has(String(item.id)) || (usedMemoryIds.size === 0 && similarity >= 0.4);
-        const score = (similarity * 0.72) + (recency * 0.28);
+        const score = computeMemoryScore(similarity, recency);
         return { ...item, similarity, recency, pinned, used, score };
       })
       .sort((a, b) => {
