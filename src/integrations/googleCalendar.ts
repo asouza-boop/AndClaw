@@ -4,6 +4,7 @@ import { config } from '@/config/env';
 import { ensureSchema } from '@/db/schema';
 import { query } from '@/db/postgres';
 import { encrypt, decrypt } from '@/lib/crypto';
+import { logger } from '@/infra/logger';
 
 interface GoogleAccountConfig {
   email: string;
@@ -158,9 +159,13 @@ export async function importGoogleEvents(): Promise<void> {
     } catch (err: any) {
       const isScope = err?.code === 403 || err?.response?.headers?.['www-authenticate']?.includes('insufficient_scope');
       if (isScope) {
-        console.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
+        logger.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
       } else {
-        console.error(`[GoogleCalendar] Erro ao sincronizar conta ${account.email}:`, err?.message ?? err);
+        logger.error('google_calendar.sync_failed', {
+          email: account.email,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
       }
     }
   }
@@ -223,9 +228,13 @@ export async function exportTasksToGoogle(): Promise<void> {
     } catch (err: any) {
       const isScope = err?.code === 403 || err?.response?.headers?.['www-authenticate']?.includes('insufficient_scope');
       if (isScope) {
-        console.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
+        logger.warn(`[GoogleCalendar] Token sem escopo de Calendar para ${account.email}. Reconecte em /api/google/auth`);
       } else {
-        console.error(`[GoogleCalendar] Erro ao exportar tarefas para ${account.email}:`, err?.message ?? err);
+        logger.error('google_calendar.export_failed', {
+          email: account.email,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
       }
     }
   }

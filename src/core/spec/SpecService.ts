@@ -1,3 +1,4 @@
+import { logger } from '@/infra/logger';
 export interface ValidationResult {
     isValid: boolean;
     reason?: string;
@@ -20,7 +21,7 @@ export class SpecService {
      */
     public static validatePlan(toolCalls: any[]): ValidationResult {
         if (!Array.isArray(toolCalls)) {
-            console.log(`[Observability] spec.validation.fail: Plan is not an array`);
+            logger.info(`[Observability] spec.validation.fail: Plan is not an array`);
             return { isValid: false, reason: "Formato de plano inválido: Era esperado um array de tool calls." };
         }
 
@@ -31,7 +32,7 @@ export class SpecService {
         for (const call of toolCalls) {
             // 1. Validate structure
             if (!call.name || typeof call.name !== 'string') {
-                console.log(`[Observability] spec.validation.fail: Formato do call inválido`);
+                logger.info(`[Observability] spec.validation.fail: Formato do call inválido`);
                 return { isValid: false, reason: "Estrutura do plano inválida: Propriedade 'name' da ferramenta está faltando ou incorreta." };
             }
 
@@ -40,7 +41,7 @@ export class SpecService {
             
             for (const pattern of this.RESTRICTED_PATTERNS) {
                 if (pattern.test(stringifiedArgs)) {
-                    console.log(`[Observability] spec.validation.fail: Restricted action detected: ${pattern.toString()} in ${call.name}`);
+                    logger.info(`[Observability] spec.validation.fail: Restricted action detected: ${pattern.toString()} in ${call.name}`);
                     return { 
                         isValid: false, 
                         reason: `Ação restrita bloqueada pela constituição do sistema (Spec Governance): Detecção de padrão perigoso (${pattern.toString()}) na ferramenta ${call.name}.` 
@@ -51,7 +52,7 @@ export class SpecService {
             // More rule logic can be read natively from Constitution.md or dynamically expanded here
         }
 
-        console.log(`[Observability] spec.validation.pass: Plano validado sem restrições constitutionais.`);
+        logger.info(`[Observability] spec.validation.pass: Plano validado sem restrições constitutionais.`);
         return { isValid: true };
     }
 }
